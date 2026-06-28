@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BundleMaker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:    #0d1b2a;
+  --navy2:   #162236;
+  --navy3:   #1e3050;
+  --gold:    #c9a84c;
+  --gold2:   #e8c96a;
+  --gold3:   #f5e4a8;
+  --parchment: #f7f3eb;
+  --parchment2:#ede8de;
+  --white:   #ffffff;
+  --ink:     #0d1b2a;
+  --ink2:    #2c3e50;
+  --muted:   #6b7280;
+  --border:  #d4c9b0;
+  --border2: #e8e2d6;
+  --shadow:  0 2px 12px rgba(13,27,42,0.10);
+  --shadow2: 0 4px 24px rgba(13,27,42,0.15);
+  --radius:  6px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--parchment);
+  color:var(--ink);
+  min-height:100vh;
+  font-size:14px;
+  line-height:1.5;
+}
+
+/* ── Header ───────────────────────────────────────── */
+header{
+  background:var(--navy);
+  background-image: linear-gradient(135deg, #0d1b2a 0%, #162236 60%, #1a2f48 100%);
+  color:#fff;
+  padding:0 40px;
+  border-bottom:3px solid var(--gold);
+  position:relative;
+  overflow:hidden;
+}
+header::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 80px,
+    rgba(201,168,76,0.03) 80px,
+    rgba(201,168,76,0.03) 81px
+  );
+  pointer-events:none;
+}
+.header-inner{
+  max-width:1200px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  gap:24px;
+  padding:20px 0;
+}
+.header-icon{
+  flex-shrink:0;
+  width:52px; height:52px;
+  background:rgba(201,168,76,0.12);
+  border:1.5px solid rgba(201,168,76,0.35);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.header-text{flex:1}
+.header-text h1{
+  font-family:'Cormorant Garamond',Georgia,serif;
+  font-size:2rem;
+  font-weight:700;
+  letter-spacing:0.04em;
+  color:#fff;
+  line-height:1.1;
+}
+.header-text h1 span{color:var(--gold)}
+.header-subtitle{
+  margin-top:4px;
+  font-size:0.78rem;
+  font-weight:300;
+  color:rgba(255,255,255,0.55);
+  letter-spacing:0.02em;
+  max-width:580px;
+  line-height:1.5;
+}
+.header-badge{
+  font-size:0.7rem;
+  font-weight:500;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--gold);
+  border:1px solid rgba(201,168,76,0.35);
+  border-radius:20px;
+  padding:5px 14px;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+
+/* ── Layout ───────────────────────────────────────── */
+.page{max-width:1200px;margin:0 auto;padding:32px 24px}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:28px;align-items:start}
+
+/* ── Panels ───────────────────────────────────────── */
+.panel{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.panel-header{
+  padding:14px 20px;
+  background:var(--navy);
+  background-image:linear-gradient(90deg,#0d1b2a,#162236);
+  border-bottom:2px solid var(--gold);
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.panel-header h2{
+  font-family:'Cormorant Garamond',Georgia,serif;
+  font-size:1rem;
+  font-weight:600;
+  color:#fff;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.panel-header .panel-icon{color:var(--gold);font-size:1rem}
+.panel-body{padding:20px}
+
+/* ── Form elements ────────────────────────────────── */
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+label{
+  display:block;
+  font-size:0.72rem;
+  font-weight:600;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+select,input[type=text],textarea{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:9px 12px;
+  font-family:'Inter',sans-serif;
+  font-size:0.88rem;
+  color:var(--ink);
+  background:var(--parchment);
+  transition:border-color .2s, box-shadow .2s;
+  -webkit-appearance:none;
+}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  padding-right:30px;
+}
+select:focus,input[type=text]:focus,textarea:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(201,168,76,0.15);
+  background:var(--white);
+}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+
+/* ── Divider ──────────────────────────────────────── */
+.divider{
+  border:none;
+  border-top:1px solid var(--border2);
+  margin:18px 0;
+}
+
+/* ── Buttons ──────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 20px;border:none;border-radius:4px;
+  cursor:pointer;font-family:'Inter',sans-serif;
+  font-size:0.85rem;font-weight:600;letter-spacing:0.04em;
+  transition:all .18s;white-space:nowrap;
+}
+.btn-generate{
+  width:100%;
+  background:linear-gradient(135deg,#b8960c,#c9a84c,#d4b45a);
+  color:var(--navy);
+  box-shadow:0 2px 8px rgba(201,168,76,0.35);
+  font-size:0.9rem;
+  padding:12px;
+}
+.btn-generate:hover{
+  background:linear-gradient(135deg,#c9a84c,#e0c06a,#e8c96a);
+  box-shadow:0 4px 16px rgba(201,168,76,0.45);
+  transform:translateY(-1px);
+}
+.btn-generate:active{transform:translateY(0)}
+.btn-reset{
+  width:100%;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--muted);
+  font-size:0.82rem;
+  padding:9px;
+}
+.btn-reset:hover{border-color:var(--navy3);color:var(--navy);background:var(--parchment)}
+.btn-remove{
+  background:transparent;
+  border:1px solid #e0c0c0;
+  color:#c0392b;
+  font-size:0.75rem;
+  padding:3px 9px;
+  border-radius:3px;
+}
+.btn-remove:hover{background:#fdf0ef;border-color:#c0392b}
+
+/* ── Drop zone ────────────────────────────────────── */
+.drop-zone{
+  border:2px dashed var(--border);
+  border-radius:var(--radius);
+  padding:36px 24px;
+  text-align:center;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:0.88rem;
+  transition:all .2s;
+  margin-bottom:16px;
+  background:var(--parchment);
+}
+.drop-zone:hover,.drop-zone.over{
+  border-color:var(--gold);
+  background:rgba(201,168,76,0.06);
+  color:var(--navy);
+}
+.drop-zone input[type=file]{display:none}
+.drop-zone-icon{
+  font-size:2rem;
+  margin-bottom:10px;
+  opacity:0.35;
+}
+.drop-zone-label{font-weight:500;color:var(--ink2);margin-bottom:4px}
+.drop-zone-hint{font-size:0.75rem;color:var(--muted)}
+
+/* ── Document list ────────────────────────────────── */
+.doc-list{display:flex;flex-direction:column;gap:8px}
+.doc-item{
+  background:var(--white);
+  border:1px solid var(--border2);
+  border-left:3px solid var(--gold);
+  border-radius:4px;
+  padding:10px 14px;
+  display:flex;align-items:center;gap:10px;
+  cursor:grab;
+  box-shadow:0 1px 4px rgba(13,27,42,0.06);
+  transition:box-shadow .15s, border-color .15s, transform .1s;
+}
+.doc-item:hover{box-shadow:var(--shadow);border-color:var(--border)}
+.doc-item.dragging{opacity:0.35;transform:scale(0.98)}
+.doc-item.drag-over{border-left-color:var(--navy3);background:rgba(201,168,76,0.05);box-shadow:var(--shadow2)}
+.drag-handle{
+  color:var(--border);
+  font-size:1.1rem;
+  cursor:grab;
+  flex-shrink:0;
+  line-height:1;
+}
+.drag-handle:hover{color:var(--muted)}
+.tab-badge{
+  background:var(--navy);
+  color:var(--gold);
+  font-size:0.68rem;
+  font-weight:700;
+  border-radius:3px;
+  padding:3px 8px;
+  min-width:52px;
+  text-align:center;
+  flex-shrink:0;
+  letter-spacing:0.06em;
+  font-family:'Inter',sans-serif;
+}
+.type-badge{
+  font-size:0.62rem;font-weight:700;
+  border-radius:3px;padding:2px 6px;
+  flex-shrink:0;text-transform:uppercase;
+  letter-spacing:0.05em;
+}
+.type-badge.pdf{background:#e8f0fe;color:#1a56db}
+.type-badge.image{background:#fef3c7;color:#92400e}
+.doc-name{flex:1;min-width:0}
+.doc-name input{
+  border:none;background:transparent;width:100%;
+  font-family:'Inter',sans-serif;font-size:0.88rem;
+  color:var(--ink);outline:none;
+  border-bottom:1px dashed transparent;
+  transition:border-color .15s;
+  padding:1px 0;
+}
+.doc-name input:hover,.doc-name input:focus{border-bottom-color:var(--gold)}
+.doc-pages{font-size:0.72rem;color:var(--muted);flex-shrink:0;white-space:nowrap}
+
+/* ── Empty state ──────────────────────────────────── */
+.empty-state{
+  text-align:center;padding:40px 20px;
+  color:var(--muted);
+}
+.empty-state-icon{font-size:2.5rem;opacity:0.25;margin-bottom:10px}
+.empty-state p{font-size:0.85rem}
+
+/* ── Section count pill ───────────────────────────── */
+.count-pill{
+  background:var(--gold3);
+  color:var(--navy);
+  font-size:0.68rem;font-weight:700;
+  border-radius:20px;padding:2px 9px;
+  letter-spacing:0.04em;
+}
+
+/* ── Toast ────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:28px;right:28px;
+  padding:12px 20px;border-radius:var(--radius);
+  font-size:0.88rem;font-weight:500;
+  display:none;z-index:9999;
+  box-shadow:0 6px 24px rgba(13,27,42,0.2);
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#toast.info{background:var(--navy);color:#fff}
+#toast.success{background:#1b5e30;color:#fff}
+#toast.error{background:#7f1d1d;color:#fff}
+
+/* ── Footer ───────────────────────────────────────── */
+footer{
+  text-align:center;
+  padding:24px;
+  font-size:0.72rem;
+  color:var(--muted);
+  border-top:1px solid var(--border2);
+  margin-top:40px;
+  letter-spacing:0.04em;
+}
+footer span{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-inner">
+    <div class="header-icon">
+      <!-- Scales of justice SVG -->
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="14" y1="3" x2="14" y2="25" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="6" y1="8" x2="22" y2="8" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="6" y1="8" x2="3" y2="15" stroke="#c9a84c" stroke-width="1.2"/>
+        <line x1="6" y1="8" x2="9" y2="15" stroke="#c9a84c" stroke-width="1.2"/>
+        <path d="M3 15 Q6 17 9 15" stroke="#c9a84c" stroke-width="1.2" fill="none"/>
+        <line x1="22" y1="8" x2="19" y2="15" stroke="#c9a84c" stroke-width="1.2"/>
+        <line x1="22" y1="8" x2="25" y2="15" stroke="#c9a84c" stroke-width="1.2"/>
+        <path d="M19 15 Q22 17 25 15" stroke="#c9a84c" stroke-width="1.2" fill="none"/>
+        <rect x="11" y="24" width="6" height="1.5" rx="0.75" fill="#c9a84c"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Bundle<span>Maker</span></h1>
+      <div class="header-subtitle">Automatically compiles records, exhibits, transcripts, and other case documents into indexed, court-ready bundles</div>
+    </div>
+    <div class="header-badge">Multi-Jurisdiction</div>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<div class="page">
+<div class="layout">
+
+  <!-- LEFT: Settings -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+
+    <!-- Jurisdiction panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">⚖</span>
+        <h2>Jurisdiction &amp; Court</h2>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Country</label>
+          <select id="country" onchange="onCountryChange()"></select>
+        </div>
+        <div class="field">
+          <label>Court</label>
+          <select id="jurisdiction" onchange="saveSettings()"></select>
+        </div>
+        <div id="customCourtRow" style="display:none">
+          <div class="field">
+            <label>Court Name</label>
+            <input type="text" id="customCourt" placeholder="e.g. Supreme Court of Kenya" oninput="saveSettings()"/>
+          </div>
+          <div class="field">
+            <label>Applicable Rules (optional)</label>
+            <input type="text" id="customRules" placeholder="e.g. Civil Procedure Rules 2010" oninput="saveSettings()"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bundle settings panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">📋</span>
+        <h2>Bundle Details</h2>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Document Type</label>
+          <select id="docType" onchange="saveSettings()">
+            <option value="application_record">Application Record</option>
+            <option value="motion_record">Motion Record</option>
+            <option value="book_of_authorities">Book of Authorities</option>
+            <option value="index_of_materials">Index of Materials</option>
+            <option value="compendium">Compendium</option>
+            <option value="appeal_book">Appeal Book</option>
+            <option value="factum">Factum / Written Argument</option>
+            <option value="trial_record">Trial Record</option>
+            <option value="exhibits">Exhibits</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Title / Sub-heading <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
+          <input type="text" id="docTitle" placeholder="e.g. Motion for Summary Judgment" oninput="saveSettings()"/>
+        </div>
+        <div class="field">
+          <label>Court File No. <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
+          <input type="text" id="courtFile" placeholder="e.g. CV-24-00123456-0000" oninput="saveSettings()"/>
+        </div>
+        <div class="field">
+          <label>Parties <span style="font-weight:400;text-transform:none;font-size:0.7rem">(one line each)</span></label>
+          <textarea id="parties" placeholder="JOHN DOE&#10;— and —&#10;JANE DOE" oninput="saveSettings()"></textarea>
+        </div>
+
+        <hr class="divider"/>
+
+        <button class="btn btn-generate" onclick="generate()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 8H3M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Generate Court Bundle
+        </button>
+        <button class="btn btn-reset" style="margin-top:8px" onclick="resetSession()">
+          ↺ &nbsp;Start New Bundle
+        </button>
+      </div>
+    </div>
+
+  </div><!-- end left -->
+
+  <!-- RIGHT: Documents -->
+  <div class="panel">
+    <div class="panel-header" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="panel-icon">📁</span>
+        <h2>Bundle Contents</h2>
+      </div>
+      <span class="count-pill" id="docCount"></span>
+    </div>
+    <div class="panel-body">
+
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" onchange="handleFiles(this.files)"/>
+        <div class="drop-zone-icon">⬆</div>
+        <div class="drop-zone-label">Drop files here or click to browse</div>
+        <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP &nbsp;—&nbsp; drag rows below to reorder</div>
+      </div>
+
+      <div class="doc-list" id="docList"></div>
+
+      <div id="emptyHint" class="empty-state">
+        <div class="empty-state-icon">📄</div>
+        <p>No documents added yet.<br/>Upload files above to begin building your bundle.</p>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- end layout -->
+</div><!-- end page -->
+
+<footer>
+  <strong style="font-family:'Cormorant Garamond',serif;font-size:0.9rem;letter-spacing:0.1em">BUNDLEMAKER</strong>
+  &nbsp;·&nbsp; Multi-Jurisdiction Legal Document Compiler
+  &nbsp;·&nbsp; <span>Court-Ready Bundles</span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+let items = [];
+let dragSrcId = null;
+let jurisdictionData = {};
+
+async function loadJurisdictions(){
+  const r = await fetch('/api/jurisdictions');
+  jurisdictionData = await r.json();
+  const countryEl = document.getElementById('country');
+  countryEl.innerHTML = '';
+  for(const c of Object.keys(jurisdictionData)){
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    countryEl.appendChild(opt);
+  }
+}
+
+function populateJurisdictions(country, selectedValue){
+  const el = document.getElementById('jurisdiction');
+  el.innerHTML = '';
+  for(const j of (jurisdictionData[country] || [])){
+    const opt = document.createElement('option');
+    opt.value = j.value; opt.textContent = j.label;
+    el.appendChild(opt);
+  }
+  if(selectedValue) el.value = selectedValue;
+  toggleCustomCourt();
+}
+
+function toggleCustomCourt(){
+  const show = document.getElementById('jurisdiction').value === 'CUSTOM';
+  document.getElementById('customCourtRow').style.display = show ? 'block' : 'none';
+}
+
+function onCountryChange(){
+  populateJurisdictions(document.getElementById('country').value, null);
+  saveSettings();
+}
+
+async function loadSession(){
+  await loadJurisdictions();
+  const r = await fetch('/api/session');
+  const s = await r.json();
+  const country = s.country || 'Canada';
+  document.getElementById('country').value = country;
+  populateJurisdictions(country, s.jurisdiction || 'ON');
+  document.getElementById('docType').value = s.doc_type || 'application_record';
+  document.getElementById('docTitle').value = s.title || '';
+  document.getElementById('courtFile').value = s.court_file || '';
+  document.getElementById('parties').value = s.parties || '';
+  document.getElementById('customCourt').value = s.custom_court || '';
+  document.getElementById('customRules').value = s.custom_rules || '';
+  items = s.items || [];
+  renderList();
+}
+
+async function saveSettings(){
+  await fetch('/api/session', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      country: document.getElementById('country').value,
+      jurisdiction: document.getElementById('jurisdiction').value,
+      custom_court: document.getElementById('customCourt').value,
+      custom_rules: document.getElementById('customRules').value,
+      doc_type: document.getElementById('docType').value,
+      title: document.getElementById('docTitle').value,
+      court_file: document.getElementById('courtFile').value,
+      parties: document.getElementById('parties').value,
+    })
+  });
+}
+
+/* ── Upload ── */
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e=>{
+  e.preventDefault(); dropZone.classList.remove('over');
+  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
+const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
+function isAllowed(name){ return ALLOWED_EXTS.some(e => name.toLowerCase().endsWith(e)); }
+
+async function handleFiles(files){
+  const fd = new FormData();
+  let count = 0;
+  for(const f of files){ if(isAllowed(f.name)){ fd.append('files', f); count++; } }
+  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
+  toast('Uploading…','info');
+  const r = await fetch('/api/upload', {method:'POST', body:fd});
+  const added = await r.json();
+  items.push(...added);
+  renderList();
+  toast(`${added.length} file${added.length>1?'s':''} added to bundle.`,'success');
+}
+
+/* ── Tab labels ── */
+function getTabLabel(i, docType){
+  const alpha = (n)=>{ let r=''; while(n>=0){r=String.fromCharCode(65+(n%26))+r;n=Math.floor(n/26)-1;} return r; };
+  if(docType==='book_of_authorities') return String(i+1);
+  return alpha(i);
+}
+
+/* ── Render list ── */
+function renderList(){
+  const list = document.getElementById('docList');
+  const hint = document.getElementById('emptyHint');
+  const countEl = document.getElementById('docCount');
+  const docType = document.getElementById('docType').value;
+  hint.style.display = items.length ? 'none' : 'block';
+  countEl.style.display = items.length ? 'inline' : 'none';
+  countEl.textContent = `${items.length} document${items.length!==1?'s':''}`;
+  list.innerHTML = '';
+  items.forEach((item, i)=>{
+    const tab = getTabLabel(i, docType);
+    const name = item.custom_name || item.filename;
+    const pages = item.page_count;
+    const isImg = item.file_type === 'image';
+    const ext = (item.original_ext||'.pdf').replace('.','').toUpperCase();
+    const typeBadge = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
+    const div = document.createElement('div');
+    div.className = 'doc-item';
+    div.dataset.id = item.id;
+    div.draggable = true;
+    div.innerHTML = `
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <span class="tab-badge">TAB ${tab}</span>
+      ${typeBadge}
+      <span class="doc-name">
+        <input type="text" value="${escHtml(name)}" placeholder="Document name"
+          onblur="renameItem('${item.id}', this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          title="Click to rename"/>
+      </span>
+      <span class="doc-pages">${pages} pg</span>
+      <div>
+        <button class="btn btn-remove" onclick="deleteItem('${item.id}')" title="Remove">✕</button>
+      </div>`;
+    div.addEventListener('dragstart', e=>{ dragSrcId=item.id; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', item.id); });
+    div.addEventListener('dragend', ()=>{ div.classList.remove('dragging'); document.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over')); });
+    div.addEventListener('dragover', e=>{ e.preventDefault(); if(dragSrcId && dragSrcId!==item.id) div.classList.add('drag-over'); });
+    div.addEventListener('dragleave', ()=> div.classList.remove('drag-over'));
+    div.addEventListener('drop', e=>{ e.preventDefault(); div.classList.remove('drag-over'); if(dragSrcId && dragSrcId!==item.id) reorderTo(dragSrcId, item.id); });
+    list.appendChild(div);
+  });
+}
+
+async function reorderTo(srcId, targetId){
+  const srcIdx = items.findIndex(i=>i.id===srcId);
+  const tgtIdx = items.findIndex(i=>i.id===targetId);
+  const [moved] = items.splice(srcIdx,1);
+  items.splice(tgtIdx,0,moved);
+  renderList();
+  await fetch('/api/items/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:items.map(i=>i.id)})});
+}
+
+async function renameItem(id, name){
+  const item = items.find(i=>i.id===id);
+  if(item){ item.custom_name = name; renderList(); }
+  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
+}
+
+async function deleteItem(id){
+  items = items.filter(i=>i.id!==id);
+  renderList();
+  await fetch(`/api/items/${id}`,{method:'DELETE'});
+}
+
+async function generate(){
+  if(!items.length){ toast('Add at least one document first.','error'); return; }
+  toast('Generating court bundle…','info');
+  const r = await fetch('/api/generate',{method:'POST'});
+  const data = await r.json();
+  if(data.error){ toast(data.error,'error'); return; }
+  toast('Bundle ready — downloading…','success');
+  window.location.href = `/api/download/${data.filename}`;
+}
+
+async function resetSession(){
+  if(!confirm('Clear all documents and start a new bundle?')) return;
+  await fetch('/api/reset',{method:'POST'});
+  items = [];
+  document.getElementById('docTitle').value = '';
+  document.getElementById('courtFile').value = '';
+  document.getElementById('parties').value = '';
+  renderList();
+  toast('Bundle cleared. Ready for new documents.','info');
+}
+
+function toast(msg, type='info'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderList(); });
+
+loadSession();
+</script>
+</body>
+</html>
