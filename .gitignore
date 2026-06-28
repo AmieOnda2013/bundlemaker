@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+dist/
+build/
+*.spec.bak
+uploads/*
+output/*
+sessions/*
+!uploads/.gitkeep
+!output/.gitkeep
+!sessions/.gitkeep

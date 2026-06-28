@@ -15,10 +15,13 @@ from reportlab.platypus import PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 app = Flask(__name__)
-app.secret_key = "ontario-legal-pdf-secret"
-UPLOAD_FOLDER = "uploads"
-OUTPUT_FOLDER = "output"
-SESSIONS_FOLDER = "sessions"
+app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
+
+# On Render, use the persistent disk at /data; locally use subdirs of the app folder
+_BASE = os.environ.get("DATA_DIR") or os.path.join(os.path.dirname(__file__))
+UPLOAD_FOLDER  = os.path.join(_BASE, "uploads")
+OUTPUT_FOLDER  = os.path.join(_BASE, "output")
+SESSIONS_FOLDER = os.path.join(_BASE, "sessions")
 
 TEMPLATES = {
     "application_record": {
