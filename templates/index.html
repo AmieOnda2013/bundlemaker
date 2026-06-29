@@ -339,6 +339,24 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 #toast.success{background:#1b5e30;color:#fff}
 #toast.error{background:#7f1d1d;color:#fff}
 
+/* ── Toggle switch ────────────────────────────────── */
+.toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{
+  position:absolute;inset:0;
+  background:var(--border);border-radius:20px;
+  cursor:pointer;transition:background .2s;
+}
+.toggle-slider::before{
+  content:'';position:absolute;
+  width:14px;height:14px;
+  left:3px;top:3px;
+  background:#fff;border-radius:50%;
+  transition:transform .2s;
+}
+.toggle-switch input:checked + .toggle-slider{background:var(--navy3)}
+.toggle-switch input:checked + .toggle-slider::before{transform:translateX(16px)}
+
 /* ── Tab groups ───────────────────────────────────── */
 .tab-group{
   border:1px solid var(--border);
@@ -522,6 +540,18 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
+        <div class="field" style="flex-direction:row;align-items:center;gap:10px;padding:4px 0">
+          <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;font-size:0.82rem;font-weight:400;letter-spacing:0">
+            <span class="toggle-switch">
+              <input type="checkbox" id="useDividers" checked onchange="saveSettings()"/>
+              <span class="toggle-slider"></span>
+            </span>
+            Include tab divider pages in the output
+          </label>
+        </div>
+
+        <hr class="divider"/>
+
         <button class="btn btn-generate" onclick="generate()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 8H3M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Generate Court Bundle
@@ -686,6 +716,7 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
+  document.getElementById('useDividers').checked = s.use_dividers !== false;
   tabs = s.tabs || [];
   renderTabs();
 }
@@ -703,6 +734,7 @@ async function saveSettings(){
       court_file: document.getElementById('courtFile').value,
       parties: document.getElementById('parties').value,
       recitals: document.getElementById('recitals').value,
+      use_dividers: document.getElementById('useDividers').checked,
     })
   });
 }

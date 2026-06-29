@@ -117,6 +117,7 @@ def _default_session():
         "jurisdiction": "ON",
         "custom_court": "",
         "custom_rules": "",
+        "use_dividers": True,
     }
 
 def get_session(sid):
@@ -130,6 +131,8 @@ def get_session(sid):
             data["tabs"] = []
             if old_items:
                 data["tabs"].append({"id": uuid.uuid4().hex, "name": "Documents", "items": old_items})
+        if "use_dividers" not in data:
+            data["use_dividers"] = True
         return data
     return _default_session()
 
@@ -208,7 +211,8 @@ def resolve_jurisdiction(country, jurisdiction_value):
 
 def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
                        country="Canada", jurisdiction="ON",
-                       custom_court="", custom_rules="", recitals=""):
+                       custom_court="", custom_rules="", recitals="",
+                       use_dividers=True):
     """Generate cover page + optional recitals + TOC. tabs is a list of tab dicts."""
     tmpl = TEMPLATES[doc_type]
     doc = SimpleDocTemplate(
@@ -310,46 +314,86 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
 
     tab_fn = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
-    th_style = ParagraphStyle("th", parent=normal, fontName="Times-Bold", fontSize=11)
-    th_right  = ParagraphStyle("thr", parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)
-    td_style  = ParagraphStyle("td", parent=normal, fontSize=11, leading=16)
-    td_right  = ParagraphStyle("tdr", parent=normal, fontSize=11, alignment=TA_RIGHT, leading=16)
+    th_style   = ParagraphStyle("th",   parent=normal, fontName="Times-Bold", fontSize=11)
+    th_right   = ParagraphStyle("thr",  parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)
+    tab_row_st = ParagraphStyle("tabr", parent=normal, fontName="Times-Bold", fontSize=11, leading=16)
+    tab_row_rt = ParagraphStyle("tabrt",parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT, leading=16)
+    doc_row_st = ParagraphStyle("docr", parent=normal, fontSize=10, leading=15, leftIndent=10)
+    doc_row_rt = ParagraphStyle("docrt",parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
-    toc_data = [[
-        Paragraph("<b>Tab</b>", th_style),
+    toc_data   = [[
+        Paragraph("<b>Tab</b>",      th_style),
         Paragraph("<b>Document</b>", th_style),
-        Paragraph("<b>Page(s)</b>", th_right),
+        Paragraph("<b>Page(s)</b>",  th_right),
     ]]
+    # Each entry: (row_index_in_toc_data, target_pdf_page_index)
+    # We'll compute this in add_toc_links; here just build the visual rows.
 
-    current_page = 1
+    current_page = 1  # logical page counter (1-based, excluding dividers)
+
     for i, tab in enumerate(tabs):
         tab_label = tab_fn(i)
         tab_name  = tab.get("name") or f"Tab {tab_label}"
         tab_items = tab.get("items", [])
-        total_pages = sum(item.get("page_count", 1) for item in tab_items)
-        if total_pages == 0:
-            total_pages = 1
-        page_str = str(current_page) if total_pages == 1 else f"{current_page}–{current_page + total_pages - 1}"
+        total_pages = sum(item.get("page_count", 1) for item in tab_items) or 1
 
-        toc_data.append([
-            Paragraph(f"Tab {tab_label}", td_style),
-            Paragraph(tab_name, td_style),
-            Paragraph(page_str, td_right),
-        ])
-        current_page += total_pages + 1  # +1 for the divider page of the next tab
+        if use_dividers:
+            # Bold summary row for the tab
+            tab_page_str = str(current_page) if total_pages == 1 else f"{current_page}–{current_page + total_pages - 1}"
+            toc_data.append([
+                Paragraph(f"<b>Tab {tab_label}</b>", tab_row_st),
+                Paragraph(f"<b>{tab_name}</b>",      tab_row_st),
+                Paragraph(tab_page_str,               tab_row_rt),
+            ])
+            # Indented rows for each document in this tab
+            doc_page = current_page
+            for item in tab_items:
+                pc = item.get("page_count", 1)
+                doc_name = item.get("custom_name") or item.get("filename", "Document")
+                doc_page_str = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page + pc - 1}"
+                toc_data.append([
+                    Paragraph("", doc_row_st),
+                    Paragraph(f"  ▸  {doc_name}", doc_row_st),
+                    Paragraph(doc_page_str, doc_row_rt),
+                ])
+                doc_page += pc
+            current_page += total_pages + 1  # +1 for the next tab's divider
+        else:
+            # No dividers: flat rows, one per document, labelled with tab
+            for item in tab_items:
+                pc = item.get("page_count", 1)
+                doc_name = item.get("custom_name") or item.get("filename", "Document")
+                doc_page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page + pc - 1}"
+                toc_data.append([
+                    Paragraph(f"Tab {tab_label}", tab_row_st),
+                    Paragraph(doc_name, tab_row_st),
+                    Paragraph(doc_page_str, tab_row_rt),
+                ])
+                current_page += pc
 
-    toc_table = Table(toc_data, colWidths=[0.9 * inch, 4.5 * inch, 0.8 * inch])
-    toc_table.setStyle(TableStyle([
+    # Build table style — shade tab-summary rows
+    tab_shade = colors.Color(0.93, 0.91, 0.87)  # light parchment
+    ts = [
         ("FONTNAME",      (0, 0), (-1, 0),  "Times-Bold"),
         ("FONTSIZE",      (0, 0), (-1, -1), 11),
         ("LINEBELOW",     (0, 0), (-1, 0),  1,    colors.black),
         ("LINEBELOW",     (0, 1), (-1, -1), 0.25, colors.lightgrey),
         ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 9),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING",    (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
         ("LEFTPADDING",   (0, 0), (-1, -1), 4),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-    ]))
+    ]
+    if use_dividers:
+        # shade every tab-summary row (every row that starts with bold Tab label)
+        row_idx = 1
+        for tab in tabs:
+            ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), tab_shade))
+            n_items = len(tab.get("items", []))
+            row_idx += 1 + n_items  # 1 summary + N item rows
+
+    toc_table = Table(toc_data, colWidths=[0.9 * inch, 4.5 * inch, 0.8 * inch])
+    toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
     story.append(PageBreak())
 
@@ -388,8 +432,8 @@ def generate_divider_page(tab_label, tab_name, output_path):
     doc.build(story)
 
 
-def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index):
-    """Stamp clickable GoTo links on each TOC row, pointing to that tab's divider."""
+def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=True):
+    """Stamp clickable GoTo links on the TOC page for every row."""
     page = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
     page_width  = float(page.mediabox.width)
@@ -397,33 +441,60 @@ def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index):
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Approximate TOC layout:
+    # Approximate TOC layout (matches generate_cover_toc):
     #   top margin 1.25" = 90pt
-    #   "TABLE OF CONTENTS" heading ≈ 60pt  (14pt font + spaceBefore/After + leading)
-    #   header row ≈ 34pt
-    #   each data row ≈ 34pt  (9pt top + 11pt font + 9pt bottom + ~5pt leading)
-    first_row_top = page_height - 90 - 60 - 34
-    row_height = 34
+    #   "TABLE OF CONTENTS" heading ≈ 56pt
+    #   header row ≈ 30pt
+    #   tab-summary rows ≈ 30pt each  (7+11+7 + ~5 leading)
+    #   doc-item rows ≈ 25pt each     (7+10+7 + ~1)
+    first_row_top = page_height - 90 - 56 - 30  # top of first data row
+    tab_row_h  = 30
+    doc_row_h  = 25
 
-    current_page = first_tab_page_index
-    for i, tab in enumerate(tabs):
-        row_top    = first_row_top - (i * row_height)
-        row_bottom = row_top - row_height
+    # Build a flat list: [(row_offset_from_first, height, target_pdf_page_index)]
+    link_rows = []
+    current_pdf_page = first_tab_page_index  # 0-indexed in the final PDF
+
+    if use_dividers:
+        y_offset = 0  # cumulative y consumed
+        for tab in tabs:
+            items = tab.get("items", [])
+            # Tab summary row → divider page
+            link_rows.append((y_offset, tab_row_h, current_pdf_page))
+            y_offset += tab_row_h
+            # Individual doc rows → first page of each doc
+            doc_pdf_page = current_pdf_page + 1  # +1 past the divider
+            for item in items:
+                link_rows.append((y_offset, doc_row_h, doc_pdf_page))
+                y_offset    += doc_row_h
+                doc_pdf_page += item.get("page_count", 1)
+            total_pages = sum(item.get("page_count", 1) for item in items)
+            current_pdf_page += 1 + total_pages
+    else:
+        y_offset = 0
+        for tab in tabs:
+            for item in tab.get("items", []):
+                link_rows.append((y_offset, tab_row_h, current_pdf_page))
+                y_offset         += tab_row_h
+                current_pdf_page += item.get("page_count", 1)
+
+    for (y_off, row_h, target_page) in link_rows:
+        row_top    = first_row_top - y_off
+        row_bottom = row_top - row_h
         rect = RectangleObject([left, row_bottom, right, row_top])
         try:
-            annotation = Link(rect=rect, target_page_index=current_page)
+            annotation = Link(rect=rect, target_page_index=target_page)
             writer.add_annotation(page_number=toc_page_index, annotation=annotation)
         except Exception:
             pass
-        total_pages = sum(item.get("page_count", 1) for item in tab.get("items", []))
-        current_page += 1 + total_pages  # divider + all tab doc pages
 
 
 def merge_pdfs(session_data, output_path):
-    doc_type = session_data["doc_type"]
-    tabs     = session_data.get("tabs", [])
-    tmpl     = TEMPLATES[doc_type]
-    tab_fn   = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
+    doc_type     = session_data["doc_type"]
+    tabs         = session_data.get("tabs", [])
+    use_dividers = session_data.get("use_dividers", True)
+    tmpl         = TEMPLATES[doc_type]
+    tab_fn       = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
     writer = PdfWriter()
 
@@ -440,6 +511,7 @@ def merge_pdfs(session_data, output_path):
         custom_court=session_data.get("custom_court", ""),
         custom_rules=session_data.get("custom_rules", ""),
         recitals=session_data.get("recitals", ""),
+        use_dividers=use_dividers,
     )
     reader = PdfReader(toc_path)
     cover_page_count = len(reader.pages)
@@ -447,20 +519,20 @@ def merge_pdfs(session_data, output_path):
         writer.add_page(page)
     os.remove(toc_path)
 
-    toc_page_index      = cover_page_count - 1
+    toc_page_index       = cover_page_count - 1
     first_tab_page_index = cover_page_count
 
-    # 2. For each tab: one divider + all documents in that tab
+    # 2. For each tab: optional divider + all documents
     for i, tab in enumerate(tabs):
-        tab_label = tab_fn(i)
-        tab_name  = tab.get("name") or f"Tab {tab_label}"
-
-        div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-        generate_divider_page(tab_label, tab_name, div_path)
-        div_reader = PdfReader(div_path)
-        for page in div_reader.pages:
-            writer.add_page(page)
-        os.remove(div_path)
+        if use_dividers:
+            tab_label = tab_fn(i)
+            tab_name  = tab.get("name") or f"Tab {tab_label}"
+            div_path  = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+            generate_divider_page(tab_label, tab_name, div_path)
+            div_reader = PdfReader(div_path)
+            for page in div_reader.pages:
+                writer.add_page(page)
+            os.remove(div_path)
 
         for item in tab.get("items", []):
             doc_path = item.get("filepath")
@@ -470,7 +542,7 @@ def merge_pdfs(session_data, output_path):
                     writer.add_page(page)
 
     # 3. Stamp clickable links on the TOC page
-    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index)
+    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=use_dividers)
 
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -497,7 +569,7 @@ def update_session():
     sid = session.get("sid")
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules"):
+    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules", "use_dividers"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
