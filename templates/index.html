@@ -453,7 +453,7 @@ footer span{color:var(--gold)}
         </div>
         <div class="field">
           <label>Title / Sub-heading <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
-          <input type="text" id="docTitle" placeholder="e.g. Application Record" oninput="saveSettings()"/>
+          <input type="text" id="docTitle" placeholder="e.g. Statement of Claim" oninput="saveSettings()"/>
         </div>
         <div class="field">
           <label>Court File No. <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
@@ -462,6 +462,13 @@ footer span{color:var(--gold)}
         <div class="field">
           <label>Parties <span style="font-weight:400;text-transform:none;font-size:0.7rem">(one line each)</span></label>
           <textarea id="parties" placeholder="JOHN DOE&#10;— and —&#10;JANE DOE" oninput="saveSettings()"></textarea>
+        </div>
+
+        <hr class="divider"/>
+
+        <div class="field">
+          <label>Written Recitals <span style="font-weight:400;text-transform:none;font-size:0.7rem">(appears before the Table of Contents)</span></label>
+          <textarea id="recitals" placeholder="e.g. THIS IS THE APPLICATION RECORD of the Applicant, JOHN DOE, in support of an Application returnable before the Honourable Justice [Name] on [date]..." oninput="saveSettings()" style="min-height:140px;font-size:0.88rem;line-height:1.6"></textarea>
         </div>
 
         <hr class="divider"/>
@@ -625,6 +632,7 @@ async function loadSession(){
   document.getElementById('docTitle').value = s.title || '';
   document.getElementById('courtFile').value = s.court_file || '';
   document.getElementById('parties').value = s.parties || '';
+  document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
   items = s.items || [];
@@ -643,6 +651,7 @@ async function saveSettings(){
       title: document.getElementById('docTitle').value,
       court_file: document.getElementById('courtFile').value,
       parties: document.getElementById('parties').value,
+      recitals: document.getElementById('recitals').value,
     })
   });
 }

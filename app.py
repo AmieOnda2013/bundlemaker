@@ -144,7 +144,7 @@ def get_session(sid):
     if os.path.exists(path):
         with open(path) as f:
             return json.load(f)
-    return {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""}
+    return {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "recitals": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""}
 
 def save_session(sid, data):
     with open(session_path(sid), "w") as f:
@@ -218,7 +218,7 @@ def resolve_jurisdiction(country, jurisdiction_value):
 
 
 def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
-                       country="Canada", jurisdiction="ON", custom_court="", custom_rules=""):
+                       country="Canada", jurisdiction="ON", custom_court="", custom_rules="", recitals=""):
     """Generate a PDF with cover page + TOC."""
     tmpl = TEMPLATES[doc_type]
     doc = SimpleDocTemplate(
@@ -305,6 +305,23 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
         story.append(Paragraph(rule_body, small_center))
 
     story.append(PageBreak())
+
+    # ── Written Recitals (optional page before TOC) ─────────────────────────
+    if recitals and recitals.strip():
+        recital_style = ParagraphStyle(
+            "recital",
+            parent=normal,
+            alignment=TA_LEFT,
+            fontSize=11,
+            leading=18,
+            spaceAfter=8,
+        )
+        story.append(Spacer(1, 0.5 * inch))
+        for para in recitals.strip().split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), recital_style))
+                story.append(Spacer(1, 0.1 * inch))
+        story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header))
@@ -415,6 +432,7 @@ def merge_pdfs(session_data, output_path):
         jurisdiction=session_data.get("jurisdiction", "ON"),
         custom_court=session_data.get("custom_court", ""),
         custom_rules=session_data.get("custom_rules", ""),
+        recitals=session_data.get("recitals", ""),
     )
     reader = PdfReader(toc_path)
     for page in reader.pages:
@@ -465,7 +483,7 @@ def update_session():
     sid = session.get("sid")
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type", "title", "court_file", "parties", "country", "jurisdiction", "custom_court", "custom_rules"):
+    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
@@ -585,7 +603,7 @@ def download(filename):
 @app.route("/api/reset", methods=["POST"])
 def reset():
     sid = session.get("sid")
-    save_session(sid, {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""})
+    save_session(sid, {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "recitals": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""})
     return jsonify({"ok": True})
 
 
