@@ -284,7 +284,8 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
     story.append(Spacer(1, 0.3 * inch))
 
     if court_file:
-        story.append(Paragraph(f"Court File No.: {court_file}", center_normal))
+        right_normal = ParagraphStyle("right_normal", parent=normal, alignment=TA_RIGHT, fontSize=12, spaceAfter=4)
+        story.append(Paragraph(f"Court File No.: {court_file}", right_normal))
         story.append(Spacer(1, 0.2 * inch))
 
     if parties:
