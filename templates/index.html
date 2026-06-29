@@ -358,26 +358,35 @@ footer span{color:var(--gold)}
 <header>
   <div class="header-inner">
     <div class="header-icon">
-      <!-- BundleMaker logo: document checklist + fountain pen -->
+      <!-- BundleMaker logo: indexed document with checkmarks -->
       <svg width="58" height="58" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Document background shape -->
-        <rect x="4" y="5" width="36" height="44" rx="5" fill="#1e3050" stroke="#c9a84c" stroke-width="1.2"/>
-        <!-- Checklist line 1 -->
-        <polyline points="11,19 14,23 20,15" stroke="#4db8b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <line x1="24" y1="19" x2="34" y2="19" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"/>
-        <!-- Checklist line 2 -->
-        <polyline points="11,31 14,35 20,27" stroke="#4db8b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <line x1="24" y1="31" x2="34" y2="31" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"/>
-        <!-- Fountain pen body -->
-        <rect x="30" y="28" width="9" height="22" rx="2.5" transform="rotate(-38 30 28)" fill="#0d1b2a" stroke="#c9a84c" stroke-width="1.2"/>
-        <!-- Pen clip -->
-        <line x1="36" y1="30" x2="44" y2="22" stroke="#c9a84c" stroke-width="1" stroke-linecap="round"/>
-        <!-- Pen nib -->
-        <polygon points="26,47 22,54 30,51" fill="#c9a84c"/>
-        <!-- Nib split -->
-        <line x1="24" y1="50.5" x2="27.5" y2="47.5" stroke="#0d1b2a" stroke-width="0.8"/>
-        <!-- Ink dot -->
-        <circle cx="21.5" cy="55" r="1.2" fill="#4db8b8"/>
+        <!-- Drop shadow -->
+        <rect x="8" y="9" width="38" height="46" rx="6" fill="rgba(0,0,0,0.25)"/>
+        <!-- Document body -->
+        <rect x="6" y="6" width="38" height="46" rx="6" fill="url(#docGrad)"/>
+        <!-- Gold border -->
+        <rect x="6" y="6" width="38" height="46" rx="6" stroke="#c9a84c" stroke-width="1.5" fill="none"/>
+        <!-- Top accent bar -->
+        <rect x="6" y="6" width="38" height="10" rx="6" fill="#c9a84c" opacity="0.18"/>
+        <rect x="6" y="12" width="38" height="4" fill="#c9a84c" opacity="0.18"/>
+        <!-- Row 1: checkmark + line -->
+        <circle cx="17" cy="24" r="5.5" fill="rgba(201,168,76,0.15)" stroke="#c9a84c" stroke-width="1.2"/>
+        <polyline points="13.5,24 16,26.5 20.5,21" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <line x1="26" y1="24" x2="38" y2="24" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/>
+        <!-- Row 2: checkmark + line -->
+        <circle cx="17" cy="36" r="5.5" fill="rgba(201,168,76,0.15)" stroke="#c9a84c" stroke-width="1.2"/>
+        <polyline points="13.5,36 16,38.5 20.5,33" stroke="#c9a84c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <line x1="26" y1="36" x2="38" y2="36" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/>
+        <!-- Row 3: partial line (in progress) -->
+        <circle cx="17" cy="48" r="5.5" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+        <line x1="26" y1="48" x2="34" y2="48" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-linecap="round"/>
+        <!-- Gradient def -->
+        <defs>
+          <linearGradient id="docGrad" x1="6" y1="6" x2="44" y2="52" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#1e3a5f"/>
+            <stop offset="100%" stop-color="#0d1b2a"/>
+          </linearGradient>
+        </defs>
       </svg>
     </div>
     <div class="header-text">
