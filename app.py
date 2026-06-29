@@ -326,21 +326,22 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     ]]
 
     current_page = 1  # logical page number in the body (excluding dividers)
+    item_num = 1      # global item counter — continues across individual items and tab sub-items
 
-    # Individual items — numbered 1, 2, 3… (independent of groups)
-    for i, item in enumerate(items):
-        label    = str(i + 1)
+    # Individual items — numbered 1, 2, 3… continuing into tab sub-items
+    for item in items:
         name     = item.get("custom_name") or item.get("filename", "Document")
         pc       = item.get("page_count", 1)
         page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
         toc_data.append([
-            Paragraph(label, row_st),
+            Paragraph(str(item_num), row_st),
             Paragraph(name, row_st),
             Paragraph(page_str, row_rt),
         ])
         current_page += pc + (1 if use_dividers else 0)
+        item_num += 1
 
-    # Grouped tabs — Tab A, Tab B… (independent alpha sequence starting at A)
+    # Grouped tabs — Tab A, Tab B… sub-items continue numbering from individual items
     tab_shade = colors.Color(0.93, 0.91, 0.87)
     shaded_rows = []  # row indices for shading
 
@@ -364,11 +365,12 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             name = item.get("custom_name") or item.get("filename", "Document")
             ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
             toc_data.append([
-                Paragraph("", sub_st),
-                Paragraph(f"  ▸  {name}", sub_st),
+                Paragraph(str(item_num), sub_st),
+                Paragraph(f"  {name}", sub_st),
                 Paragraph(ps, sub_rt),
             ])
             doc_page += pc
+            item_num += 1
 
         current_page += total_pc + (1 if use_dividers else 0)
 
