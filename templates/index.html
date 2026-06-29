@@ -520,11 +520,69 @@ footer span{color:var(--gold)}
 <script>
 let items = [];
 let dragSrcId = null;
-let jurisdictionData = {};
 
-async function loadJurisdictions(){
-  const r = await fetch('/api/jurisdictions');
-  jurisdictionData = await r.json();
+// Jurisdiction data embedded directly — no network call needed
+const jurisdictionData = {
+  "Canada": [
+    {value:"ON", label:"Ontario — Superior Court of Justice"},
+    {value:"ON_CA", label:"Ontario — Court of Appeal"},
+    {value:"BC", label:"British Columbia — Supreme Court"},
+    {value:"AB", label:"Alberta — Court of King's Bench"},
+    {value:"QC", label:"Québec — Superior Court"},
+    {value:"MB", label:"Manitoba — Court of King's Bench"},
+    {value:"SK", label:"Saskatchewan — Court of King's Bench"},
+    {value:"NS", label:"Nova Scotia — Supreme Court"},
+    {value:"NB", label:"New Brunswick — Court of King's Bench"},
+    {value:"CA_FED", label:"Federal Court of Canada"},
+    {value:"CA_FCA", label:"Federal Court of Appeal"},
+    {value:"SCC", label:"Supreme Court of Canada"},
+  ],
+  "United Kingdom": [
+    {value:"EW_HC", label:"England & Wales — High Court of Justice"},
+    {value:"EW_CA", label:"England & Wales — Court of Appeal"},
+    {value:"UKSC", label:"UK Supreme Court"},
+    {value:"SC_OS", label:"Scotland — Court of Session (Outer House)"},
+    {value:"SC_IH", label:"Scotland — Court of Session (Inner House)"},
+    {value:"NI", label:"Northern Ireland — High Court"},
+  ],
+  "United States": [
+    {value:"US_FED", label:"Federal District Court"},
+    {value:"US_CA", label:"Federal Court of Appeals"},
+    {value:"USSC", label:"Supreme Court of the United States"},
+    {value:"US_NY", label:"New York — Supreme Court"},
+    {value:"US_CA_ST", label:"California — Superior Court"},
+    {value:"US_TX", label:"Texas — District Court"},
+    {value:"US_FL", label:"Florida — Circuit Court"},
+    {value:"US_IL", label:"Illinois — Circuit Court"},
+  ],
+  "Australia": [
+    {value:"AU_FED", label:"Federal Court of Australia"},
+    {value:"AU_HCA", label:"High Court of Australia"},
+    {value:"AU_NSW", label:"New South Wales — Supreme Court"},
+    {value:"AU_VIC", label:"Victoria — Supreme Court"},
+    {value:"AU_QLD", label:"Queensland — Supreme Court"},
+    {value:"AU_WA", label:"Western Australia — Supreme Court"},
+  ],
+  "New Zealand": [
+    {value:"NZ_HC", label:"High Court of New Zealand"},
+    {value:"NZ_CA", label:"Court of Appeal of New Zealand"},
+    {value:"NZSC", label:"Supreme Court of New Zealand"},
+  ],
+  "Ireland": [
+    {value:"IE_HC", label:"High Court"},
+    {value:"IE_CA", label:"Court of Appeal"},
+    {value:"IE_SC", label:"Supreme Court"},
+  ],
+  "Singapore": [
+    {value:"SG_GD", label:"General Division — High Court"},
+    {value:"SG_CA", label:"Court of Appeal"},
+  ],
+  "Other / Custom": [
+    {value:"CUSTOM", label:"Custom / Other jurisdiction"},
+  ],
+};
+
+function loadJurisdictions(){
   const countryEl = document.getElementById('country');
   countryEl.innerHTML = '';
   for(const c of Object.keys(jurisdictionData)){
@@ -557,7 +615,7 @@ function onCountryChange(){
 }
 
 async function loadSession(){
-  await loadJurisdictions();
+  loadJurisdictions();
   const r = await fetch('/api/session');
   const s = await r.json();
   const country = s.country || 'Canada';
