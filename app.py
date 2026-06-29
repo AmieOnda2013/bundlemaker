@@ -5,6 +5,8 @@ import uuid
 import shutil
 from flask import Flask, render_template, request, jsonify, send_file, session
 from pypdf import PdfReader, PdfWriter
+from pypdf.annotations import Link
+from pypdf.generic import RectangleObject
 from PIL import Image
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -410,6 +412,36 @@ def generate_divider_page(tab_label, doc_name, output_path):
     doc.build(story)
 
 
+def add_toc_links(writer, toc_page_index, items, first_tab_page_index):
+    """Stamp clickable GoTo links on the TOC page for each document row."""
+    page = writer.pages[toc_page_index]
+    page_height = float(page.mediabox.height)  # 792pt for letter
+    page_width  = float(page.mediabox.width)   # 612pt
+
+    left  = 1.0 * 72   # 72pt = 1 inch left margin
+    right = page_width - 1.0 * 72
+
+    # Approximate layout of the TOC page (built by reportlab):
+    #   top margin 1"=72pt  →  content starts at y=720 from bottom
+    #   "TABLE OF CONTENTS" heading block ≈ 50pt
+    #   header row (Tab | Document | Page(s)) ≈ 30pt
+    #   each data row ≈ 26pt
+    first_row_top = page_height - 72 - 50 - 30  # ≈ 640 from bottom
+    row_height = 26
+
+    current_page = first_tab_page_index
+    for i, item in enumerate(items):
+        row_top    = first_row_top - (i * row_height)
+        row_bottom = row_top - row_height
+        rect = RectangleObject([left, row_bottom, right, row_top])
+        try:
+            annotation = Link(rect=rect, target_page_index=current_page)
+            writer.add_annotation(page_number=toc_page_index, annotation=annotation)
+        except Exception:
+            pass  # silently skip if pypdf version differs
+        current_page += 1 + item.get("page_count", 1)  # divider + doc pages
+
+
 def merge_pdfs(session_data, output_path):
     """Merge cover/TOC + dividers + documents into final PDF."""
     doc_type = session_data["doc_type"]
@@ -435,9 +467,15 @@ def merge_pdfs(session_data, output_path):
         recitals=session_data.get("recitals", ""),
     )
     reader = PdfReader(toc_path)
+    cover_page_count = len(reader.pages)
     for page in reader.pages:
         writer.add_page(page)
     os.remove(toc_path)
+
+    # TOC is always the last page of the cover PDF
+    toc_page_index = cover_page_count - 1
+    # First tab divider starts immediately after the cover PDF
+    first_tab_page_index = cover_page_count
 
     # 2. For each item: divider + document
     for i, item in enumerate(items):
@@ -457,6 +495,9 @@ def merge_pdfs(session_data, output_path):
             doc_reader = PdfReader(doc_path)
             for page in doc_reader.pages:
                 writer.add_page(page)
+
+    # 3. Stamp clickable links on the TOC page
+    add_toc_links(writer, toc_page_index, items, first_tab_page_index)
 
     with open(output_path, "wb") as f:
         writer.write(f)
