@@ -529,16 +529,9 @@ footer span{color:var(--gold)}
       <div class="panel-body">
         <div class="field">
           <label>Document Type</label>
-          <select id="docType" onchange="saveSettings()">
-            <option value="application_record">Application Record</option>
-            <option value="motion_record">Motion Record</option>
-            <option value="book_of_authorities">Book of Authorities</option>
-            <option value="index_of_materials">Index of Materials</option>
-            <option value="compendium">Compendium</option>
-            <option value="appeal_book">Appeal Book</option>
-                <option value="trial_record">Trial Record</option>
-            <option value="exhibits">Exhibits</option>
-          </select>
+          <input type="text" id="docType" oninput="saveSettings()"
+            placeholder="e.g. Application Record, Book of Authorities"
+            style="width:100%;box-sizing:border-box"/>
         </div>
         <div class="field">
           <label>Title / Sub-heading <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
@@ -745,7 +738,7 @@ async function loadSession(){
   const country = s.country || 'Canada';
   document.getElementById('country').value = country;
   populateJurisdictions(country, s.jurisdiction || 'ON');
-  document.getElementById('docType').value = s.doc_type || 'application_record';
+  document.getElementById('docType').value = s.doc_type || '';
   document.getElementById('docTitle').value = s.title || '';
   document.getElementById('courtFile').value = s.court_file || '';
   document.getElementById('parties').value = s.parties || '';
@@ -1101,7 +1094,7 @@ function toast(msg, type='info'){
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderInd(); renderGrps(); });
+document.getElementById('docType').addEventListener('input', ()=>{ saveSettings(); renderInd(); renderGrps(); });
 
 loadSession();
 </script>

@@ -237,7 +237,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
     """
-    tmpl = TEMPLATES[doc_type]
+    tmpl = TEMPLATES.get(doc_type, {"header": doc_type.upper(), "tab_style": "alpha"})
     doc  = SimpleDocTemplate(
         output_path, pagesize=letter,
         rightMargin=1*inch, leftMargin=1.25*inch,
@@ -472,8 +472,8 @@ def merge_pdfs(session_data, output_path):
     items        = session_data.get("items", [])
     tabs         = session_data.get("tabs", [])
     use_dividers = session_data.get("use_dividers", True)
-    tmpl         = TEMPLATES[doc_type]
-    tab_fn       = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
+    tmpl         = TEMPLATES.get(doc_type, {"header": doc_type.upper(), "tab_style": "alpha"})
+    tab_fn       = alpha_label
 
     writer = PdfWriter()
 
