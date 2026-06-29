@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — Create Account</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f2eb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: #0d1b2a; letter-spacing: 0.04em; }
+    .logo p  { font-size: 0.78rem; color: #888; margin-top: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .free-badge {
+      display: inline-block;
+      background: #0d1b2a;
+      color: #c9a84c;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 18px;
+    }
+    input:focus { border-color: #c9a84c; }
+    .hint { font-size: 0.75rem; color: #999; margin-top: -14px; margin-bottom: 18px; }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #0d1b2a;
+      color: #c9a84c;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: background 0.2s;
+      margin-top: 4px;
+    }
+    .btn:hover { background: #1e3a5f; }
+    .error {
+      background: #fff0f0;
+      border: 1px solid #f5c6c6;
+      color: #c0392b;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 18px;
+    }
+    .footer-link { text-align: center; margin-top: 24px; font-size: 0.85rem; color: #666; }
+    .footer-link a { color: #0d1b2a; font-weight: 600; text-decoration: none; }
+    .footer-link a:hover { text-decoration: underline; }
+    .privacy-note { text-align: center; margin-top: 24px; font-size: 0.72rem; color: #aaa; line-height: 1.6; }
+    .terms { font-size: 0.72rem; color: #aaa; text-align: center; margin-top: 16px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>BundleMaker</h1>
+      <p>Court-Ready Legal Bundles</p>
+    </div>
+    <div style="text-align:center">
+      <span class="free-badge">Free — 3 bundles included</span>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" autocomplete="on">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email" required autofocus
+             placeholder="you@lawfirm.com"/>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required
+             placeholder="Minimum 8 characters"/>
+      <p class="hint">At least 8 characters</p>
+
+      <label for="confirm">Confirm Password</label>
+      <input type="password" id="confirm" name="confirm" required
+             placeholder="Re-enter your password"/>
+
+      <button type="submit" class="btn">Create Free Account</button>
+    </form>
+
+    <div class="footer-link">
+      Already have an account? <a href="/login">Log in</a>
+    </div>
+
+    <div class="privacy-note">
+      🔒 Your documents are processed in memory and permanently deleted<br/>
+      after download. We never store your legal files.
+    </div>
+
+    <div class="terms">
+      By registering you agree that your account data (email only)<br/>
+      is stored securely and never sold to third parties.
+    </div>
+  </div>
+</body>
+</html>

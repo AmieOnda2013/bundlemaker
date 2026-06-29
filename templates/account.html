@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — My Account</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; padding: 24px; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 640px; margin: 0 auto 28px;
+    }
+    .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #0d1b2a; }
+    .topbar a { font-size: 0.82rem; color: #666; text-decoration: none; }
+    .topbar a:hover { color: #0d1b2a; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 32px;
+      max-width: 640px;
+      margin: 0 auto 20px;
+    }
+    .card h2 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 20px; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .row:last-child { border-bottom: none; }
+    .row-label { font-size: 0.85rem; color: #555; }
+    .row-value { font-size: 0.95rem; font-weight: 600; color: #0d1b2a; }
+    .plan-badge {
+      display: inline-block;
+      background: #0d1b2a;
+      color: #c9a84c;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .plan-badge.free { background: #e8e4da; color: #666; }
+    .progress-bar {
+      height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden;
+    }
+    .progress-fill { height: 100%; background: #c9a84c; border-radius: 3px; transition: width 0.3s; }
+    .progress-label { font-size: 0.72rem; color: #999; margin-top: 4px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: #0d1b2a; color: #c9a84c; }
+    .btn-primary:hover { background: #1e3a5f; }
+    .btn-outline { background: transparent; color: #c0392b; border: 1.5px solid #c0392b; }
+    .btn-outline:hover { background: #fff0f0; }
+    .privacy-box {
+      background: #f5f2eb;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.7;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .privacy-box strong { color: #0d1b2a; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>My Account</h1>
+    <a href="/">← Back to BundleMaker</a>
+  </div>
+
+  <div class="card">
+    <h2>Account Details</h2>
+    <div class="row">
+      <span class="row-label">Email</span>
+      <span class="row-value">{{ current_user.email }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Member since</span>
+      <span class="row-value">{{ current_user.created_at.strftime('%B %d, %Y') }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Plan</span>
+      <span class="row-value">
+        <span class="plan-badge {% if current_user.plan == 'free' %}free{% endif %}">
+          {{ current_user.plan | capitalize }}
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Usage</h2>
+    <div class="row" style="flex-direction:column;align-items:flex-start">
+      <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:8px">
+        <span class="row-label">Bundles generated</span>
+        <span class="row-value">
+          {% if current_user.plan == 'free' %}
+            {{ current_user.bundles_used }} / 3
+          {% else %}
+            {{ current_user.bundles_used }} (unlimited)
+          {% endif %}
+        </span>
+      </div>
+      {% if current_user.plan == 'free' %}
+      <div class="progress-bar" style="width:100%">
+        <div class="progress-fill" style="width:{{ [current_user.bundles_used * 33.3, 100] | min }}%"></div>
+      </div>
+      <p class="progress-label">{{ 3 - current_user.bundles_used }} free bundle{{ 's' if (3 - current_user.bundles_used) != 1 }} remaining</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if current_user.plan == 'free' %}
+  <div class="card">
+    <h2>Upgrade Plan</h2>
+    <div class="row">
+      <div>
+        <div class="row-value" style="margin-bottom:4px">Solo — Unlimited Bundles</div>
+        <div class="row-label">One user, unlimited bundle generation</div>
+      </div>
+      <span style="font-weight:700;color:#0d1b2a">Coming soon</span>
+    </div>
+    <div class="row">
+      <div>
+        <div class="row-value" style="margin-bottom:4px">Firm — Team Access</div>
+        <div class="row-label">Up to 5 users, unlimited bundles</div>
+      </div>
+      <span style="font-weight:700;color:#0d1b2a">Coming soon</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:0.85rem;font-weight:600;color:#0d1b2a;margin-bottom:2px">Sign out</div>
+      <div style="font-size:0.78rem;color:#999">You'll need to log in again to access BundleMaker</div>
+    </div>
+    <a href="/logout" class="btn btn-outline">Log Out</a>
+  </div>
+
+  <div class="privacy-box">
+    🔒 <strong>Your privacy is our priority.</strong> Uploaded documents are processed in memory
+    and permanently deleted from our servers the moment your bundle is downloaded.
+    We store only your email address and bundle count — nothing else.
+  </div>
+</body>
+</html>

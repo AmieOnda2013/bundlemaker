@@ -3,7 +3,8 @@ import io
 import json
 import uuid
 import shutil
-from flask import Flask, render_template, request, jsonify, send_file, session
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from pypdf import PdfReader, PdfWriter
 from pypdf.annotations import Link
 from pypdf.generic import RectangleObject
@@ -15,14 +16,39 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus import PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from models import db, User
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
 
-_BASE = os.environ.get("DATA_DIR") or os.path.join(os.path.dirname(__file__))
-UPLOAD_FOLDER   = os.path.join(_BASE, "uploads")
-OUTPUT_FOLDER   = os.path.join(_BASE, "output")
-SESSIONS_FOLDER = os.path.join(_BASE, "sessions")
+# ── Database ─────────────────────────────────────────────────────────────────
+_BASE_DIR = os.environ.get("DATA_DIR") or os.path.dirname(__file__)
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    os.environ.get("DATABASE_URL") or
+    f"sqlite:///{os.path.join(_BASE_DIR, 'bundlemaker.db')}"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SESSION_COOKIE_HTTPONLY"]  = True
+app.config["SESSION_COOKIE_SAMESITE"]  = "Lax"
+app.config["SESSION_COOKIE_SECURE"]    = os.environ.get("RAILWAY_ENVIRONMENT") == "production"
+
+db.init_app(app)
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Please log in to access BundleMaker."
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+with app.app_context():
+    db.create_all()
+
+UPLOAD_FOLDER   = os.path.join(_BASE_DIR, "uploads")
+OUTPUT_FOLDER   = os.path.join(_BASE_DIR, "output")
+SESSIONS_FOLDER = os.path.join(_BASE_DIR, "sessions")
 
 TEMPLATES = {
     "application_record":  {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
@@ -103,6 +129,11 @@ JURISDICTIONS = {
 # ── Session helpers ──────────────────────────────────────────────────────────
 
 def session_path(sid):
+    # Namespace by user ID so sessions are always isolated per account
+    if current_user.is_authenticated:
+        user_dir = os.path.join(SESSIONS_FOLDER, f"u{current_user.id}")
+        os.makedirs(user_dir, exist_ok=True)
+        return os.path.join(user_dir, f"{sid}.json")
     return os.path.join(SESSIONS_FOLDER, f"{sid}.json")
 
 def _default_session():
@@ -542,9 +573,68 @@ def merge_pdfs(session_data, output_path):
         writer.write(f)
 
 
-# ── Routes ──────────────────────────────────────────────────────────────────
+# ── Auth routes ──────────────────────────────────────────────────────────────
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        email    = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm  = request.form.get("confirm", "")
+        if not email or not password:
+            error = "Email and password are required."
+        elif len(password) < 8:
+            error = "Password must be at least 8 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        elif User.query.filter_by(email=email).first():
+            error = "An account with that email already exists."
+        else:
+            user = User(email=email)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            login_user(user, remember=True)
+            return redirect(url_for("index"))
+    return render_template("register.html", error=error)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        email    = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        user     = User.query.filter_by(email=email).first()
+        if user and user.check_password(password):
+            login_user(user, remember=True)
+            return redirect(request.args.get("next") or url_for("index"))
+        error = "Invalid email or password."
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+
+@app.route("/account")
+@login_required
+def account():
+    return render_template("account.html")
+
+
+# ── Main app ──────────────────────────────────────────────────────────────────
 
 @app.route("/")
+@login_required
 def index():
     if "sid" not in session:
         session["sid"] = uuid.uuid4().hex
@@ -552,6 +642,7 @@ def index():
 
 
 @app.route("/api/session", methods=["GET"])
+@login_required
 def get_session_data():
     sid = session.get("sid", uuid.uuid4().hex)
     session["sid"] = sid
@@ -559,6 +650,7 @@ def get_session_data():
 
 
 @app.route("/api/session", methods=["POST"])
+@login_required
 def update_session():
     sid  = session.get("sid")
     data = request.json
@@ -572,6 +664,7 @@ def update_session():
 
 
 @app.route("/api/jurisdictions", methods=["GET"])
+@login_required
 def get_jurisdictions():
     return jsonify(JURISDICTIONS)
 
@@ -579,6 +672,7 @@ def get_jurisdictions():
 # ── Individual-item routes ───────────────────────────────────────────────────
 
 @app.route("/api/upload", methods=["POST"])
+@login_required
 def upload():
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -595,12 +689,14 @@ def upload():
 
 
 @app.route("/api/items", methods=["GET"])
+@login_required
 def get_items():
     sid = session.get("sid")
     return jsonify(get_session(sid).get("items", []))
 
 
 @app.route("/api/items/reorder", methods=["POST"])
+@login_required
 def reorder_items():
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -612,6 +708,7 @@ def reorder_items():
 
 
 @app.route("/api/items/<item_id>", methods=["PATCH"])
+@login_required
 def update_item(item_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -626,6 +723,7 @@ def update_item(item_id):
 
 
 @app.route("/api/items/<item_id>", methods=["DELETE"])
+@login_required
 def delete_item(item_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -637,12 +735,14 @@ def delete_item(item_id):
 # ── Grouped-tab routes ───────────────────────────────────────────────────────
 
 @app.route("/api/tabs", methods=["GET"])
+@login_required
 def get_tabs():
     sid = session.get("sid")
     return jsonify(get_session(sid).get("tabs", []))
 
 
 @app.route("/api/tabs", methods=["POST"])
+@login_required
 def create_tab():
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -654,6 +754,7 @@ def create_tab():
 
 
 @app.route("/api/tabs/reorder", methods=["POST"])
+@login_required
 def reorder_tabs():
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -665,6 +766,7 @@ def reorder_tabs():
 
 
 @app.route("/api/tabs/<tab_id>", methods=["PATCH"])
+@login_required
 def update_tab(tab_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -679,6 +781,7 @@ def update_tab(tab_id):
 
 
 @app.route("/api/tabs/<tab_id>", methods=["DELETE"])
+@login_required
 def delete_tab(tab_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -688,6 +791,7 @@ def delete_tab(tab_id):
 
 
 @app.route("/api/tabs/<tab_id>/upload", methods=["POST"])
+@login_required
 def upload_to_tab(tab_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -707,6 +811,7 @@ def upload_to_tab(tab_id):
 
 
 @app.route("/api/tabs/<tab_id>/items/reorder", methods=["POST"])
+@login_required
 def reorder_tab_items(tab_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -721,6 +826,7 @@ def reorder_tab_items(tab_id):
 
 
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["PATCH"])
+@login_required
 def update_tab_item(tab_id, item_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -738,6 +844,7 @@ def update_tab_item(tab_id, item_id):
 
 
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["DELETE"])
+@login_required
 def delete_tab_item(tab_id, item_id):
     sid  = session.get("sid")
     sess = get_session(sid)
@@ -752,30 +859,60 @@ def delete_tab_item(tab_id, item_id):
 # ── Generate / Download / Reset ──────────────────────────────────────────────
 
 @app.route("/api/generate", methods=["POST"])
+@login_required
 def generate():
+    # Enforce free-tier bundle limit
+    if not current_user.can_generate():
+        return jsonify({
+            "error": "You have used all 3 free bundles. Please upgrade to continue.",
+            "upgrade": True
+        }), 403
+
     sid  = session.get("sid")
     sess = get_session(sid)
     total = len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", []))
     if total == 0:
         return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
-    out_name = f"legal_document_{uuid.uuid4().hex[:8]}.pdf"
+    out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     try:
         merge_pdfs(sess, out_path)
+        # Track usage
+        current_user.bundles_used += 1
+        db.session.commit()
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"filename": out_name})
+    return jsonify({
+        "filename": out_name,
+        "bundles_used": current_user.bundles_used,
+        "plan": current_user.plan,
+    })
 
 
 @app.route("/api/download/<filename>")
+@login_required
 def download(filename):
-    path = os.path.join(OUTPUT_FOLDER, filename)
+    # Security: only allow filenames that belong to the current session
+    safe_name = os.path.basename(filename)
+    path = os.path.join(OUTPUT_FOLDER, safe_name)
     if not os.path.exists(path):
         return "Not found", 404
-    return send_file(path, as_attachment=True, download_name=filename)
+
+    response = send_file(path, as_attachment=True, download_name=safe_name)
+
+    # Delete the generated bundle after sending (zero-storage)
+    @response.call_on_close
+    def cleanup():
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    return response
 
 
 @app.route("/api/reset", methods=["POST"])
+@login_required
 def reset():
     sid = session.get("sid")
     save_session(sid, _default_session())
