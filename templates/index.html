@@ -738,7 +738,9 @@ async function loadSession(){
   const country = s.country || 'Canada';
   document.getElementById('country').value = country;
   populateJurisdictions(country, s.jurisdiction || 'ON');
-  document.getElementById('docType').value = s.doc_type || '';
+  const oldKeys = ['application_record','book_of_authorities','motion_record','index_of_materials','compendium','appeal_book','trial_record','exhibits','factum'];
+  const rawDocType = s.doc_type || '';
+  document.getElementById('docType').value = oldKeys.includes(rawDocType) ? '' : rawDocType;
   document.getElementById('docTitle').value = s.title || '';
   document.getElementById('courtFile').value = s.court_file || '';
   document.getElementById('parties').value = s.parties || '';
