@@ -320,33 +320,32 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     sub_rt = ParagraphStyle("subr", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
     toc_data = [[
-        Paragraph("<b>Tab</b>",      th_st),
+        Paragraph("<b>Item</b>",      th_st),
         Paragraph("<b>Document</b>", th_st),
         Paragraph("<b>Page(s)</b>",  th_rt),
     ]]
 
-    tab_idx = 0       # sequential tab-label counter across items + groups
     current_page = 1  # logical page number in the body (excluding dividers)
 
-    # Individual items — one TOC row each
-    for item in items:
-        label    = tab_fn(tab_idx);  tab_idx += 1
+    # Individual items — numbered 1, 2, 3… (independent of groups)
+    for i, item in enumerate(items):
+        label    = str(i + 1)
         name     = item.get("custom_name") or item.get("filename", "Document")
         pc       = item.get("page_count", 1)
         page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
         toc_data.append([
-            Paragraph(f"Tab {label}", row_st),
+            Paragraph(label, row_st),
             Paragraph(name, row_st),
             Paragraph(page_str, row_rt),
         ])
         current_page += pc + (1 if use_dividers else 0)
 
-    # Grouped tabs — bold summary row + indented sub-rows
+    # Grouped tabs — Tab A, Tab B… (independent alpha sequence starting at A)
     tab_shade = colors.Color(0.93, 0.91, 0.87)
     shaded_rows = []  # row indices for shading
 
-    for tab in tabs:
-        label      = tab_fn(tab_idx);  tab_idx += 1
+    for grp_idx, tab in enumerate(tabs):
+        label      = alpha_label(grp_idx)
         tab_name   = tab.get("name") or f"Tab {label}"
         tab_items  = tab.get("items", [])
         total_pc   = sum(i.get("page_count", 1) for i in tab_items) or 1
@@ -499,12 +498,10 @@ def merge_pdfs(session_data, output_path):
 
     toc_page_index = cover_count - 1
     first_page_idx = cover_count
-    tab_label_idx  = 0  # sequential across items + tabs
-
-    # 2. Individual items — each gets its own divider (if enabled) + doc pages
-    for item in items:
-        label = tab_fn(tab_label_idx);  tab_label_idx += 1
-        name  = item.get("custom_name") or item.get("filename", f"Tab {label}")
+    # 2. Individual items — each gets its own numbered divider (if enabled) + doc pages
+    for i, item in enumerate(items):
+        label = str(i + 1)
+        name  = item.get("custom_name") or item.get("filename", f"Document {label}")
 
         if use_dividers:
             div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
@@ -518,9 +515,9 @@ def merge_pdfs(session_data, output_path):
             for pg in PdfReader(doc_path).pages:
                 writer.add_page(pg)
 
-    # 3. Grouped tabs — one divider per tab + all tab docs
-    for tab in tabs:
-        label    = tab_fn(tab_label_idx);  tab_label_idx += 1
+    # 3. Grouped tabs — Tab A, Tab B… (independent alpha sequence)
+    for grp_idx, tab in enumerate(tabs):
+        label    = alpha_label(grp_idx)
         tab_name = tab.get("name") or f"Tab {label}"
 
         if use_dividers:

@@ -288,6 +288,21 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   letter-spacing:0.06em;
   font-family:'Inter',sans-serif;
 }
+.num-badge{
+  background:var(--cream);
+  color:var(--navy);
+  border:1.5px solid var(--gold);
+  font-size:0.75rem;
+  font-weight:700;
+  border-radius:50%;
+  width:28px;
+  height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  font-family:'Inter',sans-serif;
+}
 .type-badge{
   font-size:0.62rem;font-weight:700;
   border-radius:3px;padding:2px 6px;
@@ -584,7 +599,7 @@ footer span{color:var(--gold)}
 
       <!-- Section 1: Individual Documents -->
       <div class="section-label">Individual Documents</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Each file gets its own tab label (A, B, C…)</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Each file is numbered in order (1, 2, 3…)</div>
       <div class="drop-zone" id="indDropZone" onclick="document.getElementById('indFileInput').click()">
         <input type="file" id="indFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
         <div class="drop-zone-icon">⬆</div>
@@ -806,14 +821,13 @@ function renderInd(){
     const name  = item.custom_name || item.filename;
     const isImg = item.file_type === 'image';
     const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-    const lbl   = getLabel(i, docType);
     const row   = document.createElement('div');
     row.className  = 'doc-item';
     row.dataset.id = item.id;
     row.draggable  = true;
     row.innerHTML  = `
       <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <span class="tab-badge">TAB ${escHtml(lbl)}</span>
+      <span class="num-badge">${i + 1}</span>
       <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
       <span class="doc-name">
         <input type="text" value="${escHtml(name)}" placeholder="Document name"
@@ -872,9 +886,8 @@ function renderGrps(){
   const docType   = document.getElementById('docType').value;
   empty.style.display = tabs.length ? 'none' : 'block';
   container.innerHTML = '';
-  const offset = items.length; // groups continue tab labeling after individual items
   tabs.forEach((tab, ti)=>{
-    const lbl = getLabel(offset + ti, docType);
+    const lbl = getLabel(ti, docType);
     const wrapper = document.createElement('div');
     wrapper.className  = 'tab-group';
     wrapper.dataset.id = tab.id;
