@@ -339,6 +339,55 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 #toast.success{background:#1b5e30;color:#fff}
 #toast.error{background:#7f1d1d;color:#fff}
 
+/* ── Tab groups ───────────────────────────────────── */
+.tab-group{
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  margin-bottom:12px;
+  background:var(--white);
+  overflow:hidden;
+  transition:box-shadow .15s;
+}
+.tab-group.dragging{opacity:0.5}
+.tab-group.drag-over{box-shadow:0 0 0 2px var(--gold)}
+.tab-group-header{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;
+  background:var(--parchment2);
+  border-bottom:1px solid var(--border);
+}
+.tab-drag-handle{
+  cursor:grab;color:var(--muted);font-size:1.1rem;flex-shrink:0;
+}
+.tab-name-input{
+  flex:1;border:none;background:transparent;
+  font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:500;
+  color:var(--ink);outline:none;
+  border-bottom:1px dashed transparent;
+  transition:border-color .15s;
+  padding:2px 0;
+  min-width:0;
+}
+.tab-name-input:hover,.tab-name-input:focus{border-bottom-color:var(--gold)}
+.tab-drop-zone{
+  border:1.5px dashed var(--border);
+  border-radius:4px;
+  margin:10px 12px;
+  padding:10px 14px;
+  text-align:center;
+  font-size:0.78rem;
+  color:var(--muted);
+  cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.tab-drop-zone:hover,.tab-drop-zone.over{
+  background:var(--parchment);
+  border-color:var(--gold);
+  color:var(--ink);
+}
+.doc-list:empty + .tab-drop-zone,
+.doc-list:has(*) + .tab-drop-zone { margin-top:6px; }
+
 /* ── Footer ───────────────────────────────────────── */
 footer{
   text-align:center;
@@ -496,19 +545,19 @@ footer span{color:var(--gold)}
     </div>
     <div class="panel-body">
 
-      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" onchange="handleFiles(this.files)"/>
-        <div class="drop-zone-icon">⬆</div>
-        <div class="drop-zone-label">Drop files here or click to browse</div>
-        <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP &nbsp;—&nbsp; drag rows below to reorder</div>
-      </div>
-
-      <div class="doc-list" id="docList"></div>
+      <div id="tabsList"></div>
 
       <div id="emptyHint" class="empty-state">
         <div class="empty-state-icon">📄</div>
-        <p>No documents added yet.<br/>Upload files above to begin building your bundle.</p>
+        <p>No tabs yet.<br/>Click <strong>Add Tab</strong> below to start building your bundle.</p>
       </div>
+
+      <button class="btn" id="addTabBtn" style="margin-top:12px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.9rem;letter-spacing:0.05em;cursor:pointer" onclick="addTab()">
+        + Add Tab
+      </button>
+
+      <!-- Hidden file input — activated per-tab -->
+      <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleFilesForTab(this.files)"/>
 
     </div>
   </div>
@@ -525,8 +574,10 @@ footer span{color:var(--gold)}
 <div id="toast"></div>
 
 <script>
-let items = [];
-let dragSrcId = null;
+let tabs = [];          // [{id, name, items:[...]}]
+let activeTabId = null; // which tab the file-input is uploading to
+let dragSrcId   = null; // for item drag within a tab
+let tabDragId   = null; // for tab drag
 
 // Jurisdiction data embedded directly — no network call needed
 const jurisdictionData = {
@@ -635,8 +686,8 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
-  items = s.items || [];
-  renderList();
+  tabs = s.tabs || [];
+  renderTabs();
 }
 
 async function saveSettings(){
@@ -656,105 +707,235 @@ async function saveSettings(){
   });
 }
 
-/* ── Upload ── */
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('over'); });
-dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('over'));
-dropZone.addEventListener('drop', e=>{
-  e.preventDefault(); dropZone.classList.remove('over');
-  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-});
-
+/* ── Helpers ── */
 const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
 function isAllowed(name){ return ALLOWED_EXTS.some(e => name.toLowerCase().endsWith(e)); }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-async function handleFiles(files){
+function getTabLabel(i, docType){
+  const alpha = n=>{ let r=''; while(n>=0){r=String.fromCharCode(65+(n%26))+r;n=Math.floor(n/26)-1;} return r; };
+  return docType==='book_of_authorities' ? String(i+1) : alpha(i);
+}
+
+/* ── Render all tabs ── */
+function renderTabs(){
+  const container  = document.getElementById('tabsList');
+  const hint       = document.getElementById('emptyHint');
+  const countEl    = document.getElementById('docCount');
+  const docType    = document.getElementById('docType').value;
+
+  const totalDocs  = tabs.reduce((s,t)=>s+t.items.length, 0);
+  hint.style.display    = tabs.length ? 'none' : 'block';
+  countEl.style.display = tabs.length ? 'inline' : 'none';
+  countEl.textContent   = `${tabs.length} tab${tabs.length!==1?'s':''}, ${totalDocs} doc${totalDocs!==1?'s':''}`;
+
+  container.innerHTML = '';
+
+  tabs.forEach((tab, tabIdx) => {
+    const tabLabel = getTabLabel(tabIdx, docType);
+    const wrapper  = document.createElement('div');
+    wrapper.className   = 'tab-group';
+    wrapper.dataset.id  = tab.id;
+    wrapper.draggable   = true;
+
+    // Tab header
+    const header = document.createElement('div');
+    header.className = 'tab-group-header';
+    header.innerHTML = `
+      <span class="tab-drag-handle" title="Drag to reorder tab">⠿</span>
+      <span class="tab-badge" style="font-size:0.85rem;padding:3px 10px">TAB ${escHtml(tabLabel)}</span>
+      <input class="tab-name-input" type="text" value="${escHtml(tab.name)}" placeholder="Tab name / description"
+        onblur="renameTab('${tab.id}', this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()"/>
+      <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteTab('${tab.id}')" title="Delete this tab">✕</button>
+    `;
+
+    // Documents within this tab
+    const itemsList = document.createElement('div');
+    itemsList.className = 'doc-list';
+    itemsList.id = `items-${tab.id}`;
+
+    tab.items.forEach(item => {
+      const name   = item.custom_name || item.filename;
+      const isImg  = item.file_type === 'image';
+      const ext    = (item.original_ext||'.pdf').replace('.','').toUpperCase();
+      const badge  = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
+      const row    = document.createElement('div');
+      row.className   = 'doc-item';
+      row.dataset.id  = item.id;
+      row.dataset.tab = tab.id;
+      row.draggable   = true;
+      row.innerHTML   = `
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        ${badge}
+        <span class="doc-name">
+          <input type="text" value="${escHtml(name)}" placeholder="Document name"
+            onblur="renameItem('${tab.id}','${item.id}',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()"
+            title="Click to rename"/>
+        </span>
+        <span class="doc-pages">${item.page_count} pg</span>
+        <button class="btn btn-remove" onclick="deleteItem('${tab.id}','${item.id}')" title="Remove">✕</button>
+      `;
+      // item drag-to-reorder within tab
+      row.addEventListener('dragstart', e=>{
+        dragSrcId = item.id;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.id);
+        e.stopPropagation();
+      });
+      row.addEventListener('dragend', ()=>{
+        row.classList.remove('dragging');
+        document.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
+      });
+      row.addEventListener('dragover', e=>{
+        e.preventDefault(); e.stopPropagation();
+        if(dragSrcId && dragSrcId!==item.id) row.classList.add('drag-over');
+      });
+      row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
+      row.addEventListener('drop', e=>{
+        e.preventDefault(); e.stopPropagation();
+        row.classList.remove('drag-over');
+        if(dragSrcId && dragSrcId!==item.id) reorderItemTo(tab.id, dragSrcId, item.id);
+      });
+      itemsList.appendChild(row);
+    });
+
+    // Drop zone for this tab
+    const dz = document.createElement('div');
+    dz.className = 'tab-drop-zone';
+    dz.innerHTML = `<span>⬆ Drop files here or <u style="cursor:pointer">click to browse</u> — PDF · JPG · PNG · TIFF · WEBP</span>`;
+    dz.addEventListener('click', ()=> openFilePickerForTab(tab.id));
+    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
+    dz.addEventListener('drop', e=>{
+      e.preventDefault(); dz.classList.remove('over');
+      if(e.dataTransfer.files.length) uploadFilesToTab(tab.id, e.dataTransfer.files);
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(itemsList);
+    wrapper.appendChild(dz);
+
+    // Tab drag-to-reorder
+    wrapper.addEventListener('dragstart', e=>{
+      if(e.target.classList.contains('doc-item') || e.target.closest('.doc-item')) return;
+      tabDragId = tab.id;
+      wrapper.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tab.id);
+    });
+    wrapper.addEventListener('dragend', ()=>{
+      wrapper.classList.remove('dragging');
+      document.querySelectorAll('.tab-group').forEach(g=>g.classList.remove('drag-over'));
+    });
+    wrapper.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(tabDragId && tabDragId!==tab.id) wrapper.classList.add('drag-over');
+    });
+    wrapper.addEventListener('dragleave', ()=> wrapper.classList.remove('drag-over'));
+    wrapper.addEventListener('drop', e=>{
+      e.preventDefault();
+      wrapper.classList.remove('drag-over');
+      if(tabDragId && tabDragId!==tab.id) reorderTabTo(tabDragId, tab.id);
+    });
+
+    container.appendChild(wrapper);
+  });
+}
+
+/* ── Tab actions ── */
+async function addTab(){
+  const r   = await fetch('/api/tabs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:''})});
+  const tab = await r.json();
+  tabs.push(tab);
+  renderTabs();
+  // focus the new tab's name input
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('.tab-name-input');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+async function renameTab(tabId, name){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(tab) tab.name = name;
+  await fetch(`/api/tabs/${tabId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  renderTabs();
+}
+
+async function deleteTab(tabId){
+  if(!confirm('Remove this tab and all its documents?')) return;
+  tabs = tabs.filter(t=>t.id!==tabId);
+  renderTabs();
+  await fetch(`/api/tabs/${tabId}`,{method:'DELETE'});
+}
+
+async function reorderTabTo(srcId, targetId){
+  const si = tabs.findIndex(t=>t.id===srcId);
+  const ti = tabs.findIndex(t=>t.id===targetId);
+  const [m] = tabs.splice(si,1);
+  tabs.splice(ti,0,m);
+  renderTabs();
+  await fetch('/api/tabs/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
+}
+
+/* ── Upload ── */
+function openFilePickerForTab(tabId){
+  activeTabId = tabId;
+  const fi = document.getElementById('fileInput');
+  fi.value = '';
+  fi.click();
+}
+
+async function handleFilesForTab(files){
+  if(activeTabId) await uploadFilesToTab(activeTabId, files);
+}
+
+async function uploadFilesToTab(tabId, files){
   const fd = new FormData();
   let count = 0;
   for(const f of files){ if(isAllowed(f.name)){ fd.append('files', f); count++; } }
   if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
   toast('Uploading…','info');
-  const r = await fetch('/api/upload', {method:'POST', body:fd});
+  const r     = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
   const added = await r.json();
-  items.push(...added);
-  renderList();
-  toast(`${added.length} file${added.length>1?'s':''} added to bundle.`,'success');
+  const tab   = tabs.find(t=>t.id===tabId);
+  if(tab) tab.items.push(...added);
+  renderTabs();
+  toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
 }
 
-/* ── Tab labels ── */
-function getTabLabel(i, docType){
-  const alpha = (n)=>{ let r=''; while(n>=0){r=String.fromCharCode(65+(n%26))+r;n=Math.floor(n/26)-1;} return r; };
-  if(docType==='book_of_authorities') return String(i+1);
-  return alpha(i);
+/* ── Item actions ── */
+async function reorderItemTo(tabId, srcId, targetId){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(!tab) return;
+  const si = tab.items.findIndex(i=>i.id===srcId);
+  const ti = tab.items.findIndex(i=>i.id===targetId);
+  const [m] = tab.items.splice(si,1);
+  tab.items.splice(ti,0,m);
+  renderTabs();
+  await fetch(`/api/tabs/${tabId}/items/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tab.items.map(i=>i.id)})});
 }
 
-/* ── Render list ── */
-function renderList(){
-  const list = document.getElementById('docList');
-  const hint = document.getElementById('emptyHint');
-  const countEl = document.getElementById('docCount');
-  const docType = document.getElementById('docType').value;
-  hint.style.display = items.length ? 'none' : 'block';
-  countEl.style.display = items.length ? 'inline' : 'none';
-  countEl.textContent = `${items.length} document${items.length!==1?'s':''}`;
-  list.innerHTML = '';
-  items.forEach((item, i)=>{
-    const tab = getTabLabel(i, docType);
-    const name = item.custom_name || item.filename;
-    const pages = item.page_count;
-    const isImg = item.file_type === 'image';
-    const ext = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-    const typeBadge = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
-    const div = document.createElement('div');
-    div.className = 'doc-item';
-    div.dataset.id = item.id;
-    div.draggable = true;
-    div.innerHTML = `
-      <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <span class="tab-badge">TAB ${tab}</span>
-      ${typeBadge}
-      <span class="doc-name">
-        <input type="text" value="${escHtml(name)}" placeholder="Document name"
-          onblur="renameItem('${item.id}', this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"
-          title="Click to rename"/>
-      </span>
-      <span class="doc-pages">${pages} pg</span>
-      <div>
-        <button class="btn btn-remove" onclick="deleteItem('${item.id}')" title="Remove">✕</button>
-      </div>`;
-    div.addEventListener('dragstart', e=>{ dragSrcId=item.id; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', item.id); });
-    div.addEventListener('dragend', ()=>{ div.classList.remove('dragging'); document.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over')); });
-    div.addEventListener('dragover', e=>{ e.preventDefault(); if(dragSrcId && dragSrcId!==item.id) div.classList.add('drag-over'); });
-    div.addEventListener('dragleave', ()=> div.classList.remove('drag-over'));
-    div.addEventListener('drop', e=>{ e.preventDefault(); div.classList.remove('drag-over'); if(dragSrcId && dragSrcId!==item.id) reorderTo(dragSrcId, item.id); });
-    list.appendChild(div);
-  });
+async function renameItem(tabId, itemId, name){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(tab){ const item=tab.items.find(i=>i.id===itemId); if(item) item.custom_name=name; }
+  await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
 }
 
-async function reorderTo(srcId, targetId){
-  const srcIdx = items.findIndex(i=>i.id===srcId);
-  const tgtIdx = items.findIndex(i=>i.id===targetId);
-  const [moved] = items.splice(srcIdx,1);
-  items.splice(tgtIdx,0,moved);
-  renderList();
-  await fetch('/api/items/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:items.map(i=>i.id)})});
+async function deleteItem(tabId, itemId){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(tab) tab.items = tab.items.filter(i=>i.id!==itemId);
+  renderTabs();
+  await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'DELETE'});
 }
 
-async function renameItem(id, name){
-  const item = items.find(i=>i.id===id);
-  if(item){ item.custom_name = name; renderList(); }
-  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
-}
-
-async function deleteItem(id){
-  items = items.filter(i=>i.id!==id);
-  renderList();
-  await fetch(`/api/items/${id}`,{method:'DELETE'});
-}
-
+/* ── Generate / Reset ── */
 async function generate(){
-  if(!items.length){ toast('Add at least one document first.','error'); return; }
+  const totalDocs = tabs.reduce((s,t)=>s+t.items.length,0);
+  if(!totalDocs){ toast('Add at least one document first.','error'); return; }
   toast('Generating court bundle…','info');
   const r = await fetch('/api/generate',{method:'POST'});
   const data = await r.json();
@@ -764,28 +945,27 @@ async function generate(){
 }
 
 async function resetSession(){
-  if(!confirm('Clear all documents and start a new bundle?')) return;
+  if(!confirm('Clear all tabs and documents and start a new bundle?')) return;
   await fetch('/api/reset',{method:'POST'});
-  items = [];
-  document.getElementById('docTitle').value = '';
-  document.getElementById('courtFile').value = '';
-  document.getElementById('parties').value = '';
-  renderList();
+  tabs = [];
+  document.getElementById('docTitle').value   = '';
+  document.getElementById('courtFile').value  = '';
+  document.getElementById('parties').value    = '';
+  document.getElementById('recitals').value   = '';
+  renderTabs();
   toast('Bundle cleared. Ready for new documents.','info');
 }
 
 function toast(msg, type='info'){
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = type;
+  t.className   = type;
   t.style.display = 'block';
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderList(); });
+document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderTabs(); });
 
 loadSession();
 </script>

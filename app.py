@@ -19,118 +19,80 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
 
-# On Render, use the persistent disk at /data; locally use subdirs of the app folder
 _BASE = os.environ.get("DATA_DIR") or os.path.join(os.path.dirname(__file__))
-UPLOAD_FOLDER  = os.path.join(_BASE, "uploads")
-OUTPUT_FOLDER  = os.path.join(_BASE, "output")
+UPLOAD_FOLDER   = os.path.join(_BASE, "uploads")
+OUTPUT_FOLDER   = os.path.join(_BASE, "output")
 SESSIONS_FOLDER = os.path.join(_BASE, "sessions")
 
 TEMPLATES = {
-    "application_record": {
-        "label": "Application Record",
-        "header": "APPLICATION RECORD",
-        "tab_style": "alpha",
-    },
-    "book_of_authorities": {
-        "label": "Book of Authorities",
-        "header": "BOOK OF AUTHORITIES",
-        "tab_style": "numeric",
-    },
-    "index_of_materials": {
-        "label": "Index of Materials",
-        "header": "INDEX OF MATERIALS",
-        "tab_style": "alpha",
-    },
-    "compendium": {
-        "label": "Compendium",
-        "header": "COMPENDIUM",
-        "tab_style": "alpha",
-    },
-    "motion_record": {
-        "label": "Motion Record",
-        "header": "MOTION RECORD",
-        "tab_style": "alpha",
-    },
-    "appeal_book": {
-        "label": "Appeal Book",
-        "header": "APPEAL BOOK",
-        "tab_style": "numeric",
-    },
-    "factum": {
-        "label": "Factum / Written Argument",
-        "header": "FACTUM",
-        "tab_style": "alpha",
-    },
-    "trial_record": {
-        "label": "Trial Record",
-        "header": "TRIAL RECORD",
-        "tab_style": "alpha",
-    },
-    "exhibits": {
-        "label": "Exhibits",
-        "header": "EXHIBITS",
-        "tab_style": "alpha",
-    },
+    "application_record": {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
+    "book_of_authorities": {"label": "Book of Authorities",      "header": "BOOK OF AUTHORITIES", "tab_style": "numeric"},
+    "index_of_materials":  {"label": "Index of Materials",       "header": "INDEX OF MATERIALS",  "tab_style": "alpha"},
+    "compendium":          {"label": "Compendium",               "header": "COMPENDIUM",           "tab_style": "alpha"},
+    "motion_record":       {"label": "Motion Record",            "header": "MOTION RECORD",        "tab_style": "alpha"},
+    "appeal_book":         {"label": "Appeal Book",              "header": "APPEAL BOOK",          "tab_style": "numeric"},
+    "factum":              {"label": "Factum / Written Argument", "header": "FACTUM",              "tab_style": "alpha"},
+    "trial_record":        {"label": "Trial Record",             "header": "TRIAL RECORD",         "tab_style": "alpha"},
+    "exhibits":            {"label": "Exhibits",                 "header": "EXHIBITS",             "tab_style": "alpha"},
 }
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic"}
+IMAGE_EXTENSIONS  = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic"}
 ALLOWED_EXTENSIONS = {".pdf"} | IMAGE_EXTENSIONS
 
-# Jurisdiction data: country -> list of {value, label, court, rule_body}
 JURISDICTIONS = {
     "Canada": [
-        {"value": "ON", "label": "Ontario", "court": "SUPERIOR COURT OF JUSTICE", "rule_body": "Rules of Civil Procedure, R.R.O. 1990, Reg. 194"},
-        {"value": "ON_CA", "label": "Ontario — Court of Appeal", "court": "COURT OF APPEAL FOR ONTARIO", "rule_body": "Rules of Civil Procedure, R.R.O. 1990, Reg. 194"},
-        {"value": "BC", "label": "British Columbia", "court": "SUPREME COURT OF BRITISH COLUMBIA", "rule_body": "Supreme Court Civil Rules, B.C. Reg. 168/2009"},
-        {"value": "AB", "label": "Alberta", "court": "COURT OF KING'S BENCH OF ALBERTA", "rule_body": "Alberta Rules of Court, Alta. Reg. 124/2010"},
-        {"value": "QC", "label": "Québec", "court": "SUPERIOR COURT", "rule_body": "Code of Civil Procedure, CQLR c. C-25.01"},
-        {"value": "MB", "label": "Manitoba", "court": "COURT OF KING'S BENCH OF MANITOBA", "rule_body": "Court of Queen's Bench Rules, Man. Reg. 553/88"},
-        {"value": "SK", "label": "Saskatchewan", "court": "COURT OF KING'S BENCH FOR SASKATCHEWAN", "rule_body": "Queen's Bench Rules"},
-        {"value": "NS", "label": "Nova Scotia", "court": "SUPREME COURT OF NOVA SCOTIA", "rule_body": "Nova Scotia Civil Procedure Rules"},
-        {"value": "NB", "label": "New Brunswick", "court": "COURT OF KING'S BENCH OF NEW BRUNSWICK", "rule_body": "Rules of Court, NB Reg. 82-73"},
-        {"value": "CA_FED", "label": "Federal Court of Canada", "court": "FEDERAL COURT", "rule_body": "Federal Courts Rules, SOR/98-106"},
-        {"value": "CA_FCA", "label": "Federal Court of Appeal", "court": "FEDERAL COURT OF APPEAL", "rule_body": "Federal Courts Rules, SOR/98-106"},
-        {"value": "SCC", "label": "Supreme Court of Canada", "court": "SUPREME COURT OF CANADA", "rule_body": "Rules of the Supreme Court of Canada, SOR/2002-156"},
+        {"value": "ON",     "label": "Ontario",                     "court": "SUPERIOR COURT OF JUSTICE",               "rule_body": "Rules of Civil Procedure, R.R.O. 1990, Reg. 194"},
+        {"value": "ON_CA",  "label": "Ontario — Court of Appeal",   "court": "COURT OF APPEAL FOR ONTARIO",             "rule_body": "Rules of Civil Procedure, R.R.O. 1990, Reg. 194"},
+        {"value": "BC",     "label": "British Columbia",             "court": "SUPREME COURT OF BRITISH COLUMBIA",       "rule_body": "Supreme Court Civil Rules, B.C. Reg. 168/2009"},
+        {"value": "AB",     "label": "Alberta",                     "court": "COURT OF KING'S BENCH OF ALBERTA",        "rule_body": "Alberta Rules of Court, Alta. Reg. 124/2010"},
+        {"value": "QC",     "label": "Québec",                      "court": "SUPERIOR COURT",                          "rule_body": "Code of Civil Procedure, CQLR c. C-25.01"},
+        {"value": "MB",     "label": "Manitoba",                    "court": "COURT OF KING'S BENCH OF MANITOBA",       "rule_body": "Court of Queen's Bench Rules, Man. Reg. 553/88"},
+        {"value": "SK",     "label": "Saskatchewan",                "court": "COURT OF KING'S BENCH FOR SASKATCHEWAN",  "rule_body": "Queen's Bench Rules"},
+        {"value": "NS",     "label": "Nova Scotia",                 "court": "SUPREME COURT OF NOVA SCOTIA",            "rule_body": "Nova Scotia Civil Procedure Rules"},
+        {"value": "NB",     "label": "New Brunswick",               "court": "COURT OF KING'S BENCH OF NEW BRUNSWICK",  "rule_body": "Rules of Court, NB Reg. 82-73"},
+        {"value": "CA_FED", "label": "Federal Court of Canada",     "court": "FEDERAL COURT",                           "rule_body": "Federal Courts Rules, SOR/98-106"},
+        {"value": "CA_FCA", "label": "Federal Court of Appeal",     "court": "FEDERAL COURT OF APPEAL",                 "rule_body": "Federal Courts Rules, SOR/98-106"},
+        {"value": "SCC",    "label": "Supreme Court of Canada",     "court": "SUPREME COURT OF CANADA",                 "rule_body": "Rules of the Supreme Court of Canada, SOR/2002-156"},
     ],
     "United Kingdom": [
-        {"value": "EW_HC", "label": "England & Wales — High Court", "court": "HIGH COURT OF JUSTICE", "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
-        {"value": "EW_CA", "label": "England & Wales — Court of Appeal", "court": "COURT OF APPEAL", "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
-        {"value": "UKSC", "label": "UK Supreme Court", "court": "THE SUPREME COURT OF THE UNITED KINGDOM", "rule_body": "Supreme Court Rules 2009 (SI 2009/1603)"},
-        {"value": "SC_OS", "label": "Scotland — Outer House", "court": "COURT OF SESSION — OUTER HOUSE", "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
-        {"value": "SC_IH", "label": "Scotland — Inner House", "court": "COURT OF SESSION — INNER HOUSE", "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
-        {"value": "NI", "label": "Northern Ireland", "court": "HIGH COURT OF JUSTICE IN NORTHERN IRELAND", "rule_body": "Rules of the Court of Judicature (NI) 1980"},
+        {"value": "EW_HC", "label": "England & Wales — High Court",        "court": "HIGH COURT OF JUSTICE",                        "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
+        {"value": "EW_CA", "label": "England & Wales — Court of Appeal",   "court": "COURT OF APPEAL",                              "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
+        {"value": "UKSC",  "label": "UK Supreme Court",                    "court": "THE SUPREME COURT OF THE UNITED KINGDOM",      "rule_body": "Supreme Court Rules 2009 (SI 2009/1603)"},
+        {"value": "SC_OS", "label": "Scotland — Outer House",              "court": "COURT OF SESSION — OUTER HOUSE",               "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
+        {"value": "SC_IH", "label": "Scotland — Inner House",              "court": "COURT OF SESSION — INNER HOUSE",               "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
+        {"value": "NI",    "label": "Northern Ireland",                    "court": "HIGH COURT OF JUSTICE IN NORTHERN IRELAND",    "rule_body": "Rules of the Court of Judicature (NI) 1980"},
     ],
     "United States": [
-        {"value": "US_FED", "label": "Federal District Court", "court": "UNITED STATES DISTRICT COURT", "rule_body": "Federal Rules of Civil Procedure"},
-        {"value": "US_CA", "label": "Federal Court of Appeals", "court": "UNITED STATES COURT OF APPEALS", "rule_body": "Federal Rules of Appellate Procedure"},
-        {"value": "USSC", "label": "US Supreme Court", "court": "SUPREME COURT OF THE UNITED STATES", "rule_body": "Rules of the Supreme Court of the United States"},
-        {"value": "US_NY", "label": "New York — Supreme Court", "court": "SUPREME COURT OF THE STATE OF NEW YORK", "rule_body": "New York Civil Practice Law and Rules"},
-        {"value": "US_CA_ST", "label": "California — Superior Court", "court": "SUPERIOR COURT OF THE STATE OF CALIFORNIA", "rule_body": "California Rules of Court"},
-        {"value": "US_TX", "label": "Texas — District Court", "court": "DISTRICT COURT OF TEXAS", "rule_body": "Texas Rules of Civil Procedure"},
-        {"value": "US_FL", "label": "Florida — Circuit Court", "court": "CIRCUIT COURT OF FLORIDA", "rule_body": "Florida Rules of Civil Procedure"},
-        {"value": "US_IL", "label": "Illinois — Circuit Court", "court": "CIRCUIT COURT OF COOK COUNTY, ILLINOIS", "rule_body": "Illinois Supreme Court Rules"},
+        {"value": "US_FED",   "label": "Federal District Court",       "court": "UNITED STATES DISTRICT COURT",              "rule_body": "Federal Rules of Civil Procedure"},
+        {"value": "US_CA",    "label": "Federal Court of Appeals",     "court": "UNITED STATES COURT OF APPEALS",            "rule_body": "Federal Rules of Appellate Procedure"},
+        {"value": "USSC",     "label": "US Supreme Court",             "court": "SUPREME COURT OF THE UNITED STATES",        "rule_body": "Rules of the Supreme Court of the United States"},
+        {"value": "US_NY",    "label": "New York — Supreme Court",     "court": "SUPREME COURT OF THE STATE OF NEW YORK",    "rule_body": "New York Civil Practice Law and Rules"},
+        {"value": "US_CA_ST", "label": "California — Superior Court",  "court": "SUPERIOR COURT OF THE STATE OF CALIFORNIA", "rule_body": "California Rules of Court"},
+        {"value": "US_TX",    "label": "Texas — District Court",       "court": "DISTRICT COURT OF TEXAS",                   "rule_body": "Texas Rules of Civil Procedure"},
+        {"value": "US_FL",    "label": "Florida — Circuit Court",      "court": "CIRCUIT COURT OF FLORIDA",                  "rule_body": "Florida Rules of Civil Procedure"},
+        {"value": "US_IL",    "label": "Illinois — Circuit Court",     "court": "CIRCUIT COURT OF COOK COUNTY, ILLINOIS",    "rule_body": "Illinois Supreme Court Rules"},
     ],
     "Australia": [
-        {"value": "AU_FED", "label": "Federal Court of Australia", "court": "FEDERAL COURT OF AUSTRALIA", "rule_body": "Federal Court Rules 2011 (Cth)"},
-        {"value": "AU_HCA", "label": "High Court of Australia", "court": "HIGH COURT OF AUSTRALIA", "rule_body": "High Court Rules 2004 (Cth)"},
-        {"value": "AU_NSW", "label": "New South Wales — Supreme Court", "court": "SUPREME COURT OF NEW SOUTH WALES", "rule_body": "Uniform Civil Procedure Rules 2005 (NSW)"},
-        {"value": "AU_VIC", "label": "Victoria — Supreme Court", "court": "SUPREME COURT OF VICTORIA", "rule_body": "Supreme Court (General Civil Procedure) Rules 2015 (Vic)"},
-        {"value": "AU_QLD", "label": "Queensland — Supreme Court", "court": "SUPREME COURT OF QUEENSLAND", "rule_body": "Uniform Civil Procedure Rules 1999 (Qld)"},
-        {"value": "AU_WA", "label": "Western Australia — Supreme Court", "court": "SUPREME COURT OF WESTERN AUSTRALIA", "rule_body": "Rules of the Supreme Court 1971 (WA)"},
+        {"value": "AU_FED", "label": "Federal Court of Australia",          "court": "FEDERAL COURT OF AUSTRALIA",          "rule_body": "Federal Court Rules 2011 (Cth)"},
+        {"value": "AU_HCA", "label": "High Court of Australia",             "court": "HIGH COURT OF AUSTRALIA",             "rule_body": "High Court Rules 2004 (Cth)"},
+        {"value": "AU_NSW", "label": "New South Wales — Supreme Court",     "court": "SUPREME COURT OF NEW SOUTH WALES",    "rule_body": "Uniform Civil Procedure Rules 2005 (NSW)"},
+        {"value": "AU_VIC", "label": "Victoria — Supreme Court",            "court": "SUPREME COURT OF VICTORIA",           "rule_body": "Supreme Court (General Civil Procedure) Rules 2015 (Vic)"},
+        {"value": "AU_QLD", "label": "Queensland — Supreme Court",          "court": "SUPREME COURT OF QUEENSLAND",         "rule_body": "Uniform Civil Procedure Rules 1999 (Qld)"},
+        {"value": "AU_WA",  "label": "Western Australia — Supreme Court",   "court": "SUPREME COURT OF WESTERN AUSTRALIA",  "rule_body": "Rules of the Supreme Court 1971 (WA)"},
     ],
     "New Zealand": [
-        {"value": "NZ_HC", "label": "High Court", "court": "HIGH COURT OF NEW ZEALAND", "rule_body": "High Court Rules 2016"},
-        {"value": "NZ_CA", "label": "Court of Appeal", "court": "COURT OF APPEAL OF NEW ZEALAND", "rule_body": "Court of Appeal (Civil) Rules 2005"},
-        {"value": "NZSC", "label": "Supreme Court", "court": "SUPREME COURT OF NEW ZEALAND", "rule_body": "Supreme Court Rules 2004"},
+        {"value": "NZ_HC", "label": "High Court",     "court": "HIGH COURT OF NEW ZEALAND",       "rule_body": "High Court Rules 2016"},
+        {"value": "NZ_CA", "label": "Court of Appeal","court": "COURT OF APPEAL OF NEW ZEALAND",  "rule_body": "Court of Appeal (Civil) Rules 2005"},
+        {"value": "NZSC",  "label": "Supreme Court",  "court": "SUPREME COURT OF NEW ZEALAND",    "rule_body": "Supreme Court Rules 2004"},
     ],
     "Ireland": [
-        {"value": "IE_HC", "label": "High Court", "court": "HIGH COURT", "rule_body": "Rules of the Superior Courts (SI 15/1986)"},
-        {"value": "IE_CA", "label": "Court of Appeal", "court": "COURT OF APPEAL", "rule_body": "Rules of the Superior Courts"},
-        {"value": "IE_SC", "label": "Supreme Court", "court": "SUPREME COURT", "rule_body": "Rules of the Superior Courts"},
+        {"value": "IE_HC", "label": "High Court",     "court": "HIGH COURT", "rule_body": "Rules of the Superior Courts (SI 15/1986)"},
+        {"value": "IE_CA", "label": "Court of Appeal","court": "COURT OF APPEAL", "rule_body": "Rules of the Superior Courts"},
+        {"value": "IE_SC", "label": "Supreme Court",  "court": "SUPREME COURT",   "rule_body": "Rules of the Superior Courts"},
     ],
     "Singapore": [
         {"value": "SG_GD", "label": "General Division — High Court", "court": "GENERAL DIVISION OF THE HIGH COURT", "rule_body": "Rules of Court 2021"},
-        {"value": "SG_CA", "label": "Court of Appeal", "court": "COURT OF APPEAL", "rule_body": "Rules of Court 2021"},
+        {"value": "SG_CA", "label": "Court of Appeal",               "court": "COURT OF APPEAL",                    "rule_body": "Rules of Court 2021"},
     ],
     "Other / Custom": [
         {"value": "CUSTOM", "label": "Custom / Other jurisdiction", "court": "", "rule_body": ""},
@@ -138,36 +100,60 @@ JURISDICTIONS = {
 }
 
 
+# ── Session helpers ──────────────────────────────────────────────────────────
+
 def session_path(sid):
     return os.path.join(SESSIONS_FOLDER, f"{sid}.json")
+
+def _default_session():
+    return {
+        "tabs": [],
+        "doc_type": "application_record",
+        "title": "",
+        "court_file": "",
+        "parties": "",
+        "recitals": "",
+        "country": "Canada",
+        "jurisdiction": "ON",
+        "custom_court": "",
+        "custom_rules": "",
+    }
 
 def get_session(sid):
     path = session_path(sid)
     if os.path.exists(path):
         with open(path) as f:
-            return json.load(f)
-    return {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "recitals": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""}
+            data = json.load(f)
+        # Migrate old flat-items sessions to tabs format
+        if "items" in data and "tabs" not in data:
+            old_items = data.pop("items")
+            data["tabs"] = []
+            if old_items:
+                data["tabs"].append({"id": uuid.uuid4().hex, "name": "Documents", "items": old_items})
+        return data
+    return _default_session()
 
 def save_session(sid, data):
     with open(session_path(sid), "w") as f:
         json.dump(data, f)
 
 
+# ── Label helpers ────────────────────────────────────────────────────────────
+
 def alpha_label(n):
-    """Return Tab A, Tab B... Tab Z, Tab AA..."""
     result = ""
     while n >= 0:
         result = chr(65 + (n % 26)) + result
         n = n // 26 - 1
     return result
 
-
 def numeric_label(n):
     return str(n + 1)
 
 
+# ── Image → PDF ──────────────────────────────────────────────────────────────
+
 def image_to_pdf(image_path, pdf_path):
-    """Convert an image file to a single-page PDF, fitting within letter size."""
     img = Image.open(image_path)
     if img.mode in ("RGBA", "P", "LA"):
         bg = Image.new("RGB", img.size, (255, 255, 255))
@@ -176,8 +162,8 @@ def image_to_pdf(image_path, pdf_path):
     elif img.mode != "RGB":
         img = img.convert("RGB")
 
-    page_w, page_h = letter  # 612 x 792 pts
-    margin = 36  # 0.5 inch
+    page_w, page_h = letter
+    margin = 36
     max_w = page_w - 2 * margin
     max_h = page_h - 2 * margin
     iw, ih = img.size
@@ -212,24 +198,26 @@ def get_pdf_page_count(filepath):
 
 
 def resolve_jurisdiction(country, jurisdiction_value):
-    """Return (court_name, rule_body) for a given country + jurisdiction value."""
     for j in JURISDICTIONS.get(country, []):
         if j["value"] == jurisdiction_value:
             return j["court"], j["rule_body"]
     return "", ""
 
 
-def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
-                       country="Canada", jurisdiction="ON", custom_court="", custom_rules="", recitals=""):
-    """Generate a PDF with cover page + TOC."""
+# ── PDF generation ───────────────────────────────────────────────────────────
+
+def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
+                       country="Canada", jurisdiction="ON",
+                       custom_court="", custom_rules="", recitals=""):
+    """Generate cover page + optional recitals + TOC. tabs is a list of tab dicts."""
     tmpl = TEMPLATES[doc_type]
     doc = SimpleDocTemplate(
         output_path,
         pagesize=letter,
         rightMargin=1 * inch,
         leftMargin=1.25 * inch,
-        topMargin=1 * inch,
-        bottomMargin=1 * inch,
+        topMargin=1.25 * inch,
+        bottomMargin=1.25 * inch,
     )
 
     styles = getSampleStyleSheet()
@@ -238,35 +226,24 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
     normal.fontSize = 12
 
     center_bold = ParagraphStyle(
-        "center_bold",
-        parent=normal,
-        alignment=TA_CENTER,
-        fontName="Times-Bold",
-        fontSize=14,
-        spaceAfter=6,
+        "center_bold", parent=normal,
+        alignment=TA_CENTER, fontName="Times-Bold",
+        fontSize=14, spaceAfter=10, spaceBefore=4,
     )
     center_normal = ParagraphStyle(
-        "center_normal",
-        parent=normal,
-        alignment=TA_CENTER,
-        fontSize=12,
-        spaceAfter=4,
+        "center_normal", parent=normal,
+        alignment=TA_CENTER, fontSize=12,
+        spaceAfter=6, leading=18,
     )
     small_center = ParagraphStyle(
-        "small_center",
-        parent=normal,
-        alignment=TA_CENTER,
-        fontSize=10,
-        spaceAfter=4,
+        "small_center", parent=normal,
+        alignment=TA_CENTER, fontSize=10,
+        spaceAfter=6, leading=15,
     )
     toc_header = ParagraphStyle(
-        "toc_header",
-        parent=normal,
-        alignment=TA_CENTER,
-        fontName="Times-Bold",
-        fontSize=13,
-        spaceAfter=12,
-        spaceBefore=12,
+        "toc_header", parent=normal,
+        alignment=TA_CENTER, fontName="Times-Bold",
+        fontSize=14, spaceAfter=16, spaceBefore=16,
     )
 
     court_name, rule_body = resolve_jurisdiction(country, jurisdiction)
@@ -277,33 +254,39 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
     story = []
 
     # ── Cover Page ──────────────────────────────────────────────────────────
-    story.append(Spacer(1, 0.5 * inch))
+    story.append(Spacer(1, 0.75 * inch))
+
     if country and country != "Other / Custom":
         story.append(Paragraph(country.upper(), center_bold))
-        story.append(Spacer(1, 0.1 * inch))
+        story.append(Spacer(1, 0.15 * inch))
+
     if court_name:
         story.append(Paragraph(court_name, center_bold))
-    story.append(Spacer(1, 0.3 * inch))
+
+    story.append(Spacer(1, 0.4 * inch))
 
     if court_file:
-        right_normal = ParagraphStyle("right_normal", parent=normal, alignment=TA_RIGHT, fontSize=12, spaceAfter=4)
+        right_normal = ParagraphStyle(
+            "right_normal", parent=normal,
+            alignment=TA_RIGHT, fontSize=12, spaceAfter=6,
+        )
         story.append(Paragraph(f"Court File No.: {court_file}", right_normal))
-        story.append(Spacer(1, 0.2 * inch))
+        story.append(Spacer(1, 0.25 * inch))
 
     if parties:
         for line in parties.strip().split("\n"):
             story.append(Paragraph(line, center_normal))
-        story.append(Spacer(1, 0.3 * inch))
+        story.append(Spacer(1, 0.4 * inch))
 
     story.append(Spacer(1, 0.3 * inch))
     story.append(Paragraph(tmpl["header"], center_bold))
 
     if title:
-        story.append(Spacer(1, 0.15 * inch))
+        story.append(Spacer(1, 0.2 * inch))
         story.append(Paragraph(title, center_normal))
 
     if rule_body:
-        story.append(Spacer(1, 0.3 * inch))
+        story.append(Spacer(1, 0.4 * inch))
         story.append(Paragraph(rule_body, small_center))
 
     story.append(PageBreak())
@@ -311,14 +294,11 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
     # ── Written Recitals (optional page before TOC) ─────────────────────────
     if recitals and recitals.strip():
         recital_style = ParagraphStyle(
-            "recital",
-            parent=normal,
-            alignment=TA_LEFT,
-            fontSize=11,
-            leading=18,
-            spaceAfter=8,
+            "recital", parent=normal,
+            alignment=TA_LEFT, fontSize=11,
+            leading=20, spaceAfter=10,
         )
-        story.append(Spacer(1, 0.5 * inch))
+        story.append(Spacer(1, 0.6 * inch))
         for para in recitals.strip().split("\n"):
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_style))
@@ -330,52 +310,53 @@ def generate_cover_toc(doc_type, items, title, court_file, parties, output_path,
 
     tab_fn = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
-    # Build TOC table
-    toc_data = [
-        [
-            Paragraph("<b>Tab</b>", ParagraphStyle("th", parent=normal, fontName="Times-Bold", fontSize=11)),
-            Paragraph("<b>Document</b>", ParagraphStyle("th", parent=normal, fontName="Times-Bold", fontSize=11)),
-            Paragraph("<b>Page(s)</b>", ParagraphStyle("th", parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)),
-        ]
-    ]
+    th_style = ParagraphStyle("th", parent=normal, fontName="Times-Bold", fontSize=11)
+    th_right  = ParagraphStyle("thr", parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)
+    td_style  = ParagraphStyle("td", parent=normal, fontSize=11, leading=16)
+    td_right  = ParagraphStyle("tdr", parent=normal, fontSize=11, alignment=TA_RIGHT, leading=16)
 
-    current_page = 1  # page 1 of the body starts after divider
-    for i, item in enumerate(items):
+    toc_data = [[
+        Paragraph("<b>Tab</b>", th_style),
+        Paragraph("<b>Document</b>", th_style),
+        Paragraph("<b>Page(s)</b>", th_right),
+    ]]
+
+    current_page = 1
+    for i, tab in enumerate(tabs):
         tab_label = tab_fn(i)
-        name = item.get("custom_name") or item.get("filename", f"Document {i+1}")
-        page_count = item.get("page_count", 1)
-        page_str = str(current_page) if page_count == 1 else f"{current_page}–{current_page + page_count - 1}"
+        tab_name  = tab.get("name") or f"Tab {tab_label}"
+        tab_items = tab.get("items", [])
+        total_pages = sum(item.get("page_count", 1) for item in tab_items)
+        if total_pages == 0:
+            total_pages = 1
+        page_str = str(current_page) if total_pages == 1 else f"{current_page}–{current_page + total_pages - 1}"
 
-        row = [
-            Paragraph(f"Tab {tab_label}", ParagraphStyle("td", parent=normal, fontSize=11)),
-            Paragraph(name, ParagraphStyle("td", parent=normal, fontSize=11)),
-            Paragraph(page_str, ParagraphStyle("td_r", parent=normal, fontSize=11, alignment=TA_RIGHT)),
-        ]
-        toc_data.append(row)
-        current_page += page_count + 1  # +1 for the divider page
+        toc_data.append([
+            Paragraph(f"Tab {tab_label}", td_style),
+            Paragraph(tab_name, td_style),
+            Paragraph(page_str, td_right),
+        ])
+        current_page += total_pages + 1  # +1 for the divider page of the next tab
 
     toc_table = Table(toc_data, colWidths=[0.9 * inch, 4.5 * inch, 0.8 * inch])
-    toc_table.setStyle(
-        TableStyle(
-            [
-                ("FONTNAME", (0, 0), (-1, 0), "Times-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 11),
-                ("LINEBELOW", (0, 0), (-1, 0), 1, colors.black),
-                ("LINEBELOW", (0, 1), (-1, -1), 0.25, colors.lightgrey),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ]
-        )
-    )
+    toc_table.setStyle(TableStyle([
+        ("FONTNAME",      (0, 0), (-1, 0),  "Times-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1), 11),
+        ("LINEBELOW",     (0, 0), (-1, 0),  1,    colors.black),
+        ("LINEBELOW",     (0, 1), (-1, -1), 0.25, colors.lightgrey),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+    ]))
     story.append(toc_table)
     story.append(PageBreak())
 
     doc.build(story)
 
 
-def generate_divider_page(tab_label, doc_name, output_path):
-    """Generate a single tab divider page."""
+def generate_divider_page(tab_label, tab_name, output_path):
     doc = SimpleDocTemplate(
         output_path,
         pagesize=letter,
@@ -388,49 +369,44 @@ def generate_divider_page(tab_label, doc_name, output_path):
     normal = styles["Normal"]
 
     tab_style = ParagraphStyle(
-        "tab_big",
-        parent=normal,
-        fontName="Times-Bold",
-        fontSize=36,
-        alignment=TA_CENTER,
-        spaceAfter=20,
+        "tab_big", parent=normal,
+        fontName="Times-Bold", fontSize=36,
+        alignment=TA_CENTER, spaceAfter=24,
     )
     name_style = ParagraphStyle(
-        "tab_name",
-        parent=normal,
-        fontName="Times-Roman",
-        fontSize=14,
-        alignment=TA_CENTER,
+        "tab_name", parent=normal,
+        fontName="Times-Roman", fontSize=14,
+        alignment=TA_CENTER, leading=20,
     )
 
     story = [
         Spacer(1, 1.5 * inch),
         Paragraph(f"TAB {tab_label}", tab_style),
-        Paragraph(doc_name, name_style),
+        Paragraph(tab_name, name_style),
         PageBreak(),
     ]
     doc.build(story)
 
 
-def add_toc_links(writer, toc_page_index, items, first_tab_page_index):
-    """Stamp clickable GoTo links on the TOC page for each document row."""
+def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index):
+    """Stamp clickable GoTo links on each TOC row, pointing to that tab's divider."""
     page = writer.pages[toc_page_index]
-    page_height = float(page.mediabox.height)  # 792pt for letter
-    page_width  = float(page.mediabox.width)   # 612pt
+    page_height = float(page.mediabox.height)
+    page_width  = float(page.mediabox.width)
 
-    left  = 1.0 * 72   # 72pt = 1 inch left margin
+    left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Approximate layout of the TOC page (built by reportlab):
-    #   top margin 1"=72pt  →  content starts at y=720 from bottom
-    #   "TABLE OF CONTENTS" heading block ≈ 50pt
-    #   header row (Tab | Document | Page(s)) ≈ 30pt
-    #   each data row ≈ 26pt
-    first_row_top = page_height - 72 - 50 - 30  # ≈ 640 from bottom
-    row_height = 26
+    # Approximate TOC layout:
+    #   top margin 1.25" = 90pt
+    #   "TABLE OF CONTENTS" heading ≈ 60pt  (14pt font + spaceBefore/After + leading)
+    #   header row ≈ 34pt
+    #   each data row ≈ 34pt  (9pt top + 11pt font + 9pt bottom + ~5pt leading)
+    first_row_top = page_height - 90 - 60 - 34
+    row_height = 34
 
     current_page = first_tab_page_index
-    for i, item in enumerate(items):
+    for i, tab in enumerate(tabs):
         row_top    = first_row_top - (i * row_height)
         row_bottom = row_top - row_height
         rect = RectangleObject([left, row_bottom, right, row_top])
@@ -438,24 +414,23 @@ def add_toc_links(writer, toc_page_index, items, first_tab_page_index):
             annotation = Link(rect=rect, target_page_index=current_page)
             writer.add_annotation(page_number=toc_page_index, annotation=annotation)
         except Exception:
-            pass  # silently skip if pypdf version differs
-        current_page += 1 + item.get("page_count", 1)  # divider + doc pages
+            pass
+        total_pages = sum(item.get("page_count", 1) for item in tab.get("items", []))
+        current_page += 1 + total_pages  # divider + all tab doc pages
 
 
 def merge_pdfs(session_data, output_path):
-    """Merge cover/TOC + dividers + documents into final PDF."""
     doc_type = session_data["doc_type"]
-    items = session_data["items"]
-    tmpl = TEMPLATES[doc_type]
-    tab_fn = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
+    tabs     = session_data.get("tabs", [])
+    tmpl     = TEMPLATES[doc_type]
+    tab_fn   = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
     writer = PdfWriter()
 
     # 1. Cover + TOC
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
     generate_cover_toc(
-        doc_type,
-        items,
+        doc_type, tabs,
         session_data.get("title", ""),
         session_data.get("court_file", ""),
         session_data.get("parties", ""),
@@ -472,32 +447,30 @@ def merge_pdfs(session_data, output_path):
         writer.add_page(page)
     os.remove(toc_path)
 
-    # TOC is always the last page of the cover PDF
-    toc_page_index = cover_page_count - 1
-    # First tab divider starts immediately after the cover PDF
+    toc_page_index      = cover_page_count - 1
     first_tab_page_index = cover_page_count
 
-    # 2. For each item: divider + document
-    for i, item in enumerate(items):
+    # 2. For each tab: one divider + all documents in that tab
+    for i, tab in enumerate(tabs):
         tab_label = tab_fn(i)
-        name = item.get("custom_name") or item.get("filename", f"Document {i+1}")
+        tab_name  = tab.get("name") or f"Tab {tab_label}"
 
         div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-        generate_divider_page(tab_label, name, div_path)
+        generate_divider_page(tab_label, tab_name, div_path)
         div_reader = PdfReader(div_path)
         for page in div_reader.pages:
             writer.add_page(page)
         os.remove(div_path)
 
-        # Add the actual document
-        doc_path = item.get("filepath")
-        if doc_path and os.path.exists(doc_path):
-            doc_reader = PdfReader(doc_path)
-            for page in doc_reader.pages:
-                writer.add_page(page)
+        for item in tab.get("items", []):
+            doc_path = item.get("filepath")
+            if doc_path and os.path.exists(doc_path):
+                doc_reader = PdfReader(doc_path)
+                for page in doc_reader.pages:
+                    writer.add_page(page)
 
     # 3. Stamp clickable links on the TOC page
-    add_toc_links(writer, toc_page_index, items, first_tab_page_index)
+    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index)
 
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -536,21 +509,82 @@ def get_jurisdictions():
     return jsonify(JURISDICTIONS)
 
 
-@app.route("/api/upload", methods=["POST"])
-def upload():
+# ── Tab routes ───────────────────────────────────────────────────────────────
+
+@app.route("/api/tabs", methods=["GET"])
+def get_tabs():
     sid = session.get("sid")
     sess = get_session(sid)
+    return jsonify(sess.get("tabs", []))
+
+
+@app.route("/api/tabs", methods=["POST"])
+def create_tab():
+    sid = session.get("sid")
+    sess = get_session(sid)
+    data = request.json or {}
+    tab = {
+        "id":    uuid.uuid4().hex,
+        "name":  data.get("name", ""),
+        "items": [],
+    }
+    sess["tabs"].append(tab)
+    save_session(sid, sess)
+    return jsonify(tab)
+
+
+@app.route("/api/tabs/reorder", methods=["POST"])
+def reorder_tabs():
+    sid = session.get("sid")
+    sess = get_session(sid)
+    new_order = request.json.get("order", [])
+    id_map = {t["id"]: t for t in sess["tabs"]}
+    sess["tabs"] = [id_map[i] for i in new_order if i in id_map]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tabs/<tab_id>", methods=["PATCH"])
+def update_tab(tab_id):
+    sid = session.get("sid")
+    sess = get_session(sid)
+    data = request.json or {}
+    for tab in sess["tabs"]:
+        if tab["id"] == tab_id:
+            if "name" in data:
+                tab["name"] = data["name"]
+            break
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tabs/<tab_id>", methods=["DELETE"])
+def delete_tab(tab_id):
+    sid = session.get("sid")
+    sess = get_session(sid)
+    sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tabs/<tab_id>/upload", methods=["POST"])
+def upload_to_tab(tab_id):
+    sid = session.get("sid")
+    sess = get_session(sid)
+    tab = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+    if tab is None:
+        return jsonify({"error": "Tab not found"}), 404
+
     files = request.files.getlist("files")
     added = []
     for f in files:
         ext = os.path.splitext(f.filename.lower())[1]
         if ext not in ALLOWED_EXTENSIONS:
             continue
-        item_id = uuid.uuid4().hex
+        item_id  = uuid.uuid4().hex
         raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
         f.save(raw_dest)
 
-        # Convert images to PDF so the merge pipeline is uniform
         if ext in IMAGE_EXTENSIONS:
             pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
             image_to_pdf(raw_dest, pdf_dest)
@@ -559,71 +593,77 @@ def upload():
         else:
             filepath = raw_dest
 
-        # Clean up original filename for display
-        base_name = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
+        base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
         page_count = get_pdf_page_count(filepath)
         item = {
-            "id": item_id,
-            "filename": base_name,
-            "custom_name": "",
-            "filepath": filepath,
-            "page_count": page_count,
-            "file_type": "image" if ext in IMAGE_EXTENSIONS else "pdf",
+            "id":           item_id,
+            "filename":     base_name,
+            "custom_name":  "",
+            "filepath":     filepath,
+            "page_count":   page_count,
+            "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
             "original_ext": ext,
         }
-        sess["items"].append(item)
+        tab["items"].append(item)
         added.append(item)
+
     save_session(sid, sess)
     return jsonify(added)
 
 
-@app.route("/api/items", methods=["GET"])
-def get_items():
+@app.route("/api/tabs/<tab_id>/items/reorder", methods=["POST"])
+def reorder_tab_items(tab_id):
     sid = session.get("sid")
     sess = get_session(sid)
-    return jsonify(sess["items"])
-
-
-@app.route("/api/items/reorder", methods=["POST"])
-def reorder_items():
-    sid = session.get("sid")
-    sess = get_session(sid)
+    tab = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+    if tab is None:
+        return jsonify({"error": "Tab not found"}), 404
     new_order = request.json.get("order", [])
-    id_map = {item["id"]: item for item in sess["items"]}
-    sess["items"] = [id_map[i] for i in new_order if i in id_map]
+    id_map = {item["id"]: item for item in tab["items"]}
+    tab["items"] = [id_map[i] for i in new_order if i in id_map]
     save_session(sid, sess)
     return jsonify({"ok": True})
 
 
-@app.route("/api/items/<item_id>", methods=["PATCH"])
-def update_item(item_id):
+@app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["PATCH"])
+def update_tab_item(tab_id, item_id):
     sid = session.get("sid")
     sess = get_session(sid)
-    data = request.json
-    for item in sess["items"]:
-        if item["id"] == item_id:
-            if "custom_name" in data:
-                item["custom_name"] = data["custom_name"]
+    data = request.json or {}
+    for tab in sess["tabs"]:
+        if tab["id"] == tab_id:
+            for item in tab["items"]:
+                if item["id"] == item_id:
+                    if "custom_name" in data:
+                        item["custom_name"] = data["custom_name"]
+                    break
             break
     save_session(sid, sess)
     return jsonify({"ok": True})
 
 
-@app.route("/api/items/<item_id>", methods=["DELETE"])
-def delete_item(item_id):
+@app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["DELETE"])
+def delete_tab_item(tab_id, item_id):
     sid = session.get("sid")
     sess = get_session(sid)
-    sess["items"] = [i for i in sess["items"] if i["id"] != item_id]
+    for tab in sess["tabs"]:
+        if tab["id"] == tab_id:
+            tab["items"] = [i for i in tab["items"] if i["id"] != item_id]
+            break
     save_session(sid, sess)
     return jsonify({"ok": True})
 
 
+# ── Generate & Download ──────────────────────────────────────────────────────
+
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
-    if not sess["items"]:
-        return jsonify({"error": "No documents added yet. Please upload at least one PDF."}), 400
+    tabs = sess.get("tabs", [])
+    total_docs = sum(len(t.get("items", [])) for t in tabs)
+    if total_docs == 0:
+        return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
     out_name = f"legal_document_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     try:
@@ -644,13 +684,13 @@ def download(filename):
 @app.route("/api/reset", methods=["POST"])
 def reset():
     sid = session.get("sid")
-    save_session(sid, {"items": [], "doc_type": "application_record", "title": "", "court_file": "", "parties": "", "recitals": "", "country": "Canada", "jurisdiction": "ON", "custom_court": "", "custom_rules": ""})
+    save_session(sid, _default_session())
     return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER,   exist_ok=True)
+    os.makedirs(OUTPUT_FOLDER,   exist_ok=True)
     os.makedirs(SESSIONS_FOLDER, exist_ok=True)
     port = int(os.environ.get("PORT", 5050))
     app.run(debug=False, port=port)
