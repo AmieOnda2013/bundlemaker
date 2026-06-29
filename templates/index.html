@@ -339,6 +339,25 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 #toast.success{background:#1b5e30;color:#fff}
 #toast.error{background:#7f1d1d;color:#fff}
 
+/* ── Mode pills ───────────────────────────────────── */
+.mode-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:20px;cursor:pointer;
+  font-size:0.78rem;font-weight:500;letter-spacing:0.02em;
+  border:1.5px solid var(--border);
+  background:var(--white);color:var(--muted);
+  transition:all .15s;user-select:none;
+  text-transform:none;
+}
+.mode-pill input[type=radio]{display:none}
+.mode-pill:has(input:checked){
+  background:var(--navy);color:#fff;
+  border-color:var(--navy);
+}
+.mode-pill:hover:not(:has(input:checked)){
+  border-color:var(--gold);color:var(--ink);
+}
+
 /* ── Toggle switch ────────────────────────────────── */
 .toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
@@ -540,13 +559,30 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
+        <div class="field">
+          <label>Bundle Structure</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <label class="mode-pill" id="modeTabsLabel">
+              <input type="radio" name="bundleMode" value="tabs" id="modeTabs" onchange="onModeChange()" checked/>
+              <span>Tabs</span>
+            </label>
+            <label class="mode-pill" id="modeFlatLabel">
+              <input type="radio" name="bundleMode" value="flat" id="modeFlat" onchange="onModeChange()"/>
+              <span>Documents only</span>
+            </label>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:5px" id="modeHint">
+            Tabs: group multiple documents under one tab divider.
+          </div>
+        </div>
+
         <div class="field" style="flex-direction:row;align-items:center;gap:10px;padding:4px 0">
           <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;font-size:0.82rem;font-weight:400;letter-spacing:0">
             <span class="toggle-switch">
               <input type="checkbox" id="useDividers" checked onchange="saveSettings()"/>
               <span class="toggle-slider"></span>
             </span>
-            Include tab divider pages in the output
+            <span id="dividersLabel">Include tab divider pages in the output</span>
           </label>
         </div>
 
@@ -575,18 +611,31 @@ footer span{color:var(--gold)}
     </div>
     <div class="panel-body">
 
-      <div id="tabsList"></div>
+      <!-- Flat mode UI -->
+      <div id="flatUI" style="display:none">
+        <div class="drop-zone" id="flatDropZone" onclick="document.getElementById('flatFileInput').click()">
+          <input type="file" id="flatFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleFlatFiles(this.files)"/>
+          <div class="drop-zone-icon">⬆</div>
+          <div class="drop-zone-label">Drop files here or click to browse</div>
+          <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP &nbsp;—&nbsp; drag rows below to reorder</div>
+        </div>
+        <div class="doc-list" id="flatDocList"></div>
+      </div>
+
+      <!-- Tabs mode UI -->
+      <div id="tabsUI">
+        <div id="tabsList"></div>
+        <button class="btn" id="addTabBtn" style="margin-top:12px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.9rem;letter-spacing:0.05em;cursor:pointer" onclick="addTab()">
+          + Add Tab
+        </button>
+      </div>
 
       <div id="emptyHint" class="empty-state">
         <div class="empty-state-icon">📄</div>
-        <p>No tabs yet.<br/>Click <strong>Add Tab</strong> below to start building your bundle.</p>
+        <p id="emptyHintText">No documents yet.<br/>Upload files above to begin building your bundle.</p>
       </div>
 
-      <button class="btn" id="addTabBtn" style="margin-top:12px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.9rem;letter-spacing:0.05em;cursor:pointer" onclick="addTab()">
-        + Add Tab
-      </button>
-
-      <!-- Hidden file input — activated per-tab -->
+      <!-- Hidden file input for tab uploads -->
       <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleFilesForTab(this.files)"/>
 
     </div>
@@ -604,10 +653,12 @@ footer span{color:var(--gold)}
 <div id="toast"></div>
 
 <script>
-let tabs = [];          // [{id, name, items:[...]}]
-let activeTabId = null; // which tab the file-input is uploading to
-let dragSrcId   = null; // for item drag within a tab
-let tabDragId   = null; // for tab drag
+let tabs        = [];        // [{id, name, items:[...]}]
+let bundleMode  = 'tabs';    // 'tabs' | 'flat'
+let activeTabId = null;
+let dragSrcId   = null;
+let tabDragId   = null;
+let flatDragId  = null;
 
 // Jurisdiction data embedded directly — no network call needed
 const jurisdictionData = {
@@ -717,8 +768,11 @@ async function loadSession(){
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('useDividers').checked = s.use_dividers !== false;
+  bundleMode = s.bundle_mode || 'tabs';
+  document.querySelector(`input[name=bundleMode][value="${bundleMode}"]`).checked = true;
   tabs = s.tabs || [];
-  renderTabs();
+  applyMode();
+  renderAll();
 }
 
 async function saveSettings(){
@@ -735,6 +789,7 @@ async function saveSettings(){
       parties: document.getElementById('parties').value,
       recitals: document.getElementById('recitals').value,
       use_dividers: document.getElementById('useDividers').checked,
+      bundle_mode: bundleMode,
     })
   });
 }
@@ -913,7 +968,142 @@ async function reorderTabTo(srcId, targetId){
   await fetch('/api/tabs/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
 }
 
-/* ── Upload ── */
+/* ── Mode switching ── */
+function onModeChange(){
+  bundleMode = document.querySelector('input[name=bundleMode]:checked').value;
+  applyMode();
+  saveSettings();
+  renderAll();
+}
+
+function applyMode(){
+  const isFlat = bundleMode === 'flat';
+  document.getElementById('flatUI').style.display  = isFlat ? '' : 'none';
+  document.getElementById('tabsUI').style.display  = isFlat ? 'none' : '';
+  document.getElementById('modeHint').textContent  = isFlat
+    ? 'Documents only: each file gets its own tab letter. No tab grouping.'
+    : 'Tabs: group multiple documents under one named tab divider.';
+  document.getElementById('dividersLabel').textContent = isFlat
+    ? 'Include a divider page before each document'
+    : 'Include tab divider pages in the output';
+  document.getElementById('emptyHintText').innerHTML = isFlat
+    ? 'No documents yet.<br/>Upload files above to begin.'
+    : 'No tabs yet.<br/>Click <strong>Add Tab</strong> below to start.';
+}
+
+function renderAll(){
+  if(bundleMode === 'flat') renderFlat();
+  else renderTabs();
+}
+
+/* ── Flat mode ── */
+const flatDropZone = document.getElementById('flatDropZone');
+flatDropZone.addEventListener('dragover', e=>{ e.preventDefault(); flatDropZone.classList.add('over'); });
+flatDropZone.addEventListener('dragleave', ()=> flatDropZone.classList.remove('over'));
+flatDropZone.addEventListener('drop', e=>{
+  e.preventDefault(); flatDropZone.classList.remove('over');
+  if(e.dataTransfer.files.length) handleFlatFiles(e.dataTransfer.files);
+});
+
+async function handleFlatFiles(files){
+  const fd = new FormData();
+  let count = 0;
+  for(const f of files){ if(isAllowed(f.name)){ fd.append('files', f); count++; } }
+  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
+  toast('Uploading…','info');
+  const r = await fetch('/api/flat/upload',{method:'POST',body:fd});
+  const added = await r.json();
+  tabs.push(...added);
+  renderFlat();
+  toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
+}
+
+function renderFlat(){
+  const list    = document.getElementById('flatDocList');
+  const hint    = document.getElementById('emptyHint');
+  const countEl = document.getElementById('docCount');
+  const docType = document.getElementById('docType').value;
+
+  const flatDocs = tabs.map((tab,i)=>({
+    tabId: tab.id,
+    tabLabel: getTabLabel(i, docType),
+    item: tab.items[0],
+    name: tab.name || (tab.items[0] && (tab.items[0].custom_name || tab.items[0].filename)) || 'Document',
+  })).filter(d=>d.item);
+
+  hint.style.display    = flatDocs.length ? 'none' : 'block';
+  countEl.style.display = flatDocs.length ? 'inline' : 'none';
+  countEl.textContent   = `${flatDocs.length} document${flatDocs.length!==1?'s':''}`;
+  list.innerHTML = '';
+
+  flatDocs.forEach(({tabId, tabLabel, item, name})=>{
+    const isImg = item.file_type === 'image';
+    const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
+    const badge = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
+    const row   = document.createElement('div');
+    row.className  = 'doc-item';
+    row.dataset.id = tabId;
+    row.draggable  = true;
+    row.innerHTML  = `
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <span class="tab-badge">TAB ${escHtml(tabLabel)}</span>
+      ${badge}
+      <span class="doc-name">
+        <input type="text" value="${escHtml(name)}" placeholder="Document name"
+          onblur="renameFlatDoc('${tabId}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          title="Click to rename"/>
+      </span>
+      <span class="doc-pages">${item.page_count} pg</span>
+      <button class="btn btn-remove" onclick="deleteFlatDoc('${tabId}')" title="Remove">✕</button>
+    `;
+    row.addEventListener('dragstart', e=>{
+      flatDragId = tabId; row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain', tabId);
+    });
+    row.addEventListener('dragend', ()=>{
+      row.classList.remove('dragging');
+      document.querySelectorAll('#flatDocList .doc-item').forEach(d=>d.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(flatDragId && flatDragId!==tabId) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
+    row.addEventListener('drop', e=>{
+      e.preventDefault(); row.classList.remove('drag-over');
+      if(flatDragId && flatDragId!==tabId) reorderFlatTo(flatDragId, tabId);
+    });
+    list.appendChild(row);
+  });
+}
+
+async function renameFlatDoc(tabId, name){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(tab){ tab.name = name; if(tab.items[0]) tab.items[0].custom_name = name; }
+  await fetch(`/api/flat/${tabId}/rename`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  renderFlat();
+}
+
+async function deleteFlatDoc(tabId){
+  tabs = tabs.filter(t=>t.id!==tabId);
+  renderFlat();
+  await fetch(`/api/flat/${tabId}`,{method:'DELETE'});
+}
+
+async function reorderFlatTo(srcId, targetId){
+  const si = tabs.findIndex(t=>t.id===srcId);
+  const ti = tabs.findIndex(t=>t.id===targetId);
+  const [m] = tabs.splice(si,1); tabs.splice(ti,0,m);
+  renderFlat();
+  await fetch('/api/flat/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
+}
+
+/* ── Tabs mode upload ── */
+const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
+function isAllowed(name){ return ALLOWED_EXTS.some(e => name.toLowerCase().endsWith(e)); }
+
 function openFilePickerForTab(tabId){
   activeTabId = tabId;
   const fi = document.getElementById('fileInput');
@@ -939,7 +1129,7 @@ async function uploadFilesToTab(tabId, files){
   toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
 }
 
-/* ── Item actions ── */
+/* ── Item actions (tabs mode) ── */
 async function reorderItemTo(tabId, srcId, targetId){
   const tab = tabs.find(t=>t.id===tabId);
   if(!tab) return;
@@ -977,14 +1167,15 @@ async function generate(){
 }
 
 async function resetSession(){
-  if(!confirm('Clear all tabs and documents and start a new bundle?')) return;
+  const msg = bundleMode==='flat' ? 'Clear all documents and start a new bundle?' : 'Clear all tabs and documents and start a new bundle?';
+  if(!confirm(msg)) return;
   await fetch('/api/reset',{method:'POST'});
   tabs = [];
-  document.getElementById('docTitle').value   = '';
-  document.getElementById('courtFile').value  = '';
-  document.getElementById('parties').value    = '';
-  document.getElementById('recitals').value   = '';
-  renderTabs();
+  document.getElementById('docTitle').value  = '';
+  document.getElementById('courtFile').value = '';
+  document.getElementById('parties').value   = '';
+  document.getElementById('recitals').value  = '';
+  renderAll();
   toast('Bundle cleared. Ready for new documents.','info');
 }
 
@@ -997,7 +1188,7 @@ function toast(msg, type='info'){
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderTabs(); });
+document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderAll(); });
 
 loadSession();
 </script>

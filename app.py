@@ -118,6 +118,7 @@ def _default_session():
         "custom_court": "",
         "custom_rules": "",
         "use_dividers": True,
+        "bundle_mode": "tabs",
     }
 
 def get_session(sid):
@@ -133,6 +134,8 @@ def get_session(sid):
                 data["tabs"].append({"id": uuid.uuid4().hex, "name": "Documents", "items": old_items})
         if "use_dividers" not in data:
             data["use_dividers"] = True
+        if "bundle_mode" not in data:
+            data["bundle_mode"] = "tabs"
         return data
     return _default_session()
 
@@ -212,7 +215,7 @@ def resolve_jurisdiction(country, jurisdiction_value):
 def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
                        country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
-                       use_dividers=True):
+                       use_dividers=True, bundle_mode="tabs"):
     """Generate cover page + optional recitals + TOC. tabs is a list of tab dicts."""
     tmpl = TEMPLATES[doc_type]
     doc = SimpleDocTemplate(
@@ -330,6 +333,11 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
     # We'll compute this in add_toc_links; here just build the visual rows.
 
     current_page = 1  # logical page counter (1-based, excluding dividers)
+    is_flat = (bundle_mode == "flat")
+
+    # In flat mode each tab has exactly one item — render one plain row per doc.
+    # In tabs mode with dividers: bold tab summary row + indented item sub-rows.
+    # In tabs mode without dividers: one plain row per doc labelled with tab letter.
 
     for i, tab in enumerate(tabs):
         tab_label = tab_fn(i)
@@ -337,15 +345,28 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
         tab_items = tab.get("items", [])
         total_pages = sum(item.get("page_count", 1) for item in tab_items) or 1
 
-        if use_dividers:
-            # Bold summary row for the tab
+        if is_flat or not use_dividers:
+            # Plain flat rows — one per document
+            for item in tab_items:
+                pc = item.get("page_count", 1)
+                doc_name = item.get("custom_name") or item.get("filename", "Document")
+                doc_page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page + pc - 1}"
+                toc_data.append([
+                    Paragraph(f"Tab {tab_label}", tab_row_st),
+                    Paragraph(doc_name, tab_row_st),
+                    Paragraph(doc_page_str, tab_row_rt),
+                ])
+                current_page += pc
+            if use_dividers:
+                current_page += 1  # account for per-tab divider page
+        else:
+            # Tabs mode with dividers: bold summary + indented doc rows
             tab_page_str = str(current_page) if total_pages == 1 else f"{current_page}–{current_page + total_pages - 1}"
             toc_data.append([
                 Paragraph(f"<b>Tab {tab_label}</b>", tab_row_st),
                 Paragraph(f"<b>{tab_name}</b>",      tab_row_st),
                 Paragraph(tab_page_str,               tab_row_rt),
             ])
-            # Indented rows for each document in this tab
             doc_page = current_page
             for item in tab_items:
                 pc = item.get("page_count", 1)
@@ -357,22 +378,10 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
                     Paragraph(doc_page_str, doc_row_rt),
                 ])
                 doc_page += pc
-            current_page += total_pages + 1  # +1 for the next tab's divider
-        else:
-            # No dividers: flat rows, one per document, labelled with tab
-            for item in tab_items:
-                pc = item.get("page_count", 1)
-                doc_name = item.get("custom_name") or item.get("filename", "Document")
-                doc_page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page + pc - 1}"
-                toc_data.append([
-                    Paragraph(f"Tab {tab_label}", tab_row_st),
-                    Paragraph(doc_name, tab_row_st),
-                    Paragraph(doc_page_str, tab_row_rt),
-                ])
-                current_page += pc
+            current_page += total_pages + 1  # +1 for divider of next tab
 
-    # Build table style — shade tab-summary rows
-    tab_shade = colors.Color(0.93, 0.91, 0.87)  # light parchment
+    # Table style
+    tab_shade = colors.Color(0.93, 0.91, 0.87)
     ts = [
         ("FONTNAME",      (0, 0), (-1, 0),  "Times-Bold"),
         ("FONTSIZE",      (0, 0), (-1, -1), 11),
@@ -384,13 +393,12 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
         ("LEFTPADDING",   (0, 0), (-1, -1), 4),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
     ]
-    if use_dividers:
-        # shade every tab-summary row (every row that starts with bold Tab label)
+    if not is_flat and use_dividers:
+        # Shade every tab-summary row
         row_idx = 1
         for tab in tabs:
             ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), tab_shade))
-            n_items = len(tab.get("items", []))
-            row_idx += 1 + n_items  # 1 summary + N item rows
+            row_idx += 1 + len(tab.get("items", []))
 
     toc_table = Table(toc_data, colWidths=[0.9 * inch, 4.5 * inch, 0.8 * inch])
     toc_table.setStyle(TableStyle(ts))
@@ -432,7 +440,7 @@ def generate_divider_page(tab_label, tab_name, output_path):
     doc.build(story)
 
 
-def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=True):
+def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=True, bundle_mode="tabs"):
     """Stamp clickable GoTo links on the TOC page for every row."""
     page = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
@@ -455,28 +463,40 @@ def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_divide
     link_rows = []
     current_pdf_page = first_tab_page_index  # 0-indexed in the final PDF
 
-    if use_dividers:
-        y_offset = 0  # cumulative y consumed
+    is_flat = (bundle_mode == "flat")
+
+    if not is_flat and use_dividers:
+        # Tabs mode with dividers: tab-summary row → divider, doc rows → doc pages
+        y_offset = 0
         for tab in tabs:
             items = tab.get("items", [])
-            # Tab summary row → divider page
             link_rows.append((y_offset, tab_row_h, current_pdf_page))
             y_offset += tab_row_h
-            # Individual doc rows → first page of each doc
-            doc_pdf_page = current_pdf_page + 1  # +1 past the divider
+            doc_pdf_page = current_pdf_page + 1
             for item in items:
                 link_rows.append((y_offset, doc_row_h, doc_pdf_page))
-                y_offset    += doc_row_h
+                y_offset     += doc_row_h
                 doc_pdf_page += item.get("page_count", 1)
             total_pages = sum(item.get("page_count", 1) for item in items)
             current_pdf_page += 1 + total_pages
     else:
+        # Flat mode or no-dividers: one row per document
         y_offset = 0
         for tab in tabs:
+            if use_dividers:
+                # each tab (= each doc in flat mode) still has a divider page
+                doc_pdf_page = current_pdf_page + 1
+            else:
+                doc_pdf_page = current_pdf_page
             for item in tab.get("items", []):
-                link_rows.append((y_offset, tab_row_h, current_pdf_page))
-                y_offset         += tab_row_h
-                current_pdf_page += item.get("page_count", 1)
+                link_rows.append((y_offset, tab_row_h, doc_pdf_page))
+                y_offset     += tab_row_h
+                doc_pdf_page += item.get("page_count", 1)
+            total_pages = sum(item.get("page_count", 1) for item in tab.get("items", []))
+            if use_dividers:
+                current_pdf_page += 1 + total_pages
+            else:
+                current_pdf_page += total_pages
 
     for (y_off, row_h, target_page) in link_rows:
         row_top    = first_row_top - y_off
@@ -490,11 +510,12 @@ def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_divide
 
 
 def merge_pdfs(session_data, output_path):
-    doc_type     = session_data["doc_type"]
-    tabs         = session_data.get("tabs", [])
+    doc_type    = session_data["doc_type"]
+    tabs        = session_data.get("tabs", [])
     use_dividers = session_data.get("use_dividers", True)
-    tmpl         = TEMPLATES[doc_type]
-    tab_fn       = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
+    bundle_mode = session_data.get("bundle_mode", "tabs")
+    tmpl        = TEMPLATES[doc_type]
+    tab_fn      = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
     writer = PdfWriter()
 
@@ -512,6 +533,7 @@ def merge_pdfs(session_data, output_path):
         custom_rules=session_data.get("custom_rules", ""),
         recitals=session_data.get("recitals", ""),
         use_dividers=use_dividers,
+        bundle_mode=bundle_mode,
     )
     reader = PdfReader(toc_path)
     cover_page_count = len(reader.pages)
@@ -542,7 +564,7 @@ def merge_pdfs(session_data, output_path):
                     writer.add_page(page)
 
     # 3. Stamp clickable links on the TOC page
-    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=use_dividers)
+    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=use_dividers, bundle_mode=bundle_mode)
 
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -569,7 +591,7 @@ def update_session():
     sid = session.get("sid")
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules", "use_dividers"):
+    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules", "use_dividers", "bundle_mode"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
@@ -722,6 +744,81 @@ def delete_tab_item(tab_id, item_id):
         if tab["id"] == tab_id:
             tab["items"] = [i for i in tab["items"] if i["id"] != item_id]
             break
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/flat/upload", methods=["POST"])
+def flat_upload():
+    """In flat mode each uploaded file becomes its own single-item tab."""
+    sid = session.get("sid")
+    sess = get_session(sid)
+    files = request.files.getlist("files")
+    added_tabs = []
+    for f in files:
+        ext = os.path.splitext(f.filename.lower())[1]
+        if ext not in ALLOWED_EXTENSIONS:
+            continue
+        item_id  = uuid.uuid4().hex
+        raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
+        f.save(raw_dest)
+        if ext in IMAGE_EXTENSIONS:
+            pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
+            image_to_pdf(raw_dest, pdf_dest)
+            os.remove(raw_dest)
+            filepath = pdf_dest
+        else:
+            filepath = raw_dest
+        base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
+        page_count = get_pdf_page_count(filepath)
+        item = {
+            "id":           item_id,
+            "filename":     base_name,
+            "custom_name":  "",
+            "filepath":     filepath,
+            "page_count":   page_count,
+            "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
+            "original_ext": ext,
+        }
+        tab = {"id": uuid.uuid4().hex, "name": base_name, "items": [item]}
+        sess["tabs"].append(tab)
+        added_tabs.append(tab)
+    save_session(sid, sess)
+    return jsonify(added_tabs)
+
+
+@app.route("/api/flat/reorder", methods=["POST"])
+def flat_reorder():
+    """Reorder tabs (in flat mode, tab order = doc order)."""
+    sid = session.get("sid")
+    sess = get_session(sid)
+    new_order = request.json.get("order", [])
+    id_map = {t["id"]: t for t in sess["tabs"]}
+    sess["tabs"] = [id_map[i] for i in new_order if i in id_map]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/flat/<tab_id>/rename", methods=["PATCH"])
+def flat_rename(tab_id):
+    sid = session.get("sid")
+    sess = get_session(sid)
+    name = (request.json or {}).get("name", "")
+    for tab in sess["tabs"]:
+        if tab["id"] == tab_id:
+            tab["name"] = name
+            if tab["items"]:
+                tab["items"][0]["custom_name"] = name
+            break
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/flat/<tab_id>", methods=["DELETE"])
+def flat_delete(tab_id):
+    sid = session.get("sid")
+    sess = get_session(sid)
+    sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
     save_session(sid, sess)
     return jsonify({"ok": True})
 
