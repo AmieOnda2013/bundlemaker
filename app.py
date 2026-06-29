@@ -25,18 +25,18 @@ OUTPUT_FOLDER   = os.path.join(_BASE, "output")
 SESSIONS_FOLDER = os.path.join(_BASE, "sessions")
 
 TEMPLATES = {
-    "application_record": {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
-    "book_of_authorities": {"label": "Book of Authorities",      "header": "BOOK OF AUTHORITIES", "tab_style": "numeric"},
-    "index_of_materials":  {"label": "Index of Materials",       "header": "INDEX OF MATERIALS",  "tab_style": "alpha"},
-    "compendium":          {"label": "Compendium",               "header": "COMPENDIUM",           "tab_style": "alpha"},
-    "motion_record":       {"label": "Motion Record",            "header": "MOTION RECORD",        "tab_style": "alpha"},
-    "appeal_book":         {"label": "Appeal Book",              "header": "APPEAL BOOK",          "tab_style": "numeric"},
-    "factum":              {"label": "Factum / Written Argument", "header": "FACTUM",              "tab_style": "alpha"},
-    "trial_record":        {"label": "Trial Record",             "header": "TRIAL RECORD",         "tab_style": "alpha"},
-    "exhibits":            {"label": "Exhibits",                 "header": "EXHIBITS",             "tab_style": "alpha"},
+    "application_record":  {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
+    "book_of_authorities": {"label": "Book of Authorities",       "header": "BOOK OF AUTHORITIES", "tab_style": "numeric"},
+    "index_of_materials":  {"label": "Index of Materials",        "header": "INDEX OF MATERIALS",  "tab_style": "alpha"},
+    "compendium":          {"label": "Compendium",                "header": "COMPENDIUM",           "tab_style": "alpha"},
+    "motion_record":       {"label": "Motion Record",             "header": "MOTION RECORD",        "tab_style": "alpha"},
+    "appeal_book":         {"label": "Appeal Book",               "header": "APPEAL BOOK",          "tab_style": "numeric"},
+    "factum":              {"label": "Factum / Written Argument",  "header": "FACTUM",              "tab_style": "alpha"},
+    "trial_record":        {"label": "Trial Record",              "header": "TRIAL RECORD",         "tab_style": "alpha"},
+    "exhibits":            {"label": "Exhibits",                  "header": "EXHIBITS",             "tab_style": "alpha"},
 }
 
-IMAGE_EXTENSIONS  = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic"}
+IMAGE_EXTENSIONS   = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic"}
 ALLOWED_EXTENSIONS = {".pdf"} | IMAGE_EXTENSIONS
 
 JURISDICTIONS = {
@@ -55,40 +55,40 @@ JURISDICTIONS = {
         {"value": "SCC",    "label": "Supreme Court of Canada",     "court": "SUPREME COURT OF CANADA",                 "rule_body": "Rules of the Supreme Court of Canada, SOR/2002-156"},
     ],
     "United Kingdom": [
-        {"value": "EW_HC", "label": "England & Wales — High Court",        "court": "HIGH COURT OF JUSTICE",                        "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
-        {"value": "EW_CA", "label": "England & Wales — Court of Appeal",   "court": "COURT OF APPEAL",                              "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
-        {"value": "UKSC",  "label": "UK Supreme Court",                    "court": "THE SUPREME COURT OF THE UNITED KINGDOM",      "rule_body": "Supreme Court Rules 2009 (SI 2009/1603)"},
-        {"value": "SC_OS", "label": "Scotland — Outer House",              "court": "COURT OF SESSION — OUTER HOUSE",               "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
-        {"value": "SC_IH", "label": "Scotland — Inner House",              "court": "COURT OF SESSION — INNER HOUSE",               "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
-        {"value": "NI",    "label": "Northern Ireland",                    "court": "HIGH COURT OF JUSTICE IN NORTHERN IRELAND",    "rule_body": "Rules of the Court of Judicature (NI) 1980"},
+        {"value": "EW_HC", "label": "England & Wales — High Court",       "court": "HIGH COURT OF JUSTICE",                     "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
+        {"value": "EW_CA", "label": "England & Wales — Court of Appeal",  "court": "COURT OF APPEAL",                           "rule_body": "Civil Procedure Rules 1998 (SI 1998/3132)"},
+        {"value": "UKSC",  "label": "UK Supreme Court",                   "court": "THE SUPREME COURT OF THE UNITED KINGDOM",   "rule_body": "Supreme Court Rules 2009 (SI 2009/1603)"},
+        {"value": "SC_OS", "label": "Scotland — Outer House",             "court": "COURT OF SESSION — OUTER HOUSE",            "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
+        {"value": "SC_IH", "label": "Scotland — Inner House",             "court": "COURT OF SESSION — INNER HOUSE",            "rule_body": "Rules of the Court of Session 1994 (SI 1994/1443)"},
+        {"value": "NI",    "label": "Northern Ireland",                   "court": "HIGH COURT OF JUSTICE IN NORTHERN IRELAND", "rule_body": "Rules of the Court of Judicature (NI) 1980"},
     ],
     "United States": [
-        {"value": "US_FED",   "label": "Federal District Court",       "court": "UNITED STATES DISTRICT COURT",              "rule_body": "Federal Rules of Civil Procedure"},
-        {"value": "US_CA",    "label": "Federal Court of Appeals",     "court": "UNITED STATES COURT OF APPEALS",            "rule_body": "Federal Rules of Appellate Procedure"},
-        {"value": "USSC",     "label": "US Supreme Court",             "court": "SUPREME COURT OF THE UNITED STATES",        "rule_body": "Rules of the Supreme Court of the United States"},
-        {"value": "US_NY",    "label": "New York — Supreme Court",     "court": "SUPREME COURT OF THE STATE OF NEW YORK",    "rule_body": "New York Civil Practice Law and Rules"},
-        {"value": "US_CA_ST", "label": "California — Superior Court",  "court": "SUPERIOR COURT OF THE STATE OF CALIFORNIA", "rule_body": "California Rules of Court"},
-        {"value": "US_TX",    "label": "Texas — District Court",       "court": "DISTRICT COURT OF TEXAS",                   "rule_body": "Texas Rules of Civil Procedure"},
-        {"value": "US_FL",    "label": "Florida — Circuit Court",      "court": "CIRCUIT COURT OF FLORIDA",                  "rule_body": "Florida Rules of Civil Procedure"},
-        {"value": "US_IL",    "label": "Illinois — Circuit Court",     "court": "CIRCUIT COURT OF COOK COUNTY, ILLINOIS",    "rule_body": "Illinois Supreme Court Rules"},
+        {"value": "US_FED",   "label": "Federal District Court",      "court": "UNITED STATES DISTRICT COURT",              "rule_body": "Federal Rules of Civil Procedure"},
+        {"value": "US_CA",    "label": "Federal Court of Appeals",    "court": "UNITED STATES COURT OF APPEALS",            "rule_body": "Federal Rules of Appellate Procedure"},
+        {"value": "USSC",     "label": "US Supreme Court",            "court": "SUPREME COURT OF THE UNITED STATES",        "rule_body": "Rules of the Supreme Court of the United States"},
+        {"value": "US_NY",    "label": "New York — Supreme Court",    "court": "SUPREME COURT OF THE STATE OF NEW YORK",    "rule_body": "New York Civil Practice Law and Rules"},
+        {"value": "US_CA_ST", "label": "California — Superior Court", "court": "SUPERIOR COURT OF THE STATE OF CALIFORNIA", "rule_body": "California Rules of Court"},
+        {"value": "US_TX",    "label": "Texas — District Court",      "court": "DISTRICT COURT OF TEXAS",                   "rule_body": "Texas Rules of Civil Procedure"},
+        {"value": "US_FL",    "label": "Florida — Circuit Court",     "court": "CIRCUIT COURT OF FLORIDA",                  "rule_body": "Florida Rules of Civil Procedure"},
+        {"value": "US_IL",    "label": "Illinois — Circuit Court",    "court": "CIRCUIT COURT OF COOK COUNTY, ILLINOIS",    "rule_body": "Illinois Supreme Court Rules"},
     ],
     "Australia": [
-        {"value": "AU_FED", "label": "Federal Court of Australia",          "court": "FEDERAL COURT OF AUSTRALIA",          "rule_body": "Federal Court Rules 2011 (Cth)"},
-        {"value": "AU_HCA", "label": "High Court of Australia",             "court": "HIGH COURT OF AUSTRALIA",             "rule_body": "High Court Rules 2004 (Cth)"},
-        {"value": "AU_NSW", "label": "New South Wales — Supreme Court",     "court": "SUPREME COURT OF NEW SOUTH WALES",    "rule_body": "Uniform Civil Procedure Rules 2005 (NSW)"},
-        {"value": "AU_VIC", "label": "Victoria — Supreme Court",            "court": "SUPREME COURT OF VICTORIA",           "rule_body": "Supreme Court (General Civil Procedure) Rules 2015 (Vic)"},
-        {"value": "AU_QLD", "label": "Queensland — Supreme Court",          "court": "SUPREME COURT OF QUEENSLAND",         "rule_body": "Uniform Civil Procedure Rules 1999 (Qld)"},
-        {"value": "AU_WA",  "label": "Western Australia — Supreme Court",   "court": "SUPREME COURT OF WESTERN AUSTRALIA",  "rule_body": "Rules of the Supreme Court 1971 (WA)"},
+        {"value": "AU_FED", "label": "Federal Court of Australia",        "court": "FEDERAL COURT OF AUSTRALIA",         "rule_body": "Federal Court Rules 2011 (Cth)"},
+        {"value": "AU_HCA", "label": "High Court of Australia",           "court": "HIGH COURT OF AUSTRALIA",            "rule_body": "High Court Rules 2004 (Cth)"},
+        {"value": "AU_NSW", "label": "New South Wales — Supreme Court",   "court": "SUPREME COURT OF NEW SOUTH WALES",   "rule_body": "Uniform Civil Procedure Rules 2005 (NSW)"},
+        {"value": "AU_VIC", "label": "Victoria — Supreme Court",          "court": "SUPREME COURT OF VICTORIA",          "rule_body": "Supreme Court (General Civil Procedure) Rules 2015 (Vic)"},
+        {"value": "AU_QLD", "label": "Queensland — Supreme Court",        "court": "SUPREME COURT OF QUEENSLAND",        "rule_body": "Uniform Civil Procedure Rules 1999 (Qld)"},
+        {"value": "AU_WA",  "label": "Western Australia — Supreme Court", "court": "SUPREME COURT OF WESTERN AUSTRALIA", "rule_body": "Rules of the Supreme Court 1971 (WA)"},
     ],
     "New Zealand": [
-        {"value": "NZ_HC", "label": "High Court",     "court": "HIGH COURT OF NEW ZEALAND",       "rule_body": "High Court Rules 2016"},
-        {"value": "NZ_CA", "label": "Court of Appeal","court": "COURT OF APPEAL OF NEW ZEALAND",  "rule_body": "Court of Appeal (Civil) Rules 2005"},
-        {"value": "NZSC",  "label": "Supreme Court",  "court": "SUPREME COURT OF NEW ZEALAND",    "rule_body": "Supreme Court Rules 2004"},
+        {"value": "NZ_HC", "label": "High Court",      "court": "HIGH COURT OF NEW ZEALAND",      "rule_body": "High Court Rules 2016"},
+        {"value": "NZ_CA", "label": "Court of Appeal", "court": "COURT OF APPEAL OF NEW ZEALAND", "rule_body": "Court of Appeal (Civil) Rules 2005"},
+        {"value": "NZSC",  "label": "Supreme Court",   "court": "SUPREME COURT OF NEW ZEALAND",   "rule_body": "Supreme Court Rules 2004"},
     ],
     "Ireland": [
-        {"value": "IE_HC", "label": "High Court",     "court": "HIGH COURT", "rule_body": "Rules of the Superior Courts (SI 15/1986)"},
-        {"value": "IE_CA", "label": "Court of Appeal","court": "COURT OF APPEAL", "rule_body": "Rules of the Superior Courts"},
-        {"value": "IE_SC", "label": "Supreme Court",  "court": "SUPREME COURT",   "rule_body": "Rules of the Superior Courts"},
+        {"value": "IE_HC", "label": "High Court",      "court": "HIGH COURT",     "rule_body": "Rules of the Superior Courts (SI 15/1986)"},
+        {"value": "IE_CA", "label": "Court of Appeal", "court": "COURT OF APPEAL","rule_body": "Rules of the Superior Courts"},
+        {"value": "IE_SC", "label": "Supreme Court",   "court": "SUPREME COURT",  "rule_body": "Rules of the Superior Courts"},
     ],
     "Singapore": [
         {"value": "SG_GD", "label": "General Division — High Court", "court": "GENERAL DIVISION OF THE HIGH COURT", "rule_body": "Rules of Court 2021"},
@@ -107,18 +107,13 @@ def session_path(sid):
 
 def _default_session():
     return {
-        "tabs": [],
-        "doc_type": "application_record",
-        "title": "",
-        "court_file": "",
-        "parties": "",
-        "recitals": "",
-        "country": "Canada",
-        "jurisdiction": "ON",
-        "custom_court": "",
-        "custom_rules": "",
+        "items": [],           # flat individual documents
+        "tabs": [],            # grouped tabs [{id, name, items:[...]}]
         "use_dividers": True,
-        "bundle_mode": "tabs",
+        "doc_type": "application_record",
+        "title": "", "court_file": "", "parties": "", "recitals": "",
+        "country": "Canada", "jurisdiction": "ON",
+        "custom_court": "", "custom_rules": "",
     }
 
 def get_session(sid):
@@ -126,16 +121,15 @@ def get_session(sid):
     if os.path.exists(path):
         with open(path) as f:
             data = json.load(f)
-        # Migrate old flat-items sessions to tabs format
-        if "items" in data and "tabs" not in data:
-            old_items = data.pop("items")
+        # Migrate: old flat-only sessions (items but no tabs)
+        if "items" not in data:
+            data["items"] = []
+        if "tabs" not in data:
             data["tabs"] = []
-            if old_items:
-                data["tabs"].append({"id": uuid.uuid4().hex, "name": "Documents", "items": old_items})
         if "use_dividers" not in data:
             data["use_dividers"] = True
-        if "bundle_mode" not in data:
-            data["bundle_mode"] = "tabs"
+        # Remove legacy bundle_mode if present
+        data.pop("bundle_mode", None)
         return data
     return _default_session()
 
@@ -178,7 +172,6 @@ def image_to_pdf(image_path, pdf_path):
 
     buf = io.BytesIO()
     img_resized = img.resize((new_w, new_h), Image.LANCZOS)
-
     c_doc = SimpleDocTemplate(buf, pagesize=letter,
                               rightMargin=margin, leftMargin=margin,
                               topMargin=margin, bottomMargin=margin)
@@ -197,8 +190,7 @@ def image_to_pdf(image_path, pdf_path):
 
 def get_pdf_page_count(filepath):
     try:
-        reader = PdfReader(filepath)
-        return len(reader.pages)
+        return len(PdfReader(filepath).pages)
     except Exception:
         return 0
 
@@ -210,21 +202,46 @@ def resolve_jurisdiction(country, jurisdiction_value):
     return "", ""
 
 
+def _make_file_item(f, ext):
+    """Save an uploaded file, convert images, return item dict."""
+    item_id  = uuid.uuid4().hex
+    raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
+    f.save(raw_dest)
+    if ext in IMAGE_EXTENSIONS:
+        pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
+        image_to_pdf(raw_dest, pdf_dest)
+        os.remove(raw_dest)
+        filepath = pdf_dest
+    else:
+        filepath = raw_dest
+    base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
+    page_count = get_pdf_page_count(filepath)
+    return {
+        "id":           item_id,
+        "filename":     base_name,
+        "custom_name":  "",
+        "filepath":     filepath,
+        "page_count":   page_count,
+        "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
+        "original_ext": ext,
+    }
+
+
 # ── PDF generation ───────────────────────────────────────────────────────────
 
-def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
-                       country="Canada", jurisdiction="ON",
+def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
+                       output_path, country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
-                       use_dividers=True, bundle_mode="tabs"):
-    """Generate cover page + optional recitals + TOC. tabs is a list of tab dicts."""
+                       use_dividers=True):
+    """
+    items  — flat individual documents (each gets its own tab letter)
+    tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
+    """
     tmpl = TEMPLATES[doc_type]
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=letter,
-        rightMargin=1 * inch,
-        leftMargin=1.25 * inch,
-        topMargin=1.25 * inch,
-        bottomMargin=1.25 * inch,
+    doc  = SimpleDocTemplate(
+        output_path, pagesize=letter,
+        rightMargin=1*inch, leftMargin=1.25*inch,
+        topMargin=1.25*inch, bottomMargin=1.25*inch,
     )
 
     styles = getSampleStyleSheet()
@@ -232,175 +249,146 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
     normal.fontName = "Times-Roman"
     normal.fontSize = 12
 
-    center_bold = ParagraphStyle(
-        "center_bold", parent=normal,
+    center_bold = ParagraphStyle("center_bold", parent=normal,
         alignment=TA_CENTER, fontName="Times-Bold",
-        fontSize=14, spaceAfter=10, spaceBefore=4,
-    )
-    center_normal = ParagraphStyle(
-        "center_normal", parent=normal,
-        alignment=TA_CENTER, fontSize=12,
-        spaceAfter=6, leading=18,
-    )
-    small_center = ParagraphStyle(
-        "small_center", parent=normal,
-        alignment=TA_CENTER, fontSize=10,
-        spaceAfter=6, leading=15,
-    )
-    toc_header = ParagraphStyle(
-        "toc_header", parent=normal,
+        fontSize=14, spaceAfter=10, spaceBefore=4)
+    center_normal = ParagraphStyle("center_normal", parent=normal,
+        alignment=TA_CENTER, fontSize=12, spaceAfter=6, leading=18)
+    small_center = ParagraphStyle("small_center", parent=normal,
+        alignment=TA_CENTER, fontSize=10, spaceAfter=6, leading=15)
+    toc_header_st = ParagraphStyle("toc_header", parent=normal,
         alignment=TA_CENTER, fontName="Times-Bold",
-        fontSize=14, spaceAfter=16, spaceBefore=16,
-    )
+        fontSize=14, spaceAfter=16, spaceBefore=16)
 
     court_name, rule_body = resolve_jurisdiction(country, jurisdiction)
     if jurisdiction == "CUSTOM":
         court_name = custom_court
-        rule_body = custom_rules
+        rule_body  = custom_rules
 
     story = []
 
     # ── Cover Page ──────────────────────────────────────────────────────────
-    story.append(Spacer(1, 0.75 * inch))
-
+    story.append(Spacer(1, 0.75*inch))
     if country and country != "Other / Custom":
         story.append(Paragraph(country.upper(), center_bold))
-        story.append(Spacer(1, 0.15 * inch))
-
+        story.append(Spacer(1, 0.15*inch))
     if court_name:
         story.append(Paragraph(court_name, center_bold))
-
-    story.append(Spacer(1, 0.4 * inch))
-
+    story.append(Spacer(1, 0.4*inch))
     if court_file:
-        right_normal = ParagraphStyle(
-            "right_normal", parent=normal,
-            alignment=TA_RIGHT, fontSize=12, spaceAfter=6,
-        )
-        story.append(Paragraph(f"Court File No.: {court_file}", right_normal))
-        story.append(Spacer(1, 0.25 * inch))
-
+        right_st = ParagraphStyle("right_st", parent=normal,
+            alignment=TA_RIGHT, fontSize=12, spaceAfter=6)
+        story.append(Paragraph(f"Court File No.: {court_file}", right_st))
+        story.append(Spacer(1, 0.25*inch))
     if parties:
         for line in parties.strip().split("\n"):
             story.append(Paragraph(line, center_normal))
-        story.append(Spacer(1, 0.4 * inch))
-
-    story.append(Spacer(1, 0.3 * inch))
+        story.append(Spacer(1, 0.4*inch))
+    story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph(tmpl["header"], center_bold))
-
     if title:
-        story.append(Spacer(1, 0.2 * inch))
+        story.append(Spacer(1, 0.2*inch))
         story.append(Paragraph(title, center_normal))
-
     if rule_body:
-        story.append(Spacer(1, 0.4 * inch))
+        story.append(Spacer(1, 0.4*inch))
         story.append(Paragraph(rule_body, small_center))
-
     story.append(PageBreak())
 
-    # ── Written Recitals (optional page before TOC) ─────────────────────────
+    # ── Written Recitals ────────────────────────────────────────────────────
     if recitals and recitals.strip():
-        recital_style = ParagraphStyle(
-            "recital", parent=normal,
-            alignment=TA_LEFT, fontSize=11,
-            leading=20, spaceAfter=10,
-        )
-        story.append(Spacer(1, 0.6 * inch))
+        recital_st = ParagraphStyle("recital", parent=normal,
+            alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
+        story.append(Spacer(1, 0.6*inch))
         for para in recitals.strip().split("\n"):
             if para.strip():
-                story.append(Paragraph(para.strip(), recital_style))
-                story.append(Spacer(1, 0.1 * inch))
+                story.append(Paragraph(para.strip(), recital_st))
+                story.append(Spacer(1, 0.1*inch))
         story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
-    story.append(Paragraph("TABLE OF CONTENTS", toc_header))
+    story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
 
     tab_fn = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
-    th_style   = ParagraphStyle("th",   parent=normal, fontName="Times-Bold", fontSize=11)
-    th_right   = ParagraphStyle("thr",  parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)
-    tab_row_st = ParagraphStyle("tabr", parent=normal, fontName="Times-Bold", fontSize=11, leading=16)
-    tab_row_rt = ParagraphStyle("tabrt",parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT, leading=16)
-    doc_row_st = ParagraphStyle("docr", parent=normal, fontSize=10, leading=15, leftIndent=10)
-    doc_row_rt = ParagraphStyle("docrt",parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
+    th_st  = ParagraphStyle("th",   parent=normal, fontName="Times-Bold", fontSize=11)
+    th_rt  = ParagraphStyle("thr",  parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT)
+    row_st = ParagraphStyle("row",  parent=normal, fontSize=11, leading=16)
+    row_rt = ParagraphStyle("rowr", parent=normal, fontSize=11, alignment=TA_RIGHT, leading=16)
+    grp_st = ParagraphStyle("grp",  parent=normal, fontName="Times-Bold", fontSize=11, leading=16)
+    grp_rt = ParagraphStyle("grpr", parent=normal, fontName="Times-Bold", fontSize=11, alignment=TA_RIGHT, leading=16)
+    sub_st = ParagraphStyle("sub",  parent=normal, fontSize=10, leading=15)
+    sub_rt = ParagraphStyle("subr", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
-    toc_data   = [[
-        Paragraph("<b>Tab</b>",      th_style),
-        Paragraph("<b>Document</b>", th_style),
-        Paragraph("<b>Page(s)</b>",  th_right),
+    toc_data = [[
+        Paragraph("<b>Tab</b>",      th_st),
+        Paragraph("<b>Document</b>", th_st),
+        Paragraph("<b>Page(s)</b>",  th_rt),
     ]]
-    # Each entry: (row_index_in_toc_data, target_pdf_page_index)
-    # We'll compute this in add_toc_links; here just build the visual rows.
 
-    current_page = 1  # logical page counter (1-based, excluding dividers)
-    is_flat = (bundle_mode == "flat")
+    tab_idx = 0       # sequential tab-label counter across items + groups
+    current_page = 1  # logical page number in the body (excluding dividers)
 
-    # In flat mode each tab has exactly one item — render one plain row per doc.
-    # In tabs mode with dividers: bold tab summary row + indented item sub-rows.
-    # In tabs mode without dividers: one plain row per doc labelled with tab letter.
+    # Individual items — one TOC row each
+    for item in items:
+        label    = tab_fn(tab_idx);  tab_idx += 1
+        name     = item.get("custom_name") or item.get("filename", "Document")
+        pc       = item.get("page_count", 1)
+        page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
+        toc_data.append([
+            Paragraph(f"Tab {label}", row_st),
+            Paragraph(name, row_st),
+            Paragraph(page_str, row_rt),
+        ])
+        current_page += pc + (1 if use_dividers else 0)
 
-    for i, tab in enumerate(tabs):
-        tab_label = tab_fn(i)
-        tab_name  = tab.get("name") or f"Tab {tab_label}"
-        tab_items = tab.get("items", [])
-        total_pages = sum(item.get("page_count", 1) for item in tab_items) or 1
-
-        if is_flat or not use_dividers:
-            # Plain flat rows — one per document
-            for item in tab_items:
-                pc = item.get("page_count", 1)
-                doc_name = item.get("custom_name") or item.get("filename", "Document")
-                doc_page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page + pc - 1}"
-                toc_data.append([
-                    Paragraph(f"Tab {tab_label}", tab_row_st),
-                    Paragraph(doc_name, tab_row_st),
-                    Paragraph(doc_page_str, tab_row_rt),
-                ])
-                current_page += pc
-            if use_dividers:
-                current_page += 1  # account for per-tab divider page
-        else:
-            # Tabs mode with dividers: bold summary + indented doc rows
-            tab_page_str = str(current_page) if total_pages == 1 else f"{current_page}–{current_page + total_pages - 1}"
-            toc_data.append([
-                Paragraph(f"<b>Tab {tab_label}</b>", tab_row_st),
-                Paragraph(f"<b>{tab_name}</b>",      tab_row_st),
-                Paragraph(tab_page_str,               tab_row_rt),
-            ])
-            doc_page = current_page
-            for item in tab_items:
-                pc = item.get("page_count", 1)
-                doc_name = item.get("custom_name") or item.get("filename", "Document")
-                doc_page_str = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page + pc - 1}"
-                toc_data.append([
-                    Paragraph("", doc_row_st),
-                    Paragraph(f"  ▸  {doc_name}", doc_row_st),
-                    Paragraph(doc_page_str, doc_row_rt),
-                ])
-                doc_page += pc
-            current_page += total_pages + 1  # +1 for divider of next tab
-
-    # Table style
+    # Grouped tabs — bold summary row + indented sub-rows
     tab_shade = colors.Color(0.93, 0.91, 0.87)
-    ts = [
-        ("FONTNAME",      (0, 0), (-1, 0),  "Times-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 11),
-        ("LINEBELOW",     (0, 0), (-1, 0),  1,    colors.black),
-        ("LINEBELOW",     (0, 1), (-1, -1), 0.25, colors.lightgrey),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-    ]
-    if not is_flat and use_dividers:
-        # Shade every tab-summary row
-        row_idx = 1
-        for tab in tabs:
-            ts.append(("BACKGROUND", (0, row_idx), (-1, row_idx), tab_shade))
-            row_idx += 1 + len(tab.get("items", []))
+    shaded_rows = []  # row indices for shading
 
-    toc_table = Table(toc_data, colWidths=[0.9 * inch, 4.5 * inch, 0.8 * inch])
+    for tab in tabs:
+        label      = tab_fn(tab_idx);  tab_idx += 1
+        tab_name   = tab.get("name") or f"Tab {label}"
+        tab_items  = tab.get("items", [])
+        total_pc   = sum(i.get("page_count", 1) for i in tab_items) or 1
+        tab_pg_str = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
+
+        shaded_rows.append(len(toc_data))
+        toc_data.append([
+            Paragraph(f"<b>Tab {label}</b>", grp_st),
+            Paragraph(f"<b>{tab_name}</b>",  grp_st),
+            Paragraph(tab_pg_str,             grp_rt),
+        ])
+
+        doc_page = current_page
+        for item in tab_items:
+            pc   = item.get("page_count", 1)
+            name = item.get("custom_name") or item.get("filename", "Document")
+            ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
+            toc_data.append([
+                Paragraph("", sub_st),
+                Paragraph(f"  ▸  {name}", sub_st),
+                Paragraph(ps, sub_rt),
+            ])
+            doc_page += pc
+
+        current_page += total_pc + (1 if use_dividers else 0)
+
+    # Build table style
+    ts = [
+        ("FONTNAME",      (0,0),(-1,0),  "Times-Bold"),
+        ("FONTSIZE",      (0,0),(-1,-1), 11),
+        ("LINEBELOW",     (0,0),(-1,0),  1,    colors.black),
+        ("LINEBELOW",     (0,1),(-1,-1), 0.25, colors.lightgrey),
+        ("VALIGN",        (0,0),(-1,-1), "TOP"),
+        ("TOPPADDING",    (0,0),(-1,-1), 7),
+        ("BOTTOMPADDING", (0,0),(-1,-1), 7),
+        ("LEFTPADDING",   (0,0),(-1,-1), 4),
+        ("RIGHTPADDING",  (0,0),(-1,-1), 4),
+    ]
+    for r in shaded_rows:
+        ts.append(("BACKGROUND", (0,r),(-1,r), tab_shade))
+
+    toc_table = Table(toc_data, colWidths=[0.9*inch, 4.5*inch, 0.8*inch])
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
     story.append(PageBreak())
@@ -408,121 +396,90 @@ def generate_cover_toc(doc_type, tabs, title, court_file, parties, output_path,
     doc.build(story)
 
 
-def generate_divider_page(tab_label, tab_name, output_path):
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=letter,
-        rightMargin=1 * inch,
-        leftMargin=1.25 * inch,
-        topMargin=2 * inch,
-        bottomMargin=1 * inch,
-    )
+def generate_divider_page(tab_label, name, output_path):
+    doc = SimpleDocTemplate(output_path, pagesize=letter,
+        rightMargin=1*inch, leftMargin=1.25*inch,
+        topMargin=2*inch, bottomMargin=1*inch)
     styles = getSampleStyleSheet()
     normal = styles["Normal"]
-
-    tab_style = ParagraphStyle(
-        "tab_big", parent=normal,
-        fontName="Times-Bold", fontSize=36,
-        alignment=TA_CENTER, spaceAfter=24,
-    )
-    name_style = ParagraphStyle(
-        "tab_name", parent=normal,
-        fontName="Times-Roman", fontSize=14,
-        alignment=TA_CENTER, leading=20,
-    )
-
     story = [
-        Spacer(1, 1.5 * inch),
-        Paragraph(f"TAB {tab_label}", tab_style),
-        Paragraph(tab_name, name_style),
+        Spacer(1, 1.5*inch),
+        Paragraph(f"TAB {tab_label}", ParagraphStyle("big", parent=normal,
+            fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=24)),
+        Paragraph(name, ParagraphStyle("nm", parent=normal,
+            fontName="Times-Roman", fontSize=14, alignment=TA_CENTER, leading=20)),
         PageBreak(),
     ]
     doc.build(story)
 
 
-def add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=True, bundle_mode="tabs"):
-    """Stamp clickable GoTo links on the TOC page for every row."""
-    page = writer.pages[toc_page_index]
+def add_toc_links(writer, toc_page_index, items, tabs,
+                  first_page_index, use_dividers=True):
+    """Stamp clickable links on TOC rows for items and tab groups."""
+    page        = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
     page_width  = float(page.mediabox.width)
-
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Approximate TOC layout (matches generate_cover_toc):
-    #   top margin 1.25" = 90pt
-    #   "TABLE OF CONTENTS" heading ≈ 56pt
-    #   header row ≈ 30pt
-    #   tab-summary rows ≈ 30pt each  (7+11+7 + ~5 leading)
-    #   doc-item rows ≈ 25pt each     (7+10+7 + ~1)
-    first_row_top = page_height - 90 - 56 - 30  # top of first data row
-    tab_row_h  = 30
-    doc_row_h  = 25
+    # Approximate Y of first data row (after margin + heading + header row)
+    first_row_top = page_height - 90 - 56 - 30
+    ROW_H = 30   # individual item rows and group summary rows
+    SUB_H = 25   # sub-document rows within a group
 
-    # Build a flat list: [(row_offset_from_first, height, target_pdf_page_index)]
-    link_rows = []
-    current_pdf_page = first_tab_page_index  # 0-indexed in the final PDF
+    link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
+    y = 0
+    current_pdf = first_page_index
 
-    is_flat = (bundle_mode == "flat")
+    # Individual items
+    for item in items:
+        target = current_pdf  # link to divider (or doc if no dividers)
+        link_rows.append((y, ROW_H, target))
+        y += ROW_H
+        pc = item.get("page_count", 1)
+        current_pdf += (1 + pc) if use_dividers else pc
 
-    if not is_flat and use_dividers:
-        # Tabs mode with dividers: tab-summary row → divider, doc rows → doc pages
-        y_offset = 0
-        for tab in tabs:
-            items = tab.get("items", [])
-            link_rows.append((y_offset, tab_row_h, current_pdf_page))
-            y_offset += tab_row_h
-            doc_pdf_page = current_pdf_page + 1
-            for item in items:
-                link_rows.append((y_offset, doc_row_h, doc_pdf_page))
-                y_offset     += doc_row_h
-                doc_pdf_page += item.get("page_count", 1)
-            total_pages = sum(item.get("page_count", 1) for item in items)
-            current_pdf_page += 1 + total_pages
-    else:
-        # Flat mode or no-dividers: one row per document
-        y_offset = 0
-        for tab in tabs:
-            if use_dividers:
-                # each tab (= each doc in flat mode) still has a divider page
-                doc_pdf_page = current_pdf_page + 1
-            else:
-                doc_pdf_page = current_pdf_page
-            for item in tab.get("items", []):
-                link_rows.append((y_offset, tab_row_h, doc_pdf_page))
-                y_offset     += tab_row_h
-                doc_pdf_page += item.get("page_count", 1)
-            total_pages = sum(item.get("page_count", 1) for item in tab.get("items", []))
-            if use_dividers:
-                current_pdf_page += 1 + total_pages
-            else:
-                current_pdf_page += total_pages
+    # Grouped tabs — summary row + sub-rows
+    for tab in tabs:
+        target = current_pdf  # link to tab divider (or first doc)
+        link_rows.append((y, ROW_H, target))
+        y += ROW_H
+        doc_pdf = current_pdf + (1 if use_dividers else 0)
+        for item in tab.get("items", []):
+            link_rows.append((y, SUB_H, doc_pdf))
+            y      += SUB_H
+            pc      = item.get("page_count", 1)
+            doc_pdf += pc
+        total = sum(i.get("page_count", 1) for i in tab.get("items", []))
+        current_pdf += (1 + total) if use_dividers else total
 
-    for (y_off, row_h, target_page) in link_rows:
+    for (y_off, h, target) in link_rows:
         row_top    = first_row_top - y_off
-        row_bottom = row_top - row_h
+        row_bottom = row_top - h
         rect = RectangleObject([left, row_bottom, right, row_top])
         try:
-            annotation = Link(rect=rect, target_page_index=target_page)
-            writer.add_annotation(page_number=toc_page_index, annotation=annotation)
+            writer.add_annotation(
+                page_number=toc_page_index,
+                annotation=Link(rect=rect, target_page_index=target),
+            )
         except Exception:
             pass
 
 
 def merge_pdfs(session_data, output_path):
-    doc_type    = session_data["doc_type"]
-    tabs        = session_data.get("tabs", [])
+    doc_type     = session_data["doc_type"]
+    items        = session_data.get("items", [])
+    tabs         = session_data.get("tabs", [])
     use_dividers = session_data.get("use_dividers", True)
-    bundle_mode = session_data.get("bundle_mode", "tabs")
-    tmpl        = TEMPLATES[doc_type]
-    tab_fn      = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
+    tmpl         = TEMPLATES[doc_type]
+    tab_fn       = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
 
     writer = PdfWriter()
 
     # 1. Cover + TOC
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
     generate_cover_toc(
-        doc_type, tabs,
+        doc_type, items, tabs,
         session_data.get("title", ""),
         session_data.get("court_file", ""),
         session_data.get("parties", ""),
@@ -533,38 +490,54 @@ def merge_pdfs(session_data, output_path):
         custom_rules=session_data.get("custom_rules", ""),
         recitals=session_data.get("recitals", ""),
         use_dividers=use_dividers,
-        bundle_mode=bundle_mode,
     )
-    reader = PdfReader(toc_path)
-    cover_page_count = len(reader.pages)
-    for page in reader.pages:
-        writer.add_page(page)
+    rdr = PdfReader(toc_path)
+    cover_count = len(rdr.pages)
+    for pg in rdr.pages:
+        writer.add_page(pg)
     os.remove(toc_path)
 
-    toc_page_index       = cover_page_count - 1
-    first_tab_page_index = cover_page_count
+    toc_page_index = cover_count - 1
+    first_page_idx = cover_count
+    tab_label_idx  = 0  # sequential across items + tabs
 
-    # 2. For each tab: optional divider + all documents
-    for i, tab in enumerate(tabs):
+    # 2. Individual items — each gets its own divider (if enabled) + doc pages
+    for item in items:
+        label = tab_fn(tab_label_idx);  tab_label_idx += 1
+        name  = item.get("custom_name") or item.get("filename", f"Tab {label}")
+
         if use_dividers:
-            tab_label = tab_fn(i)
-            tab_name  = tab.get("name") or f"Tab {tab_label}"
-            div_path  = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-            generate_divider_page(tab_label, tab_name, div_path)
-            div_reader = PdfReader(div_path)
-            for page in div_reader.pages:
-                writer.add_page(page)
+            div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+            generate_divider_page(label, name, div_path)
+            for pg in PdfReader(div_path).pages:
+                writer.add_page(pg)
+            os.remove(div_path)
+
+        doc_path = item.get("filepath")
+        if doc_path and os.path.exists(doc_path):
+            for pg in PdfReader(doc_path).pages:
+                writer.add_page(pg)
+
+    # 3. Grouped tabs — one divider per tab + all tab docs
+    for tab in tabs:
+        label    = tab_fn(tab_label_idx);  tab_label_idx += 1
+        tab_name = tab.get("name") or f"Tab {label}"
+
+        if use_dividers:
+            div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+            generate_divider_page(label, tab_name, div_path)
+            for pg in PdfReader(div_path).pages:
+                writer.add_page(pg)
             os.remove(div_path)
 
         for item in tab.get("items", []):
             doc_path = item.get("filepath")
             if doc_path and os.path.exists(doc_path):
-                doc_reader = PdfReader(doc_path)
-                for page in doc_reader.pages:
-                    writer.add_page(page)
+                for pg in PdfReader(doc_path).pages:
+                    writer.add_page(pg)
 
-    # 3. Stamp clickable links on the TOC page
-    add_toc_links(writer, toc_page_index, tabs, first_tab_page_index, use_dividers=use_dividers, bundle_mode=bundle_mode)
+    # 4. Stamp TOC links
+    add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers)
 
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -588,10 +561,11 @@ def get_session_data():
 
 @app.route("/api/session", methods=["POST"])
 def update_session():
-    sid = session.get("sid")
+    sid  = session.get("sid")
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type", "title", "court_file", "parties", "recitals", "country", "jurisdiction", "custom_court", "custom_rules", "use_dividers", "bundle_mode"):
+    for key in ("doc_type","title","court_file","parties","recitals",
+                "country","jurisdiction","custom_court","custom_rules","use_dividers"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
@@ -603,25 +577,78 @@ def get_jurisdictions():
     return jsonify(JURISDICTIONS)
 
 
-# ── Tab routes ───────────────────────────────────────────────────────────────
+# ── Individual-item routes ───────────────────────────────────────────────────
+
+@app.route("/api/upload", methods=["POST"])
+def upload():
+    sid  = session.get("sid")
+    sess = get_session(sid)
+    added = []
+    for f in request.files.getlist("files"):
+        ext = os.path.splitext(f.filename.lower())[1]
+        if ext not in ALLOWED_EXTENSIONS:
+            continue
+        item = _make_file_item(f, ext)
+        sess["items"].append(item)
+        added.append(item)
+    save_session(sid, sess)
+    return jsonify(added)
+
+
+@app.route("/api/items", methods=["GET"])
+def get_items():
+    sid = session.get("sid")
+    return jsonify(get_session(sid).get("items", []))
+
+
+@app.route("/api/items/reorder", methods=["POST"])
+def reorder_items():
+    sid  = session.get("sid")
+    sess = get_session(sid)
+    order = request.json.get("order", [])
+    id_map = {i["id"]: i for i in sess["items"]}
+    sess["items"] = [id_map[x] for x in order if x in id_map]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/items/<item_id>", methods=["PATCH"])
+def update_item(item_id):
+    sid  = session.get("sid")
+    sess = get_session(sid)
+    data = request.json or {}
+    for item in sess["items"]:
+        if item["id"] == item_id:
+            if "custom_name" in data:
+                item["custom_name"] = data["custom_name"]
+            break
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/items/<item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    sid  = session.get("sid")
+    sess = get_session(sid)
+    sess["items"] = [i for i in sess["items"] if i["id"] != item_id]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+# ── Grouped-tab routes ───────────────────────────────────────────────────────
 
 @app.route("/api/tabs", methods=["GET"])
 def get_tabs():
     sid = session.get("sid")
-    sess = get_session(sid)
-    return jsonify(sess.get("tabs", []))
+    return jsonify(get_session(sid).get("tabs", []))
 
 
 @app.route("/api/tabs", methods=["POST"])
 def create_tab():
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
     data = request.json or {}
-    tab = {
-        "id":    uuid.uuid4().hex,
-        "name":  data.get("name", ""),
-        "items": [],
-    }
+    tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "items": []}
     sess["tabs"].append(tab)
     save_session(sid, sess)
     return jsonify(tab)
@@ -629,18 +656,18 @@ def create_tab():
 
 @app.route("/api/tabs/reorder", methods=["POST"])
 def reorder_tabs():
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
-    new_order = request.json.get("order", [])
+    order = request.json.get("order", [])
     id_map = {t["id"]: t for t in sess["tabs"]}
-    sess["tabs"] = [id_map[i] for i in new_order if i in id_map]
+    sess["tabs"] = [id_map[x] for x in order if x in id_map]
     save_session(sid, sess)
     return jsonify({"ok": True})
 
 
 @app.route("/api/tabs/<tab_id>", methods=["PATCH"])
 def update_tab(tab_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
     data = request.json or {}
     for tab in sess["tabs"]:
@@ -654,7 +681,7 @@ def update_tab(tab_id):
 
 @app.route("/api/tabs/<tab_id>", methods=["DELETE"])
 def delete_tab(tab_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
     sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
     save_session(sid, sess)
@@ -663,65 +690,40 @@ def delete_tab(tab_id):
 
 @app.route("/api/tabs/<tab_id>/upload", methods=["POST"])
 def upload_to_tab(tab_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
-    tab = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+    tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
     if tab is None:
         return jsonify({"error": "Tab not found"}), 404
-
-    files = request.files.getlist("files")
     added = []
-    for f in files:
+    for f in request.files.getlist("files"):
         ext = os.path.splitext(f.filename.lower())[1]
         if ext not in ALLOWED_EXTENSIONS:
             continue
-        item_id  = uuid.uuid4().hex
-        raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
-        f.save(raw_dest)
-
-        if ext in IMAGE_EXTENSIONS:
-            pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
-            image_to_pdf(raw_dest, pdf_dest)
-            os.remove(raw_dest)
-            filepath = pdf_dest
-        else:
-            filepath = raw_dest
-
-        base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
-        page_count = get_pdf_page_count(filepath)
-        item = {
-            "id":           item_id,
-            "filename":     base_name,
-            "custom_name":  "",
-            "filepath":     filepath,
-            "page_count":   page_count,
-            "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
-            "original_ext": ext,
-        }
+        item = _make_file_item(f, ext)
         tab["items"].append(item)
         added.append(item)
-
     save_session(sid, sess)
     return jsonify(added)
 
 
 @app.route("/api/tabs/<tab_id>/items/reorder", methods=["POST"])
 def reorder_tab_items(tab_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
-    tab = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+    tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
     if tab is None:
         return jsonify({"error": "Tab not found"}), 404
-    new_order = request.json.get("order", [])
-    id_map = {item["id"]: item for item in tab["items"]}
-    tab["items"] = [id_map[i] for i in new_order if i in id_map]
+    order  = request.json.get("order", [])
+    id_map = {i["id"]: i for i in tab["items"]}
+    tab["items"] = [id_map[x] for x in order if x in id_map]
     save_session(sid, sess)
     return jsonify({"ok": True})
 
 
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["PATCH"])
 def update_tab_item(tab_id, item_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
     data = request.json or {}
     for tab in sess["tabs"]:
@@ -738,7 +740,7 @@ def update_tab_item(tab_id, item_id):
 
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["DELETE"])
 def delete_tab_item(tab_id, item_id):
-    sid = session.get("sid")
+    sid  = session.get("sid")
     sess = get_session(sid)
     for tab in sess["tabs"]:
         if tab["id"] == tab_id:
@@ -748,90 +750,14 @@ def delete_tab_item(tab_id, item_id):
     return jsonify({"ok": True})
 
 
-@app.route("/api/flat/upload", methods=["POST"])
-def flat_upload():
-    """In flat mode each uploaded file becomes its own single-item tab."""
-    sid = session.get("sid")
-    sess = get_session(sid)
-    files = request.files.getlist("files")
-    added_tabs = []
-    for f in files:
-        ext = os.path.splitext(f.filename.lower())[1]
-        if ext not in ALLOWED_EXTENSIONS:
-            continue
-        item_id  = uuid.uuid4().hex
-        raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
-        f.save(raw_dest)
-        if ext in IMAGE_EXTENSIONS:
-            pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
-            image_to_pdf(raw_dest, pdf_dest)
-            os.remove(raw_dest)
-            filepath = pdf_dest
-        else:
-            filepath = raw_dest
-        base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
-        page_count = get_pdf_page_count(filepath)
-        item = {
-            "id":           item_id,
-            "filename":     base_name,
-            "custom_name":  "",
-            "filepath":     filepath,
-            "page_count":   page_count,
-            "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
-            "original_ext": ext,
-        }
-        tab = {"id": uuid.uuid4().hex, "name": base_name, "items": [item]}
-        sess["tabs"].append(tab)
-        added_tabs.append(tab)
-    save_session(sid, sess)
-    return jsonify(added_tabs)
-
-
-@app.route("/api/flat/reorder", methods=["POST"])
-def flat_reorder():
-    """Reorder tabs (in flat mode, tab order = doc order)."""
-    sid = session.get("sid")
-    sess = get_session(sid)
-    new_order = request.json.get("order", [])
-    id_map = {t["id"]: t for t in sess["tabs"]}
-    sess["tabs"] = [id_map[i] for i in new_order if i in id_map]
-    save_session(sid, sess)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/flat/<tab_id>/rename", methods=["PATCH"])
-def flat_rename(tab_id):
-    sid = session.get("sid")
-    sess = get_session(sid)
-    name = (request.json or {}).get("name", "")
-    for tab in sess["tabs"]:
-        if tab["id"] == tab_id:
-            tab["name"] = name
-            if tab["items"]:
-                tab["items"][0]["custom_name"] = name
-            break
-    save_session(sid, sess)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/flat/<tab_id>", methods=["DELETE"])
-def flat_delete(tab_id):
-    sid = session.get("sid")
-    sess = get_session(sid)
-    sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
-    save_session(sid, sess)
-    return jsonify({"ok": True})
-
-
-# ── Generate & Download ──────────────────────────────────────────────────────
+# ── Generate / Download / Reset ──────────────────────────────────────────────
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
     sid  = session.get("sid")
     sess = get_session(sid)
-    tabs = sess.get("tabs", [])
-    total_docs = sum(len(t.get("items", [])) for t in tabs)
-    if total_docs == 0:
+    total = len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", []))
+    if total == 0:
         return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
     out_name = f"legal_document_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)

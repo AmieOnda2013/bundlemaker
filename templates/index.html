@@ -339,23 +339,11 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 #toast.success{background:#1b5e30;color:#fff}
 #toast.error{background:#7f1d1d;color:#fff}
 
-/* ── Mode pills ───────────────────────────────────── */
-.mode-pill{
-  display:flex;align-items:center;gap:6px;
-  padding:6px 14px;border-radius:20px;cursor:pointer;
-  font-size:0.78rem;font-weight:500;letter-spacing:0.02em;
-  border:1.5px solid var(--border);
-  background:var(--white);color:var(--muted);
-  transition:all .15s;user-select:none;
-  text-transform:none;
-}
-.mode-pill input[type=radio]{display:none}
-.mode-pill:has(input:checked){
-  background:var(--navy);color:#fff;
-  border-color:var(--navy);
-}
-.mode-pill:hover:not(:has(input:checked)){
-  border-color:var(--gold);color:var(--ink);
+/* ── Section label ────────────────────────────────── */
+.section-label{
+  font-size:0.72rem;font-weight:700;
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--navy);margin-bottom:4px;
 }
 
 /* ── Toggle switch ────────────────────────────────── */
@@ -559,30 +547,13 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
-        <div class="field">
-          <label>Bundle Structure</label>
-          <div style="display:flex;gap:8px;margin-top:4px">
-            <label class="mode-pill" id="modeTabsLabel">
-              <input type="radio" name="bundleMode" value="tabs" id="modeTabs" onchange="onModeChange()" checked/>
-              <span>Tabs</span>
-            </label>
-            <label class="mode-pill" id="modeFlatLabel">
-              <input type="radio" name="bundleMode" value="flat" id="modeFlat" onchange="onModeChange()"/>
-              <span>Documents only</span>
-            </label>
-          </div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:5px" id="modeHint">
-            Tabs: group multiple documents under one tab divider.
-          </div>
-        </div>
-
         <div class="field" style="flex-direction:row;align-items:center;gap:10px;padding:4px 0">
-          <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;font-size:0.82rem;font-weight:400;letter-spacing:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;font-size:0.82rem;font-weight:400;letter-spacing:0">
             <span class="toggle-switch">
               <input type="checkbox" id="useDividers" checked onchange="saveSettings()"/>
               <span class="toggle-slider"></span>
             </span>
-            <span id="dividersLabel">Include tab divider pages in the output</span>
+            Include divider pages in the output
           </label>
         </div>
 
@@ -611,32 +582,31 @@ footer span{color:var(--gold)}
     </div>
     <div class="panel-body">
 
-      <!-- Flat mode UI -->
-      <div id="flatUI" style="display:none">
-        <div class="drop-zone" id="flatDropZone" onclick="document.getElementById('flatFileInput').click()">
-          <input type="file" id="flatFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleFlatFiles(this.files)"/>
-          <div class="drop-zone-icon">⬆</div>
-          <div class="drop-zone-label">Drop files here or click to browse</div>
-          <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP &nbsp;—&nbsp; drag rows below to reorder</div>
-        </div>
-        <div class="doc-list" id="flatDocList"></div>
+      <!-- Section 1: Individual Documents -->
+      <div class="section-label">Individual Documents</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Each file gets its own tab label (A, B, C…)</div>
+      <div class="drop-zone" id="indDropZone" onclick="document.getElementById('indFileInput').click()">
+        <input type="file" id="indFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
+        <div class="drop-zone-icon">⬆</div>
+        <div class="drop-zone-label">Drop files here or click to browse</div>
+        <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP</div>
       </div>
+      <div class="doc-list" id="indDocList"></div>
+      <div id="indEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No individual documents added yet.</div>
 
-      <!-- Tabs mode UI -->
-      <div id="tabsUI">
-        <div id="tabsList"></div>
-        <button class="btn" id="addTabBtn" style="margin-top:12px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.9rem;letter-spacing:0.05em;cursor:pointer" onclick="addTab()">
-          + Add Tab
-        </button>
-      </div>
+      <hr class="divider" style="margin:20px 0"/>
 
-      <div id="emptyHint" class="empty-state">
-        <div class="empty-state-icon">📄</div>
-        <p id="emptyHintText">No documents yet.<br/>Upload files above to begin building your bundle.</p>
-      </div>
+      <!-- Section 2: Document Groups -->
+      <div class="section-label">Document Groups</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px">Group multiple documents under one named tab</div>
+      <div id="groupsList"></div>
+      <div id="groupsEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No groups yet. Click Add Group below.</div>
+      <button class="btn" style="margin-top:10px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.88rem;letter-spacing:0.05em;cursor:pointer;border-radius:var(--radius)" onclick="addGroup()">
+        + Add Group
+      </button>
 
-      <!-- Hidden file input for tab uploads -->
-      <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleFilesForTab(this.files)"/>
+      <!-- Hidden file input for group uploads -->
+      <input type="file" id="grpFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleGrpUpload(this.files)"/>
 
     </div>
   </div>
@@ -653,12 +623,12 @@ footer span{color:var(--gold)}
 <div id="toast"></div>
 
 <script>
-let tabs        = [];        // [{id, name, items:[...]}]
-let bundleMode  = 'tabs';    // 'tabs' | 'flat'
-let activeTabId = null;
-let dragSrcId   = null;
-let tabDragId   = null;
-let flatDragId  = null;
+let items      = [];   // individual docs
+let tabs       = [];   // grouped tabs [{id, name, items:[...]}]
+let activeGrpId = null;
+let indDragId   = null;
+let grpDragId   = null;
+let itemDragId  = null;
 
 // Jurisdiction data embedded directly — no network call needed
 const jurisdictionData = {
@@ -768,11 +738,10 @@ async function loadSession(){
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('useDividers').checked = s.use_dividers !== false;
-  bundleMode = s.bundle_mode || 'tabs';
-  document.querySelector(`input[name=bundleMode][value="${bundleMode}"]`).checked = true;
-  tabs = s.tabs || [];
-  applyMode();
-  renderAll();
+  items = s.items || [];
+  tabs  = s.tabs  || [];
+  renderInd();
+  renderGrps();
 }
 
 async function saveSettings(){
@@ -789,406 +758,337 @@ async function saveSettings(){
       parties: document.getElementById('parties').value,
       recitals: document.getElementById('recitals').value,
       use_dividers: document.getElementById('useDividers').checked,
-      bundle_mode: bundleMode,
     })
   });
 }
 
 /* ── Helpers ── */
 const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
-function isAllowed(name){ return ALLOWED_EXTS.some(e => name.toLowerCase().endsWith(e)); }
+function isAllowed(name){ return ALLOWED_EXTS.some(e=>name.toLowerCase().endsWith(e)); }
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function getTabLabel(i, docType){
+function getLabel(i, docType){
   const alpha = n=>{ let r=''; while(n>=0){r=String.fromCharCode(65+(n%26))+r;n=Math.floor(n/26)-1;} return r; };
   return docType==='book_of_authorities' ? String(i+1) : alpha(i);
 }
 
-/* ── Render all tabs ── */
-function renderTabs(){
-  const container  = document.getElementById('tabsList');
-  const hint       = document.getElementById('emptyHint');
-  const countEl    = document.getElementById('docCount');
-  const docType    = document.getElementById('docType').value;
+/* ── Drop-zone wiring for Individual Documents ── */
+const indDZ = document.getElementById('indDropZone');
+indDZ.addEventListener('dragover', e=>{ e.preventDefault(); indDZ.classList.add('over'); });
+indDZ.addEventListener('dragleave', ()=> indDZ.classList.remove('over'));
+indDZ.addEventListener('drop', e=>{
+  e.preventDefault(); indDZ.classList.remove('over');
+  if(e.dataTransfer.files.length) handleIndUpload(e.dataTransfer.files);
+});
 
-  const totalDocs  = tabs.reduce((s,t)=>s+t.items.length, 0);
-  hint.style.display    = tabs.length ? 'none' : 'block';
-  countEl.style.display = tabs.length ? 'inline' : 'none';
-  countEl.textContent   = `${tabs.length} tab${tabs.length!==1?'s':''}, ${totalDocs} doc${totalDocs!==1?'s':''}`;
+/* ── Individual Documents ── */
+async function handleIndUpload(files){
+  const fd = new FormData();
+  let count = 0;
+  for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
+  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
+  toast('Uploading…','info');
+  const r = await fetch('/api/upload',{method:'POST',body:fd});
+  const added = await r.json();
+  items.push(...added);
+  renderInd();
+  updateCount();
+  toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
+}
 
+function renderInd(){
+  const list    = document.getElementById('indDocList');
+  const empty   = document.getElementById('indEmpty');
+  const docType = document.getElementById('docType').value;
+  empty.style.display = items.length ? 'none' : 'block';
+  list.innerHTML = '';
+  items.forEach((item, i)=>{
+    const name  = item.custom_name || item.filename;
+    const isImg = item.file_type === 'image';
+    const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
+    const lbl   = getLabel(i, docType);
+    const row   = document.createElement('div');
+    row.className  = 'doc-item';
+    row.dataset.id = item.id;
+    row.draggable  = true;
+    row.innerHTML  = `
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <span class="tab-badge">TAB ${escHtml(lbl)}</span>
+      <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
+      <span class="doc-name">
+        <input type="text" value="${escHtml(name)}" placeholder="Document name"
+          onblur="renameInd('${item.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
+      </span>
+      <span class="doc-pages">${item.page_count} pg</span>
+      <button class="btn btn-remove" onclick="deleteInd('${item.id}')" title="Remove">✕</button>`;
+    row.addEventListener('dragstart', e=>{
+      indDragId = item.id; row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain', item.id);
+    });
+    row.addEventListener('dragend', ()=>{
+      row.classList.remove('dragging');
+      list.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(indDragId && indDragId!==item.id) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
+    row.addEventListener('drop', e=>{
+      e.preventDefault(); row.classList.remove('drag-over');
+      if(indDragId && indDragId!==item.id) reorderInd(indDragId, item.id);
+    });
+    list.appendChild(row);
+  });
+  updateCount();
+}
+
+async function renameInd(id, name){
+  const item = items.find(i=>i.id===id);
+  if(item) item.custom_name = name;
+  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
+}
+
+async function deleteInd(id){
+  items = items.filter(i=>i.id!==id);
+  renderInd();
+  await fetch(`/api/items/${id}`,{method:'DELETE'});
+}
+
+async function reorderInd(srcId, tgtId){
+  const si = items.findIndex(i=>i.id===srcId);
+  const ti = items.findIndex(i=>i.id===tgtId);
+  const [m] = items.splice(si,1); items.splice(ti,0,m);
+  renderInd();
+  await fetch('/api/items/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:items.map(i=>i.id)})});
+}
+
+/* ── Document Groups ── */
+function renderGrps(){
+  const container = document.getElementById('groupsList');
+  const empty     = document.getElementById('groupsEmpty');
+  const docType   = document.getElementById('docType').value;
+  empty.style.display = tabs.length ? 'none' : 'block';
   container.innerHTML = '';
+  const offset = items.length; // groups continue tab labeling after individual items
+  tabs.forEach((tab, ti)=>{
+    const lbl = getLabel(offset + ti, docType);
+    const wrapper = document.createElement('div');
+    wrapper.className  = 'tab-group';
+    wrapper.dataset.id = tab.id;
+    wrapper.draggable  = true;
 
-  tabs.forEach((tab, tabIdx) => {
-    const tabLabel = getTabLabel(tabIdx, docType);
-    const wrapper  = document.createElement('div');
-    wrapper.className   = 'tab-group';
-    wrapper.dataset.id  = tab.id;
-    wrapper.draggable   = true;
-
-    // Tab header
     const header = document.createElement('div');
     header.className = 'tab-group-header';
     header.innerHTML = `
-      <span class="tab-drag-handle" title="Drag to reorder tab">⠿</span>
-      <span class="tab-badge" style="font-size:0.85rem;padding:3px 10px">TAB ${escHtml(tabLabel)}</span>
-      <input class="tab-name-input" type="text" value="${escHtml(tab.name)}" placeholder="Tab name / description"
-        onblur="renameTab('${tab.id}', this.value)"
+      <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
+      <span class="tab-badge" style="font-size:0.85rem;padding:3px 10px">TAB ${escHtml(lbl)}</span>
+      <input class="tab-name-input" type="text" value="${escHtml(tab.name)}"
+        placeholder="Group name / description"
+        onblur="renameGrp('${tab.id}',this.value)"
         onkeydown="if(event.key==='Enter')this.blur()"/>
-      <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteTab('${tab.id}')" title="Delete this tab">✕</button>
-    `;
+      <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>`;
 
-    // Documents within this tab
     const itemsList = document.createElement('div');
     itemsList.className = 'doc-list';
-    itemsList.id = `items-${tab.id}`;
-
-    tab.items.forEach(item => {
-      const name   = item.custom_name || item.filename;
-      const isImg  = item.file_type === 'image';
-      const ext    = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-      const badge  = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
-      const row    = document.createElement('div');
-      row.className   = 'doc-item';
-      row.dataset.id  = item.id;
-      row.dataset.tab = tab.id;
-      row.draggable   = true;
-      row.innerHTML   = `
+    tab.items.forEach(item=>{
+      const name  = item.custom_name || item.filename;
+      const isImg = item.file_type === 'image';
+      const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
+      const row   = document.createElement('div');
+      row.className  = 'doc-item';
+      row.dataset.id = item.id;
+      row.draggable  = true;
+      row.innerHTML  = `
         <span class="drag-handle" title="Drag to reorder">⠿</span>
-        ${badge}
+        <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
         <span class="doc-name">
           <input type="text" value="${escHtml(name)}" placeholder="Document name"
-            onblur="renameItem('${tab.id}','${item.id}',this.value)"
-            onkeydown="if(event.key==='Enter')this.blur()"
-            title="Click to rename"/>
+            onblur="renameGrpItem('${tab.id}','${item.id}',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
         </span>
         <span class="doc-pages">${item.page_count} pg</span>
-        <button class="btn btn-remove" onclick="deleteItem('${tab.id}','${item.id}')" title="Remove">✕</button>
-      `;
-      // item drag-to-reorder within tab
+        <button class="btn btn-remove" onclick="deleteGrpItem('${tab.id}','${item.id}')" title="Remove">✕</button>`;
       row.addEventListener('dragstart', e=>{
-        dragSrcId = item.id;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
+        itemDragId = item.id; row.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setData('text/plain', item.id);
         e.stopPropagation();
       });
       row.addEventListener('dragend', ()=>{
         row.classList.remove('dragging');
-        document.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
+        itemsList.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
       });
       row.addEventListener('dragover', e=>{
         e.preventDefault(); e.stopPropagation();
-        if(dragSrcId && dragSrcId!==item.id) row.classList.add('drag-over');
+        if(itemDragId && itemDragId!==item.id) row.classList.add('drag-over');
       });
       row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
       row.addEventListener('drop', e=>{
         e.preventDefault(); e.stopPropagation();
         row.classList.remove('drag-over');
-        if(dragSrcId && dragSrcId!==item.id) reorderItemTo(tab.id, dragSrcId, item.id);
+        if(itemDragId && itemDragId!==item.id) reorderGrpItem(tab.id, itemDragId, item.id);
       });
       itemsList.appendChild(row);
     });
 
-    // Drop zone for this tab
     const dz = document.createElement('div');
     dz.className = 'tab-drop-zone';
-    dz.innerHTML = `<span>⬆ Drop files here or <u style="cursor:pointer">click to browse</u> — PDF · JPG · PNG · TIFF · WEBP</span>`;
-    dz.addEventListener('click', ()=> openFilePickerForTab(tab.id));
+    dz.innerHTML = `<span>⬆ Drop files here or <u style="cursor:pointer">click to browse</u></span>`;
+    dz.addEventListener('click', ()=>{ activeGrpId=tab.id; const fi=document.getElementById('grpFileInput'); fi.value=''; fi.click(); });
     dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
     dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
     dz.addEventListener('drop', e=>{
       e.preventDefault(); dz.classList.remove('over');
-      if(e.dataTransfer.files.length) uploadFilesToTab(tab.id, e.dataTransfer.files);
+      if(e.dataTransfer.files.length) uploadToGrp(tab.id, e.dataTransfer.files);
     });
 
     wrapper.appendChild(header);
     wrapper.appendChild(itemsList);
     wrapper.appendChild(dz);
 
-    // Tab drag-to-reorder
+    // Group drag-to-reorder
     wrapper.addEventListener('dragstart', e=>{
-      if(e.target.classList.contains('doc-item') || e.target.closest('.doc-item')) return;
-      tabDragId = tab.id;
-      wrapper.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+      if(e.target.closest('.doc-item')) return;
+      grpDragId = tab.id; wrapper.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('text/plain', tab.id);
     });
     wrapper.addEventListener('dragend', ()=>{
       wrapper.classList.remove('dragging');
-      document.querySelectorAll('.tab-group').forEach(g=>g.classList.remove('drag-over'));
+      container.querySelectorAll('.tab-group').forEach(g=>g.classList.remove('drag-over'));
     });
     wrapper.addEventListener('dragover', e=>{
       e.preventDefault();
-      if(tabDragId && tabDragId!==tab.id) wrapper.classList.add('drag-over');
+      if(grpDragId && grpDragId!==tab.id) wrapper.classList.add('drag-over');
     });
     wrapper.addEventListener('dragleave', ()=> wrapper.classList.remove('drag-over'));
     wrapper.addEventListener('drop', e=>{
-      e.preventDefault();
-      wrapper.classList.remove('drag-over');
-      if(tabDragId && tabDragId!==tab.id) reorderTabTo(tabDragId, tab.id);
+      e.preventDefault(); wrapper.classList.remove('drag-over');
+      if(grpDragId && grpDragId!==tab.id) reorderGrp(grpDragId, tab.id);
     });
 
     container.appendChild(wrapper);
   });
+  updateCount();
 }
 
-/* ── Tab actions ── */
-async function addTab(){
+async function addGroup(){
   const r   = await fetch('/api/tabs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:''})});
   const tab = await r.json();
   tabs.push(tab);
-  renderTabs();
-  // focus the new tab's name input
+  renderGrps();
   setTimeout(()=>{
     const inputs = document.querySelectorAll('.tab-name-input');
     if(inputs.length) inputs[inputs.length-1].focus();
   }, 50);
 }
 
-async function renameTab(tabId, name){
-  const tab = tabs.find(t=>t.id===tabId);
+async function renameGrp(id, name){
+  const tab = tabs.find(t=>t.id===id);
   if(tab) tab.name = name;
-  await fetch(`/api/tabs/${tabId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  renderTabs();
+  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  renderGrps();
 }
 
-async function deleteTab(tabId){
-  if(!confirm('Remove this tab and all its documents?')) return;
-  tabs = tabs.filter(t=>t.id!==tabId);
-  renderTabs();
-  await fetch(`/api/tabs/${tabId}`,{method:'DELETE'});
+async function deleteGrp(id){
+  if(!confirm('Remove this group and all its documents?')) return;
+  tabs = tabs.filter(t=>t.id!==id);
+  renderGrps();
+  await fetch(`/api/tabs/${id}`,{method:'DELETE'});
 }
 
-async function reorderTabTo(srcId, targetId){
+async function reorderGrp(srcId, tgtId){
   const si = tabs.findIndex(t=>t.id===srcId);
-  const ti = tabs.findIndex(t=>t.id===targetId);
-  const [m] = tabs.splice(si,1);
-  tabs.splice(ti,0,m);
-  renderTabs();
+  const ti = tabs.findIndex(t=>t.id===tgtId);
+  const [m] = tabs.splice(si,1); tabs.splice(ti,0,m);
+  renderGrps();
   await fetch('/api/tabs/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
 }
 
-/* ── Mode switching ── */
-function onModeChange(){
-  bundleMode = document.querySelector('input[name=bundleMode]:checked').value;
-  applyMode();
-  saveSettings();
-  renderAll();
+async function handleGrpUpload(files){
+  if(activeGrpId) await uploadToGrp(activeGrpId, files);
 }
 
-function applyMode(){
-  const isFlat = bundleMode === 'flat';
-  document.getElementById('flatUI').style.display  = isFlat ? '' : 'none';
-  document.getElementById('tabsUI').style.display  = isFlat ? 'none' : '';
-  document.getElementById('modeHint').textContent  = isFlat
-    ? 'Documents only: each file gets its own tab letter. No tab grouping.'
-    : 'Tabs: group multiple documents under one named tab divider.';
-  document.getElementById('dividersLabel').textContent = isFlat
-    ? 'Include a divider page before each document'
-    : 'Include tab divider pages in the output';
-  document.getElementById('emptyHintText').innerHTML = isFlat
-    ? 'No documents yet.<br/>Upload files above to begin.'
-    : 'No tabs yet.<br/>Click <strong>Add Tab</strong> below to start.';
-}
-
-function renderAll(){
-  if(bundleMode === 'flat') renderFlat();
-  else renderTabs();
-}
-
-/* ── Flat mode ── */
-const flatDropZone = document.getElementById('flatDropZone');
-flatDropZone.addEventListener('dragover', e=>{ e.preventDefault(); flatDropZone.classList.add('over'); });
-flatDropZone.addEventListener('dragleave', ()=> flatDropZone.classList.remove('over'));
-flatDropZone.addEventListener('drop', e=>{
-  e.preventDefault(); flatDropZone.classList.remove('over');
-  if(e.dataTransfer.files.length) handleFlatFiles(e.dataTransfer.files);
-});
-
-async function handleFlatFiles(files){
+async function uploadToGrp(tabId, files){
   const fd = new FormData();
   let count = 0;
-  for(const f of files){ if(isAllowed(f.name)){ fd.append('files', f); count++; } }
+  for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
   if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
   toast('Uploading…','info');
-  const r = await fetch('/api/flat/upload',{method:'POST',body:fd});
+  const r   = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
   const added = await r.json();
-  tabs.push(...added);
-  renderFlat();
-  toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
-}
-
-function renderFlat(){
-  const list    = document.getElementById('flatDocList');
-  const hint    = document.getElementById('emptyHint');
-  const countEl = document.getElementById('docCount');
-  const docType = document.getElementById('docType').value;
-
-  const flatDocs = tabs.map((tab,i)=>({
-    tabId: tab.id,
-    tabLabel: getTabLabel(i, docType),
-    item: tab.items[0],
-    name: tab.name || (tab.items[0] && (tab.items[0].custom_name || tab.items[0].filename)) || 'Document',
-  })).filter(d=>d.item);
-
-  hint.style.display    = flatDocs.length ? 'none' : 'block';
-  countEl.style.display = flatDocs.length ? 'inline' : 'none';
-  countEl.textContent   = `${flatDocs.length} document${flatDocs.length!==1?'s':''}`;
-  list.innerHTML = '';
-
-  flatDocs.forEach(({tabId, tabLabel, item, name})=>{
-    const isImg = item.file_type === 'image';
-    const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-    const badge = `<span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>`;
-    const row   = document.createElement('div');
-    row.className  = 'doc-item';
-    row.dataset.id = tabId;
-    row.draggable  = true;
-    row.innerHTML  = `
-      <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <span class="tab-badge">TAB ${escHtml(tabLabel)}</span>
-      ${badge}
-      <span class="doc-name">
-        <input type="text" value="${escHtml(name)}" placeholder="Document name"
-          onblur="renameFlatDoc('${tabId}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"
-          title="Click to rename"/>
-      </span>
-      <span class="doc-pages">${item.page_count} pg</span>
-      <button class="btn btn-remove" onclick="deleteFlatDoc('${tabId}')" title="Remove">✕</button>
-    `;
-    row.addEventListener('dragstart', e=>{
-      flatDragId = tabId; row.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain', tabId);
-    });
-    row.addEventListener('dragend', ()=>{
-      row.classList.remove('dragging');
-      document.querySelectorAll('#flatDocList .doc-item').forEach(d=>d.classList.remove('drag-over'));
-    });
-    row.addEventListener('dragover', e=>{
-      e.preventDefault();
-      if(flatDragId && flatDragId!==tabId) row.classList.add('drag-over');
-    });
-    row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
-    row.addEventListener('drop', e=>{
-      e.preventDefault(); row.classList.remove('drag-over');
-      if(flatDragId && flatDragId!==tabId) reorderFlatTo(flatDragId, tabId);
-    });
-    list.appendChild(row);
-  });
-}
-
-async function renameFlatDoc(tabId, name){
   const tab = tabs.find(t=>t.id===tabId);
-  if(tab){ tab.name = name; if(tab.items[0]) tab.items[0].custom_name = name; }
-  await fetch(`/api/flat/${tabId}/rename`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  renderFlat();
-}
-
-async function deleteFlatDoc(tabId){
-  tabs = tabs.filter(t=>t.id!==tabId);
-  renderFlat();
-  await fetch(`/api/flat/${tabId}`,{method:'DELETE'});
-}
-
-async function reorderFlatTo(srcId, targetId){
-  const si = tabs.findIndex(t=>t.id===srcId);
-  const ti = tabs.findIndex(t=>t.id===targetId);
-  const [m] = tabs.splice(si,1); tabs.splice(ti,0,m);
-  renderFlat();
-  await fetch('/api/flat/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
-}
-
-/* ── Tabs mode upload ── */
-const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
-function isAllowed(name){ return ALLOWED_EXTS.some(e => name.toLowerCase().endsWith(e)); }
-
-function openFilePickerForTab(tabId){
-  activeTabId = tabId;
-  const fi = document.getElementById('fileInput');
-  fi.value = '';
-  fi.click();
-}
-
-async function handleFilesForTab(files){
-  if(activeTabId) await uploadFilesToTab(activeTabId, files);
-}
-
-async function uploadFilesToTab(tabId, files){
-  const fd = new FormData();
-  let count = 0;
-  for(const f of files){ if(isAllowed(f.name)){ fd.append('files', f); count++; } }
-  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
-  toast('Uploading…','info');
-  const r     = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
-  const added = await r.json();
-  const tab   = tabs.find(t=>t.id===tabId);
   if(tab) tab.items.push(...added);
-  renderTabs();
+  renderGrps();
   toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
 }
 
-/* ── Item actions (tabs mode) ── */
-async function reorderItemTo(tabId, srcId, targetId){
+async function renameGrpItem(tabId, itemId, name){
   const tab = tabs.find(t=>t.id===tabId);
-  if(!tab) return;
-  const si = tab.items.findIndex(i=>i.id===srcId);
-  const ti = tab.items.findIndex(i=>i.id===targetId);
-  const [m] = tab.items.splice(si,1);
-  tab.items.splice(ti,0,m);
-  renderTabs();
-  await fetch(`/api/tabs/${tabId}/items/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tab.items.map(i=>i.id)})});
-}
-
-async function renameItem(tabId, itemId, name){
-  const tab = tabs.find(t=>t.id===tabId);
-  if(tab){ const item=tab.items.find(i=>i.id===itemId); if(item) item.custom_name=name; }
+  if(tab){ const it=tab.items.find(i=>i.id===itemId); if(it) it.custom_name=name; }
   await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
 }
 
-async function deleteItem(tabId, itemId){
+async function deleteGrpItem(tabId, itemId){
   const tab = tabs.find(t=>t.id===tabId);
   if(tab) tab.items = tab.items.filter(i=>i.id!==itemId);
-  renderTabs();
+  renderGrps();
   await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'DELETE'});
+}
+
+async function reorderGrpItem(tabId, srcId, tgtId){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(!tab) return;
+  const si = tab.items.findIndex(i=>i.id===srcId);
+  const ti = tab.items.findIndex(i=>i.id===tgtId);
+  const [m] = tab.items.splice(si,1); tab.items.splice(ti,0,m);
+  renderGrps();
+  await fetch(`/api/tabs/${tabId}/items/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tab.items.map(i=>i.id)})});
+}
+
+/* ── Count pill ── */
+function updateCount(){
+  const total = items.length + tabs.reduce((s,t)=>s+t.items.length,0);
+  const el = document.getElementById('docCount');
+  el.style.display = total ? 'inline' : 'none';
+  el.textContent   = `${total} document${total!==1?'s':''}`;
 }
 
 /* ── Generate / Reset ── */
 async function generate(){
-  const totalDocs = tabs.reduce((s,t)=>s+t.items.length,0);
-  if(!totalDocs){ toast('Add at least one document first.','error'); return; }
+  const total = items.length + tabs.reduce((s,t)=>s+t.items.length,0);
+  if(!total){ toast('Add at least one document first.','error'); return; }
   toast('Generating court bundle…','info');
   const r = await fetch('/api/generate',{method:'POST'});
-  const data = await r.json();
-  if(data.error){ toast(data.error,'error'); return; }
+  const d = await r.json();
+  if(d.error){ toast(d.error,'error'); return; }
   toast('Bundle ready — downloading…','success');
-  window.location.href = `/api/download/${data.filename}`;
+  window.location.href = `/api/download/${d.filename}`;
 }
 
 async function resetSession(){
-  const msg = bundleMode==='flat' ? 'Clear all documents and start a new bundle?' : 'Clear all tabs and documents and start a new bundle?';
-  if(!confirm(msg)) return;
+  if(!confirm('Clear all documents and start a new bundle?')) return;
   await fetch('/api/reset',{method:'POST'});
-  tabs = [];
+  items = []; tabs = [];
   document.getElementById('docTitle').value  = '';
   document.getElementById('courtFile').value = '';
   document.getElementById('parties').value   = '';
   document.getElementById('recitals').value  = '';
-  renderAll();
+  renderInd(); renderGrps();
   toast('Bundle cleared. Ready for new documents.','info');
 }
 
 function toast(msg, type='info'){
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className   = type;
-  t.style.display = 'block';
+  t.textContent = msg; t.className = type; t.style.display = 'block';
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderAll(); });
+document.getElementById('docType').addEventListener('change', ()=>{ saveSettings(); renderInd(); renderGrps(); });
 
 loadSession();
 </script>
