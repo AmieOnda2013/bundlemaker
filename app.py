@@ -71,8 +71,11 @@ _db_ready = False
 def _ensure_db():
     global _db_ready
     if not _db_ready:
-        db.create_all()
-        _db_ready = True
+        try:
+            db.create_all()
+            _db_ready = True
+        except Exception as e:
+            app.logger.error(f"DB init error (will retry): {e}")
 
 TEMPLATES = {
     "application_record":  {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
