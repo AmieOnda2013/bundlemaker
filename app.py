@@ -65,8 +65,21 @@ SESSIONS_FOLDER = os.path.join(_BASE_DIR, "sessions")
 for _d in (UPLOAD_FOLDER, OUTPUT_FOLDER, SESSIONS_FOLDER):
     os.makedirs(_d, exist_ok=True)
 
-with app.app_context():
-    db.create_all()
+import time as _time
+
+def _init_db(retries=10, delay=3):
+    for attempt in range(retries):
+        try:
+            with app.app_context():
+                db.create_all()
+            return
+        except Exception as _e:
+            if attempt < retries - 1:
+                _time.sleep(delay)
+            else:
+                raise
+
+_init_db()
 
 TEMPLATES = {
     "application_record":  {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
