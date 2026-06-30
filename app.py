@@ -55,12 +55,15 @@ login_manager.login_message = "Please log in to access BundleMaker."
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-with app.app_context():
-    db.create_all()
-
 UPLOAD_FOLDER   = os.path.join(_BASE_DIR, "uploads")
 OUTPUT_FOLDER   = os.path.join(_BASE_DIR, "output")
 SESSIONS_FOLDER = os.path.join(_BASE_DIR, "sessions")
+
+for _d in (UPLOAD_FOLDER, OUTPUT_FOLDER, SESSIONS_FOLDER):
+    os.makedirs(_d, exist_ok=True)
+
+with app.app_context():
+    db.create_all()
 
 TEMPLATES = {
     "application_record":  {"label": "Application Record",        "header": "APPLICATION RECORD",  "tab_style": "alpha"},
@@ -590,7 +593,7 @@ def merge_pdfs(session_data, output_path):
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
     error = None
     if request.method == "POST":
         email    = request.form.get("email", "").strip().lower()
@@ -610,14 +613,14 @@ def register():
             db.session.add(user)
             db.session.commit()
             login_user(user, remember=True)
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
     return render_template("register.html", error=error)
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
     error = None
     if request.method == "POST":
         email    = request.form.get("email", "").strip().lower()
@@ -625,7 +628,7 @@ def login():
         user     = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
             login_user(user, remember=True)
-            return redirect(request.args.get("next") or url_for("index"))
+            return redirect(request.args.get("next") or url_for("home"))
         error = "Invalid email or password."
     return render_template("login.html", error=error)
 
