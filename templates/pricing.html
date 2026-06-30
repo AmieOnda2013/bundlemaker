@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — Pricing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; padding: 48px 24px; }
+    .page { max-width: 900px; margin: 0 auto; }
+    .back { font-size: 0.82rem; color: #666; text-decoration: none; display: inline-block; margin-bottom: 32px; }
+    .back:hover { color: #0d1b2a; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: #0d1b2a; text-align: center; margin-bottom: 8px; }
+    .subtitle { text-align: center; color: #666; font-size: 1rem; margin-bottom: 48px; }
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+    .plan-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 36px 32px;
+      position: relative;
+      border: 2px solid transparent;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .plan-card:hover { transform: translateY(-3px); border-color: #c9a84c; }
+    .plan-card.featured { border-color: #c9a84c; }
+    .featured-tag {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: #c9a84c; color: #0d1b2a; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 16px; border-radius: 20px;
+    }
+    .plan-name { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 8px; }
+    .plan-price { font-size: 2.4rem; font-weight: 700; color: #0d1b2a; line-height: 1; margin-bottom: 4px; }
+    .plan-price span { font-size: 1rem; font-weight: 400; color: #999; }
+    .plan-desc { font-size: 0.85rem; color: #666; margin: 12px 0 24px; }
+    .features { list-style: none; margin-bottom: 32px; }
+    .features li { font-size: 0.88rem; color: #444; padding: 7px 0; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; }
+    .features li:last-child { border-bottom: none; }
+    .features li::before { content: '✓'; color: #c9a84c; font-weight: 700; flex-shrink: 0; }
+    .btn {
+      display: block; width: 100%; padding: 13px;
+      background: #0d1b2a; color: #c9a84c;
+      border: none; border-radius: 7px; font-size: 0.95rem; font-weight: 700;
+      font-family: 'Inter', sans-serif; cursor: pointer; text-align: center;
+      text-decoration: none; letter-spacing: 0.04em; transition: background 0.2s;
+    }
+    .btn:hover { background: #1e3a5f; }
+    .btn.free { background: #e8e4da; color: #555; }
+    .btn.free:hover { background: #ddd; }
+    .privacy { text-align: center; margin-top: 48px; font-size: 0.8rem; color: #999; line-height: 1.7; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <a href="/" class="back">← Back to BundleMaker</a>
+  <h1>Simple, transparent pricing</h1>
+  <p class="subtitle">Cancel anytime. No contracts. Your documents are never stored.</p>
+
+  <div class="plans">
+
+    <!-- Free -->
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">$0 <span>/ forever</span></div>
+      <div class="plan-desc">Try BundleMaker with no commitment.</div>
+      <ul class="features">
+        <li>3 bundles total</li>
+        <li>All document types</li>
+        <li>All courts &amp; jurisdictions</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+      </ul>
+      {% if current_user.is_authenticated %}
+        {% if current_user.plan == 'free' %}
+          <span class="btn free">Your current plan</span>
+        {% else %}
+          <a href="/account" class="btn free">Downgrade</a>
+        {% endif %}
+      {% else %}
+        <a href="/register" class="btn free">Get started free</a>
+      {% endif %}
+    </div>
+
+    <!-- Solo -->
+    <div class="plan-card featured">
+      <div class="featured-tag">Most Popular</div>
+      <div class="plan-name">Solo</div>
+      <div class="plan-price">$19 <span>/ month</span></div>
+      <div class="plan-desc">Perfect for sole practitioners and paralegals.</div>
+      <ul class="features">
+        <li>Unlimited bundles</li>
+        <li>All document types</li>
+        <li>All courts &amp; jurisdictions</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+        <li>Priority support</li>
+      </ul>
+      {% if current_user.is_authenticated %}
+        {% if current_user.plan == 'solo' %}
+          <a href="/billing-portal" class="btn">Manage subscription</a>
+        {% else %}
+          <a href="/upgrade/solo" class="btn">Subscribe — $19/mo</a>
+        {% endif %}
+      {% else %}
+        <a href="/register" class="btn">Get started</a>
+      {% endif %}
+    </div>
+
+    <!-- Firm -->
+    <div class="plan-card">
+      <div class="plan-name">Firm</div>
+      <div class="plan-price">$49 <span>/ month</span></div>
+      <div class="plan-desc">For small firms and legal teams.</div>
+      <ul class="features">
+        <li>Unlimited bundles</li>
+        <li>Up to 5 team members</li>
+        <li>All document types</li>
+        <li>All courts &amp; jurisdictions</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+        <li>Priority support</li>
+      </ul>
+      {% if current_user.is_authenticated %}
+        {% if current_user.plan == 'firm' %}
+          <a href="/billing-portal" class="btn">Manage subscription</a>
+        {% else %}
+          <a href="/upgrade/firm" class="btn">Subscribe — $49/mo</a>
+        {% endif %}
+      {% else %}
+        <a href="/register" class="btn">Get started</a>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <p class="privacy">
+    🔒 Your uploaded documents are processed in memory and permanently deleted after download.<br/>
+    We never read, store, or retain your legal files. Only your email and plan status are saved.
+  </p>
+</div>
+</body>
+</html>

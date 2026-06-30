@@ -16,6 +16,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus import PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+import stripe
 from models import db, User
 
 app = Flask(__name__)
@@ -33,6 +34,17 @@ app.config["SESSION_COOKIE_SAMESITE"]  = "Lax"
 app.config["SESSION_COOKIE_SECURE"]    = os.environ.get("RAILWAY_ENVIRONMENT") == "production"
 
 db.init_app(app)
+
+# ── Stripe ────────────────────────────────────────────────────────────────────
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_SOLO_PRICE_ID  = os.environ.get("STRIPE_SOLO_PRICE_ID", "")
+STRIPE_FIRM_PRICE_ID  = os.environ.get("STRIPE_FIRM_PRICE_ID", "")
+
+PLANS = {
+    "solo": {"name": "Solo",  "price": "$19/mo", "price_id": STRIPE_SOLO_PRICE_ID, "limit": None},
+    "firm": {"name": "Firm",  "price": "$49/mo", "price_id": STRIPE_FIRM_PRICE_ID, "limit": None},
+}
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
@@ -628,7 +640,103 @@ def logout():
 @app.route("/account")
 @login_required
 def account():
-    return render_template("account.html")
+    return render_template("account.html", plans=PLANS)
+
+
+@app.route("/pricing")
+def pricing():
+    return render_template("pricing.html", plans=PLANS)
+
+
+@app.route("/upgrade/<plan>")
+@login_required
+def upgrade(plan):
+    if plan not in PLANS:
+        return redirect(url_for("account"))
+    price_id = PLANS[plan]["price_id"]
+    if not price_id or not stripe.api_key:
+        return redirect(url_for("account"))
+
+    # Create or retrieve Stripe customer
+    if not current_user.stripe_customer_id:
+        customer = stripe.Customer.create(email=current_user.email)
+        current_user.stripe_customer_id = customer.id
+        db.session.commit()
+
+    base_url = request.host_url.rstrip("/")
+    checkout = stripe.checkout.Session.create(
+        customer=current_user.stripe_customer_id,
+        payment_method_types=["card"],
+        line_items=[{"price": price_id, "quantity": 1}],
+        mode="subscription",
+        success_url=f"{base_url}/upgrade/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{base_url}/account",
+        metadata={"user_id": str(current_user.id), "plan": plan},
+    )
+    return redirect(checkout.url, code=303)
+
+
+@app.route("/upgrade/success")
+@login_required
+def upgrade_success():
+    return render_template("upgrade_success.html")
+
+
+@app.route("/billing-portal")
+@login_required
+def billing_portal():
+    if not current_user.stripe_customer_id or not stripe.api_key:
+        return redirect(url_for("account"))
+    base_url = request.host_url.rstrip("/")
+    portal = stripe.billing_portal.Session.create(
+        customer=current_user.stripe_customer_id,
+        return_url=f"{base_url}/account",
+    )
+    return redirect(portal.url, code=303)
+
+
+@app.route("/webhooks/stripe", methods=["POST"])
+def stripe_webhook():
+    payload   = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return "Invalid signature", 400
+
+    obj = event["data"]["object"]
+
+    if event["type"] == "checkout.session.completed":
+        user_id = obj.get("metadata", {}).get("user_id")
+        plan    = obj.get("metadata", {}).get("plan")
+        sub_id  = obj.get("subscription")
+        if user_id and plan:
+            user = User.query.get(int(user_id))
+            if user:
+                user.plan = plan
+                user.stripe_subscription_id = sub_id
+                db.session.commit()
+
+    elif event["type"] in ("customer.subscription.updated", "customer.subscription.deleted"):
+        sub    = obj
+        status = sub.get("status")
+        cust_id = sub.get("customer")
+        user = User.query.filter_by(stripe_customer_id=cust_id).first()
+        if user:
+            if status in ("canceled", "unpaid", "incomplete_expired"):
+                user.plan = "free"
+                user.stripe_subscription_id = None
+            elif status == "active":
+                # Determine plan from price ID
+                price_id = sub["items"]["data"][0]["price"]["id"]
+                for plan_key, plan_data in PLANS.items():
+                    if plan_data["price_id"] == price_id:
+                        user.plan = plan_key
+                        break
+            db.session.commit()
+
+    return "OK", 200
 
 
 # ── Main app ──────────────────────────────────────────────────────────────────

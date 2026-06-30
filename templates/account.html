@@ -7,71 +7,52 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; padding: 24px; }
-    .topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      max-width: 640px; margin: 0 auto 28px;
-    }
-    .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #0d1b2a; }
+    body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; padding: 32px 24px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; max-width: 680px; margin: 0 auto 28px; }
+    .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #0d1b2a; }
     .topbar a { font-size: 0.82rem; color: #666; text-decoration: none; }
     .topbar a:hover { color: #0d1b2a; }
-    .card {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      padding: 32px;
-      max-width: 640px;
-      margin: 0 auto 20px;
-    }
-    .card h2 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 20px; }
-    .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 28px 32px; max-width: 680px; margin: 0 auto 20px; }
+    .card-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; margin-bottom: 18px; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #f0f0f0; }
     .row:last-child { border-bottom: none; }
-    .row-label { font-size: 0.85rem; color: #555; }
-    .row-value { font-size: 0.95rem; font-weight: 600; color: #0d1b2a; }
-    .plan-badge {
-      display: inline-block;
-      background: #0d1b2a;
-      color: #c9a84c;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 3px 10px;
-      border-radius: 20px;
+    .row-label { font-size: 0.85rem; color: #666; }
+    .row-value { font-size: 0.92rem; font-weight: 600; color: #0d1b2a; }
+    .badge { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 11px; border-radius: 20px; }
+    .badge-free  { background: #e8e4da; color: #777; }
+    .badge-solo  { background: #0d1b2a; color: #c9a84c; }
+    .badge-firm  { background: #1e3a5f; color: #c9a84c; }
+    .progress-wrap { width: 100%; }
+    .progress-bar { height: 7px; background: #eee; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #c9a84c; border-radius: 4px; }
+    .progress-label { font-size: 0.72rem; color: #aaa; margin-top: 5px; }
+    /* Plan cards */
+    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+    .plan-option {
+      border: 1.5px solid #e0ddd5; border-radius: 8px; padding: 20px;
+      position: relative; transition: border-color 0.2s;
     }
-    .plan-badge.free { background: #e8e4da; color: #666; }
-    .progress-bar {
-      height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden;
+    .plan-option:hover { border-color: #c9a84c; }
+    .plan-option.current { border-color: #c9a84c; background: #fffdf5; }
+    .current-tag {
+      position: absolute; top: -10px; left: 16px;
+      background: #c9a84c; color: #0d1b2a; font-size: 0.62rem;
+      font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 2px 10px; border-radius: 10px;
     }
-    .progress-fill { height: 100%; background: #c9a84c; border-radius: 3px; transition: width 0.3s; }
-    .progress-label { font-size: 0.72rem; color: #999; margin-top: 4px; }
-    .btn {
-      display: inline-block;
-      padding: 10px 22px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      text-decoration: none;
-      border: none;
-      transition: background 0.2s;
-    }
+    .plan-name  { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+    .plan-price { font-size: 1.5rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
+    .plan-price span { font-size: 0.8rem; font-weight: 400; color: #aaa; }
+    .plan-desc  { font-size: 0.78rem; color: #777; margin-bottom: 14px; line-height: 1.5; }
+    .btn { display: block; width: 100%; padding: 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; text-align: center; text-decoration: none; border: none; transition: background 0.2s; letter-spacing: 0.03em; }
     .btn-primary { background: #0d1b2a; color: #c9a84c; }
     .btn-primary:hover { background: #1e3a5f; }
-    .btn-outline { background: transparent; color: #c0392b; border: 1.5px solid #c0392b; }
-    .btn-outline:hover { background: #fff0f0; }
-    .privacy-box {
-      background: #f5f2eb;
-      border-radius: 8px;
-      padding: 16px 20px;
-      font-size: 0.8rem;
-      color: #666;
-      line-height: 1.7;
-      max-width: 640px;
-      margin: 0 auto;
-    }
-    .privacy-box strong { color: #0d1b2a; }
+    .btn-muted { background: #e8e4da; color: #888; cursor: default; }
+    .btn-portal { background: transparent; color: #0d1b2a; border: 1.5px solid #ccc; }
+    .btn-portal:hover { border-color: #0d1b2a; }
+    .btn-danger  { background: transparent; color: #c0392b; border: 1.5px solid #e0b0aa; }
+    .btn-danger:hover { background: #fff0f0; }
+    .privacy-box { background: #f5f2eb; border-radius: 8px; padding: 16px 20px; font-size: 0.78rem; color: #888; line-height: 1.8; max-width: 680px; margin: 0 auto; }
   </style>
 </head>
 <body>
@@ -80,8 +61,9 @@
     <a href="/">← Back to BundleMaker</a>
   </div>
 
+  <!-- Account details -->
   <div class="card">
-    <h2>Account Details</h2>
+    <div class="card-title">Account Details</div>
     <div class="row">
       <span class="row-label">Email</span>
       <span class="row-value">{{ current_user.email }}</span>
@@ -91,69 +73,89 @@
       <span class="row-value">{{ current_user.created_at.strftime('%B %d, %Y') }}</span>
     </div>
     <div class="row">
-      <span class="row-label">Plan</span>
+      <span class="row-label">Current plan</span>
       <span class="row-value">
-        <span class="plan-badge {% if current_user.plan == 'free' %}free{% endif %}">
-          {{ current_user.plan | capitalize }}
-        </span>
+        <span class="badge badge-{{ current_user.plan }}">{{ current_user.plan | capitalize }}</span>
       </span>
     </div>
   </div>
 
+  <!-- Usage -->
   <div class="card">
-    <h2>Usage</h2>
-    <div class="row" style="flex-direction:column;align-items:flex-start">
-      <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:8px">
+    <div class="card-title">Usage</div>
+    <div class="row" style="flex-direction:column;align-items:flex-start;gap:0">
+      <div style="display:flex;justify-content:space-between;width:100%">
         <span class="row-label">Bundles generated</span>
         <span class="row-value">
-          {% if current_user.plan == 'free' %}
-            {{ current_user.bundles_used }} / 3
-          {% else %}
-            {{ current_user.bundles_used }} (unlimited)
-          {% endif %}
+          {% if current_user.plan == 'free' %}{{ current_user.bundles_used }} / 3
+          {% else %}{{ current_user.bundles_used }} (unlimited){% endif %}
         </span>
       </div>
       {% if current_user.plan == 'free' %}
-      <div class="progress-bar" style="width:100%">
-        <div class="progress-fill" style="width:{{ [current_user.bundles_used * 33.3, 100] | min }}%"></div>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:{{ [current_user.bundles_used * 33.33, 100] | min | round }}%"></div>
+        </div>
+        <p class="progress-label">
+          {% set remaining = 3 - current_user.bundles_used %}
+          {{ remaining }} free bundle{{ 's' if remaining != 1 }} remaining
+        </p>
       </div>
-      <p class="progress-label">{{ 3 - current_user.bundles_used }} free bundle{{ 's' if (3 - current_user.bundles_used) != 1 }} remaining</p>
       {% endif %}
     </div>
   </div>
 
-  {% if current_user.plan == 'free' %}
+  <!-- Plans -->
   <div class="card">
-    <h2>Upgrade Plan</h2>
-    <div class="row">
-      <div>
-        <div class="row-value" style="margin-bottom:4px">Solo — Unlimited Bundles</div>
-        <div class="row-label">One user, unlimited bundle generation</div>
+    <div class="card-title">Plans</div>
+    <div class="plan-grid">
+
+      <!-- Solo -->
+      <div class="plan-option {% if current_user.plan == 'solo' %}current{% endif %}">
+        {% if current_user.plan == 'solo' %}<div class="current-tag">Active</div>{% endif %}
+        <div class="plan-name">Solo</div>
+        <div class="plan-price">$19 <span>/ month</span></div>
+        <div class="plan-desc">Unlimited bundles for one user. Perfect for sole practitioners.</div>
+        {% if current_user.plan == 'solo' %}
+          <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
+        {% elif current_user.plan == 'firm' %}
+          <span class="btn btn-muted">Downgrade via billing</span>
+        {% else %}
+          <a href="/upgrade/solo" class="btn btn-primary">Upgrade — $19/mo</a>
+        {% endif %}
       </div>
-      <span style="font-weight:700;color:#0d1b2a">Coming soon</span>
-    </div>
-    <div class="row">
-      <div>
-        <div class="row-value" style="margin-bottom:4px">Firm — Team Access</div>
-        <div class="row-label">Up to 5 users, unlimited bundles</div>
+
+      <!-- Firm -->
+      <div class="plan-option {% if current_user.plan == 'firm' %}current{% endif %}">
+        {% if current_user.plan == 'firm' %}<div class="current-tag">Active</div>{% endif %}
+        <div class="plan-name">Firm</div>
+        <div class="plan-price">$49 <span>/ month</span></div>
+        <div class="plan-desc">Unlimited bundles for up to 5 team members.</div>
+        {% if current_user.plan == 'firm' %}
+          <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
+        {% elif current_user.plan == 'solo' %}
+          <a href="/upgrade/firm" class="btn btn-primary">Upgrade — $49/mo</a>
+        {% else %}
+          <a href="/upgrade/firm" class="btn btn-primary">Upgrade — $49/mo</a>
+        {% endif %}
       </div>
-      <span style="font-weight:700;color:#0d1b2a">Coming soon</span>
+
     </div>
   </div>
-  {% endif %}
 
+  <!-- Sign out -->
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
     <div>
-      <div style="font-size:0.85rem;font-weight:600;color:#0d1b2a;margin-bottom:2px">Sign out</div>
-      <div style="font-size:0.78rem;color:#999">You'll need to log in again to access BundleMaker</div>
+      <div style="font-size:0.88rem;font-weight:600;color:#0d1b2a;margin-bottom:2px">Sign out</div>
+      <div style="font-size:0.78rem;color:#aaa">You'll need to log in again to access BundleMaker</div>
     </div>
-    <a href="/logout" class="btn btn-outline">Log Out</a>
+    <a href="/logout" class="btn btn-danger" style="width:auto;padding:9px 22px">Log Out</a>
   </div>
 
   <div class="privacy-box">
-    🔒 <strong>Your privacy is our priority.</strong> Uploaded documents are processed in memory
-    and permanently deleted from our servers the moment your bundle is downloaded.
-    We store only your email address and bundle count — nothing else.
+    🔒 <strong style="color:#555">Your privacy is our priority.</strong>
+    Uploaded documents are processed in memory and permanently deleted from our servers
+    the moment your bundle is downloaded. We store only your email address and bundle count — nothing else.
   </div>
 </body>
 </html>
