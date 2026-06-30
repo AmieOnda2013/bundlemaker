@@ -27,9 +27,9 @@ _BASE_DIR = os.environ.get("DATA_DIR") or os.path.dirname(__file__)
 _db_url = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(_BASE_DIR, 'bundlemaker.db')}"
 # Railway PostgreSQL uses postgres:// but SQLAlchemy requires postgresql://
 if _db_url.startswith("postgres://"):
-    _db_url = _db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    _db_url = _db_url.replace("postgres://", "postgresql+pg8000://", 1)
 elif _db_url.startswith("postgresql://"):
-    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_COOKIE_HTTPONLY"]  = True
