@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — Court-Ready Legal Bundles in Minutes</title>
+  <meta name="description" content="BundleMaker automatically compiles PDFs and documents into indexed, court-ready legal bundles with cover pages, table of contents, and tab dividers."/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0d1b2a;
+      --navy2: #1e3a5f;
+      --gold: #c9a84c;
+      --cream: #f5f2eb;
+      --text: #2c2c2c;
+      --muted: #666;
+    }
+    body { font-family: 'Inter', sans-serif; color: var(--text); background: #fff; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      padding: 0 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #fff; letter-spacing: 0.04em; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { color: rgba(255,255,255,0.75); font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--gold); }
+    .nav-cta { background: var(--gold); color: var(--navy); padding: 9px 22px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; transition: opacity 0.2s; }
+    .nav-cta:hover { opacity: 0.88; color: var(--navy); }
+
+    /* ── Hero ── */
+    .hero {
+      background: var(--navy);
+      background-image: linear-gradient(135deg, #0d1b2a 0%, #162236 60%, #1a2f48 100%);
+      padding: 96px 48px 80px;
+      text-align: center;
+    }
+    .hero-tag { display: inline-block; background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 16px; border-radius: 20px; margin-bottom: 24px; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: 3.2rem; color: #fff; line-height: 1.18; max-width: 720px; margin: 0 auto 20px; }
+    .hero h1 span { color: var(--gold); }
+    .hero p { color: rgba(255,255,255,0.65); font-size: 1.08rem; max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
+    .hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-hero-primary { background: var(--gold); color: var(--navy); padding: 14px 32px; border-radius: 7px; font-weight: 700; font-size: 1rem; transition: opacity 0.2s; }
+    .btn-hero-primary:hover { opacity: 0.88; }
+    .btn-hero-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.3); padding: 14px 32px; border-radius: 7px; font-weight: 600; font-size: 1rem; transition: border-color 0.2s; }
+    .btn-hero-outline:hover { border-color: var(--gold); color: var(--gold); }
+    .hero-note { margin-top: 20px; font-size: 0.78rem; color: rgba(255,255,255,0.35); }
+
+    /* ── Sections ── */
+    section { padding: 80px 48px; }
+    .section-tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 2.1rem; color: var(--navy); margin-bottom: 16px; line-height: 1.2; }
+    .section-sub { color: var(--muted); font-size: 1rem; line-height: 1.7; max-width: 560px; }
+    .center { text-align: center; }
+    .center .section-sub { margin: 0 auto; }
+
+    /* ── Features ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; margin-top: 52px; }
+    .feature-card { background: var(--cream); border-radius: 10px; padding: 28px; }
+    .feature-icon { font-size: 2rem; margin-bottom: 14px; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .feature-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+
+    /* ── How it works ── */
+    .how-bg { background: var(--cream); }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin-top: 52px; }
+    .step { text-align: center; padding: 12px; }
+    .step-num { width: 44px; height: 44px; background: var(--navy); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; margin: 0 auto 16px; }
+    .step h3 { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .step p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── Privacy ── */
+    .privacy-banner { background: var(--navy); padding: 56px 48px; text-align: center; }
+    .privacy-banner h2 { color: #fff; margin-bottom: 14px; }
+    .privacy-banner p { color: rgba(255,255,255,0.6); font-size: 0.95rem; max-width: 560px; margin: 0 auto 28px; line-height: 1.7; }
+    .privacy-points { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin-top: 8px; }
+    .privacy-point { display: flex; align-items: center; gap: 8px; color: var(--gold); font-size: 0.85rem; font-weight: 600; }
+
+    /* ── Pricing ── */
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 52px; max-width: 900px; margin-left: auto; margin-right: auto; }
+    .plan-card { background: #fff; border: 2px solid #e8e4da; border-radius: 12px; padding: 36px 28px; position: relative; transition: border-color 0.2s; }
+    .plan-card.featured { border-color: var(--gold); }
+    .popular-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--navy); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 14px; border-radius: 20px; white-space: nowrap; }
+    .plan-name { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; margin-bottom: 8px; }
+    .plan-price { font-size: 2.4rem; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+    .plan-price span { font-size: 0.9rem; font-weight: 400; color: #aaa; }
+    .plan-desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 22px; line-height: 1.5; }
+    .plan-features { list-style: none; margin-bottom: 28px; }
+    .plan-features li { font-size: 0.85rem; color: #444; padding: 6px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 9px; }
+    .plan-features li:last-child { border-bottom: none; }
+    .plan-features li::before { content: '✓'; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+    .btn-plan { display: block; width: 100%; padding: 12px; background: var(--navy); color: var(--gold); border-radius: 7px; font-weight: 700; font-size: 0.9rem; text-align: center; transition: background 0.2s; border: none; cursor: pointer; }
+    .btn-plan:hover { background: var(--navy2); color: var(--gold); }
+    .btn-plan-free { background: var(--cream); color: #666; }
+    .btn-plan-free:hover { background: #e8e4da; }
+
+    /* ── Jurisdictions ── */
+    .juris-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; justify-content: center; }
+    .juris-tag { background: var(--cream); color: var(--navy); font-size: 0.78rem; font-weight: 600; padding: 6px 14px; border-radius: 20px; }
+
+    /* ── Footer ── */
+    footer { background: var(--navy); padding: 48px; }
+    .footer-inner { max-width: 960px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; justify-content: space-between; }
+    .footer-brand .logo { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #fff; margin-bottom: 8px; }
+    .footer-brand .logo span { color: var(--gold); }
+    .footer-brand p { font-size: 0.78rem; color: rgba(255,255,255,0.4); line-height: 1.6; max-width: 240px; }
+    .footer-col h4 { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 12px; }
+    .footer-col a { display: block; font-size: 0.82rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--gold); }
+    .footer-bottom { max-width: 960px; margin: 32px auto 0; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .footer-bottom p { font-size: 0.75rem; color: rgba(255,255,255,0.3); }
+
+    @media(max-width:640px){
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 64px 24px 56px; }
+      .hero h1 { font-size: 2.1rem; }
+      section { padding: 56px 24px; }
+      .privacy-banner { padding: 48px 24px; }
+      footer { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="nav-logo">Bundle<span>Maker</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/login">Log in</a>
+    <a href="/register" class="nav-cta">Try Free</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-tag">Built for Legal Professionals</div>
+  <h1>Court-ready legal bundles <span>in minutes</span></h1>
+  <p>Upload your documents, set your court and jurisdiction, and BundleMaker generates a fully indexed PDF bundle with cover page, table of contents, and tab dividers — ready to file.</p>
+  <div class="hero-btns">
+    <a href="/register" class="btn-hero-primary">Start Free — 3 Bundles Included</a>
+    <a href="#how-it-works" class="btn-hero-outline">See How It Works</a>
+  </div>
+  <p class="hero-note">No credit card required &nbsp;·&nbsp; Your documents are never stored</p>
+</section>
+
+<!-- ── Features ── -->
+<section id="features">
+  <div class="center">
+    <div class="section-tag">Features</div>
+    <h2>Everything you need for court filings</h2>
+    <p class="section-sub">Designed for lawyers, paralegals, and legal assistants who need professional bundles without the manual formatting work.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>Automatic Table of Contents</h3>
+      <p>Every bundle includes a professionally formatted, hyperlinked table of contents — numbered individually or organized by tab groups.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📑</div>
+      <h3>Tab Dividers</h3>
+      <p>Add named tab groups (Tab A, Tab B…) to organize documents by category. Each tab gets its own divider page automatically.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚖️</div>
+      <h3>35+ Courts & Jurisdictions</h3>
+      <p>Supports courts across Canada, USA, UK, Australia, and more — with proper court names and rules of procedure on your cover page.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🖼️</div>
+      <h3>PDF & Image Support</h3>
+      <p>Upload PDFs, JPGs, PNGs, TIFFs, and more. Images are automatically converted and merged into your final bundle.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">✏️</div>
+      <h3>Custom Document Names</h3>
+      <p>Rename any document inline before generating. The name appears in your table of contents exactly as you specify.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Instant Generation</h3>
+      <p>Upload, arrange, and generate in seconds. No software to install — works entirely in your browser from any device.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ── -->
+<section id="how-it-works" class="how-bg">
+  <div class="center">
+    <div class="section-tag">How It Works</div>
+    <h2>From upload to filed bundle in 4 steps</h2>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Select your court</h3>
+      <p>Choose your country, jurisdiction, and court. The cover page is populated automatically with the correct court name and rules.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Upload your documents</h3>
+      <p>Drag and drop PDFs or images into the individual documents area, or create tab groups to organize by category.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Arrange and name</h3>
+      <p>Drag to reorder, click to rename any document. Preview the structure before you generate.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <h3>Download your bundle</h3>
+      <p>Click Generate and download a professionally formatted, court-ready PDF bundle — complete with cover page and indexed TOC.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Privacy ── -->
+<section class="privacy-banner">
+  <div class="section-tag" style="color:var(--gold)">Privacy First</div>
+  <h2>Your legal files never leave your hands</h2>
+  <p>We built BundleMaker with a zero-storage architecture. Your documents are processed in memory and permanently deleted from our servers the moment your bundle is downloaded.</p>
+  <div class="privacy-points">
+    <div class="privacy-point">🔒 AES-256 encrypted transit</div>
+    <div class="privacy-point">🗑️ Files deleted after download</div>
+    <div class="privacy-point">🚫 No document storage, ever</div>
+    <div class="privacy-point">📧 Only your email is stored</div>
+  </div>
+</section>
+
+<!-- ── Jurisdictions ── -->
+<section>
+  <div class="center">
+    <div class="section-tag">Coverage</div>
+    <h2>Supports courts across 8 countries</h2>
+    <p class="section-sub">Including all Canadian provinces, US federal and state courts, UK, Australia, New Zealand, Ireland, and more.</p>
+    <div class="juris-grid">
+      <span class="juris-tag">Ontario Superior Court</span>
+      <span class="juris-tag">Ontario Court of Appeal</span>
+      <span class="juris-tag">British Columbia Supreme Court</span>
+      <span class="juris-tag">Alberta Court of King's Bench</span>
+      <span class="juris-tag">Federal Court of Canada</span>
+      <span class="juris-tag">Supreme Court of Canada</span>
+      <span class="juris-tag">US District Courts</span>
+      <span class="juris-tag">US Court of Appeals</span>
+      <span class="juris-tag">UK High Court</span>
+      <span class="juris-tag">UK Court of Appeal</span>
+      <span class="juris-tag">Federal Court of Australia</span>
+      <span class="juris-tag">New Zealand High Court</span>
+      <span class="juris-tag">+ many more</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ── -->
+<section id="pricing" style="background:var(--cream)">
+  <div class="center">
+    <div class="section-tag">Pricing</div>
+    <h2>Start free, upgrade when you need to</h2>
+    <p class="section-sub">No contracts, no setup fees. Cancel anytime from your account page.</p>
+  </div>
+  <div class="plans">
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">$0 <span>/ forever</span></div>
+      <div class="plan-desc">Try BundleMaker with no commitment.</div>
+      <ul class="plan-features">
+        <li>3 bundles total</li>
+        <li>All document types &amp; courts</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+      </ul>
+      <a href="/register" class="btn-plan btn-plan-free">Get started free</a>
+    </div>
+    <div class="plan-card featured">
+      <div class="popular-tag">Most Popular</div>
+      <div class="plan-name">Solo</div>
+      <div class="plan-price">$19 <span>/ month</span></div>
+      <div class="plan-desc">Ideal for sole practitioners and paralegals.</div>
+      <ul class="plan-features">
+        <li>Unlimited bundles</li>
+        <li>All document types &amp; courts</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+        <li>Priority email support</li>
+      </ul>
+      <a href="/register" class="btn-plan">Start with Solo</a>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Firm</div>
+      <div class="plan-price">$49 <span>/ month</span></div>
+      <div class="plan-desc">For small firms and legal teams.</div>
+      <ul class="plan-features">
+        <li>Unlimited bundles</li>
+        <li>Up to 5 team members</li>
+        <li>All document types &amp; courts</li>
+        <li>PDF + image support</li>
+        <li>Zero document storage</li>
+        <li>Priority email support</li>
+      </ul>
+      <a href="/register" class="btn-plan">Start with Firm</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section style="text-align:center;padding:80px 48px">
+  <div class="section-tag">Get Started</div>
+  <h2>Ready to file faster?</h2>
+  <p class="section-sub" style="margin:12px auto 32px">Create your free account and generate your first court bundle in under 5 minutes.</p>
+  <a href="/register" style="display:inline-block;padding:15px 40px;background:var(--navy);color:var(--gold);border-radius:8px;font-weight:700;font-size:1rem;letter-spacing:0.04em;transition:background 0.2s">
+    Create Free Account
+  </a>
+  <p style="margin-top:14px;font-size:0.78rem;color:#aaa">No credit card required &nbsp;·&nbsp; 3 free bundles included</p>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo">Bundle<span>Maker</span></div>
+      <p>Court-ready legal bundles for lawyers, paralegals, and legal professionals.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/register">Sign Up Free</a>
+    </div>
+    <div class="footer-col">
+      <h4>Account</h4>
+      <a href="/login">Log In</a>
+      <a href="/register">Create Account</a>
+      <a href="/account">My Account</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="mailto:support@bundlemaker.app">Contact Support</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2025 BundleMaker. All rights reserved.</p>
+    <p>Your documents are never stored on our servers.</p>
+  </div>
+</footer>
+
+</body>
+</html>

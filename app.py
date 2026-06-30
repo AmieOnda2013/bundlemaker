@@ -739,14 +739,23 @@ def stripe_webhook():
     return "OK", 200
 
 
-# ── Main app ──────────────────────────────────────────────────────────────────
+# ── Public pages ─────────────────────────────────────────────────────────────
 
 @app.route("/")
-@login_required
-def index():
-    if "sid" not in session:
-        session["sid"] = uuid.uuid4().hex
-    return render_template("index.html")
+def home():
+    if current_user.is_authenticated:
+        if "sid" not in session:
+            session["sid"] = uuid.uuid4().hex
+        return render_template("index.html")
+    return render_template("landing.html")
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+@app.route("/terms")
+def terms():
+    return render_template("terms.html")
 
 
 @app.route("/api/session", methods=["GET"])

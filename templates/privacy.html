@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — Privacy Policy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f5f2eb; color: #2c2c2c; padding: 48px 24px; }
+    .page { max-width: 760px; margin: 0 auto; }
+    nav-back { display: block; margin-bottom: 32px; }
+    a.back { font-size: 0.82rem; color: #666; text-decoration: none; display: inline-block; margin-bottom: 32px; }
+    a.back:hover { color: #0d1b2a; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 48px 52px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 2rem; color: #0d1b2a; margin-bottom: 6px; }
+    .updated { font-size: 0.78rem; color: #aaa; margin-bottom: 36px; }
+    h2 { font-size: 1rem; font-weight: 700; color: #0d1b2a; margin: 32px 0 10px; }
+    p { font-size: 0.9rem; color: #444; line-height: 1.8; margin-bottom: 12px; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    ul li { font-size: 0.9rem; color: #444; line-height: 1.8; }
+    .highlight { background: #f5f2eb; border-left: 3px solid #c9a84c; padding: 14px 18px; border-radius: 0 6px 6px 0; margin: 20px 0; font-size: 0.9rem; color: #333; line-height: 1.7; }
+    a { color: #0d1b2a; font-weight: 600; }
+    @media(max-width:600px){ .card { padding: 32px 24px; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <a href="/" class="back">← Back to BundleMaker</a>
+  <div class="card">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: June 30, 2025</p>
+
+    <div class="highlight">
+      🔒 <strong>The short version:</strong> Your uploaded legal documents are processed in memory and permanently deleted from our servers immediately after your bundle is downloaded. We never read, store, analyse, or share your legal files.
+    </div>
+
+    <h2>1. Who We Are</h2>
+    <p>BundleMaker ("we", "us", "our") is a web-based service that helps legal professionals compile court-ready document bundles. Our service is available at <a href="https://bundlemaker.app">bundlemaker.app</a>.</p>
+    <p>For privacy inquiries, contact us at: <a href="mailto:privacy@bundlemaker.app">privacy@bundlemaker.app</a></p>
+
+    <h2>2. What Data We Collect</h2>
+    <p>We collect the absolute minimum necessary to operate the service:</p>
+    <ul>
+      <li><strong>Email address</strong> — used to create and identify your account</li>
+      <li><strong>Password</strong> — stored as a one-way cryptographic hash (we cannot recover it)</li>
+      <li><strong>Bundle count</strong> — number of bundles you have generated (used to enforce free plan limits)</li>
+      <li><strong>Subscription status</strong> — your plan (Free, Solo, or Firm) and Stripe customer ID</li>
+    </ul>
+    <p>We do <strong>not</strong> collect your name, address, phone number, or any information beyond the above.</p>
+
+    <h2>3. Your Uploaded Documents</h2>
+    <p>This is the most important section for legal professionals:</p>
+    <ul>
+      <li>Documents you upload are held <strong>temporarily in memory</strong> on our server solely to generate your bundle PDF</li>
+      <li>Uploaded files are <strong>permanently deleted from our servers</strong> immediately after your bundle is generated</li>
+      <li>Your generated bundle PDF is <strong>permanently deleted</strong> the moment you download it</li>
+      <li>We do <strong>not</strong> read, index, analyse, copy, or retain any content from your uploaded documents</li>
+      <li>No employee or system at BundleMaker has access to your document contents</li>
+    </ul>
+    <div class="highlight">Your legal files exist on our infrastructure for seconds — only long enough to generate your bundle. They are gone before you close the download dialog.</div>
+
+    <h2>4. How We Use Your Data</h2>
+    <p>Your email and account data are used only to:</p>
+    <ul>
+      <li>Authenticate you when you log in</li>
+      <li>Enforce your plan limits (free plan: 3 bundles)</li>
+      <li>Process your subscription payment via Stripe</li>
+      <li>Send transactional emails (receipt, password reset) if applicable</li>
+    </ul>
+    <p>We do not use your data for advertising, profiling, or any purpose other than operating the service.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <p>We use the following third-party services:</p>
+    <ul>
+      <li><strong>Stripe</strong> — payment processing. Stripe stores your payment card details; we never see or store your card number. Stripe's privacy policy: <a href="https://stripe.com/privacy" target="_blank">stripe.com/privacy</a></li>
+      <li><strong>Railway</strong> — cloud hosting. Our servers run on Railway's infrastructure in secure data centres. Railway's privacy policy: <a href="https://railway.app/legal/privacy" target="_blank">railway.app/legal/privacy</a></li>
+    </ul>
+
+    <h2>6. Data Security</h2>
+    <ul>
+      <li>All data in transit is encrypted using TLS (HTTPS)</li>
+      <li>Passwords are hashed using PBKDF2-SHA256 with 600,000 iterations</li>
+      <li>Session cookies are HttpOnly and SameSite=Lax</li>
+      <li>Each user's session data is stored in an isolated directory</li>
+    </ul>
+
+    <h2>7. Data Retention</h2>
+    <ul>
+      <li><strong>Uploaded documents:</strong> deleted within seconds of bundle generation</li>
+      <li><strong>Generated bundles:</strong> deleted immediately after download</li>
+      <li><strong>Account data:</strong> retained until you delete your account</li>
+    </ul>
+
+    <h2>8. Your Rights</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li>Access the personal data we hold about you</li>
+      <li>Request correction of inaccurate data</li>
+      <li>Request deletion of your account and all associated data</li>
+      <li>Withdraw consent at any time</li>
+    </ul>
+    <p>To exercise any of these rights, email us at <a href="mailto:privacy@bundlemaker.app">privacy@bundlemaker.app</a>. We will respond within 30 days.</p>
+
+    <h2>9. Cookies</h2>
+    <p>We use a single session cookie to keep you logged in. We do not use advertising cookies, tracking pixels, or analytics cookies.</p>
+
+    <h2>10. Children's Privacy</h2>
+    <p>BundleMaker is intended for legal professionals. We do not knowingly collect data from anyone under 18.</p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>We will notify registered users by email of any material changes to this policy. Continued use of the service after changes constitutes acceptance.</p>
+
+    <h2>12. Contact</h2>
+    <p>For any privacy questions or requests: <a href="mailto:privacy@bundlemaker.app">privacy@bundlemaker.app</a></p>
+  </div>
+</div>
+</body>
+</html>
