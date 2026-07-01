@@ -897,13 +897,13 @@ function renderGrps(){
       row.className  = 'doc-item';
       row.dataset.id = item.id;
       row.draggable  = true;
-      // Compute continuous number across all tabs
-      let tabItemNum = 1;
-      for(let t=0; t<ti; t++) tabItemNum += tabs[t].items.length;
-      tabItemNum += ii + 1;
+      // Continuous number across individual items + all tab items
+      let globalNum = items.length;
+      for(let t=0; t<ti; t++) globalNum += tabs[t].items.length;
+      globalNum += ii + 1;
       row.innerHTML  = `
         <span class="drag-handle" title="Drag to reorder">⠿</span>
-        <span class="num-badge">${tabItemNum}</span>
+        <span class="num-badge">${globalNum}</span>
         <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
         <span class="doc-name">
           <input type="text" value="${escHtml(name)}" placeholder="Document name"
