@@ -801,7 +801,7 @@ function renderInd(){
           onblur="renameInd('${item.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
       </span>
-      <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Date (optional)"
+      <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Add column (e.g. date)"
         onblur="saveDateInd('${item.id}',this.value)"
         onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
       <span class="doc-pages">${item.page_count} pg</span>
@@ -904,7 +904,7 @@ function renderGrps(){
             onblur="renameGrpItem('${tab.id}','${item.id}',this.value)"
             onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
         </span>
-        <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Date (optional)"
+        <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Add column (e.g. date)"
           onblur="saveDateGrpItem('${tab.id}','${item.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
         <span class="doc-pages">${item.page_count} pg</span>

@@ -402,7 +402,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
                 story.append(Spacer(1, 0.1*inch))
-        story.append(Spacer(1, 24))
+        story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
@@ -508,11 +508,23 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     for r in shaded_rows:
         ts.append(("BACKGROUND", (0,r),(-1,r), tab_shade))
 
+    # Fixed row heights so link Y-positions can be calculated exactly
+    _ROW_H = 30
+    _SUB_H = 25
+    _HDR_H = 28
+    row_heights = [_HDR_H]
+    for _item in items:
+        row_heights.append(_ROW_H)
+    for _tab in tabs:
+        row_heights.append(_ROW_H)
+        for _ in _tab.get("items", []):
+            row_heights.append(_SUB_H)
+
     if has_date:
         col_widths = [0.7*inch, 3.8*inch, 0.9*inch, 0.8*inch]
     else:
         col_widths = [0.9*inch, 4.5*inch, 0.8*inch]
-    toc_table = Table(toc_data, colWidths=col_widths)
+    toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
     story.append(PageBreak())
@@ -546,10 +558,14 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Y of first data row (after top margin + TOC heading + table header row)
-    first_row_top = page_height - 90 - 56
-    ROW_H = 30   # individual item rows and group summary rows
-    SUB_H = 25   # sub-document rows within a group
+    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(49) minus header-row(28)
+    # These constants must match the rowHeights and ParagraphStyle values in generate_cover_toc
+    _TOP_MARGIN = 90
+    _TOC_HDG_H  = 49   # spaceBefore(16) + leading(~17) + spaceAfter(16)
+    _HDR_ROW_H  = 28   # table header row fixed height
+    first_row_top = page_height - _TOP_MARGIN - _TOC_HDG_H - _HDR_ROW_H
+    ROW_H = 30   # individual item rows and group summary rows (matches rowHeights above)
+    SUB_H = 25   # sub-document rows within a group (matches rowHeights above)
 
     link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
     y = 0
