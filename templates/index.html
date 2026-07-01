@@ -509,27 +509,15 @@ footer span{color:var(--gold)}
       <div class="panel-body">
         <div class="field">
           <label>Country</label>
-          <select id="country" onchange="onCountryChange()"></select>
-        </div>
-        <div id="customCountryRow" style="display:none">
-          <div class="field">
-            <label>Country Name</label>
-            <input type="text" id="customCountry" placeholder="e.g. Canada, United Kingdom, United States of America" oninput="saveSettings()"/>
-          </div>
+          <input type="text" id="country" placeholder="e.g. Canada, United Kingdom, United States of America" oninput="saveSettings()"/>
         </div>
         <div class="field">
           <label>Court</label>
-          <select id="jurisdiction" onchange="saveSettings()"></select>
+          <input type="text" id="jurisdiction" placeholder="e.g. Superior Court of Justice (Ontario), High Court of Justice (England & Wales), Federal District Court (USA)" oninput="saveSettings()"/>
         </div>
-        <div id="customCourtRow" style="display:none">
-          <div class="field">
-            <label>Court Name</label>
-            <input type="text" id="customCourt" placeholder="e.g. Superior Court of Justice (Ontario), High Court of Justice (England & Wales), Federal District Court (USA)" oninput="saveSettings()"/>
-          </div>
-          <div class="field">
-            <label>Applicable Rules (optional)</label>
-            <input type="text" id="customRules" placeholder="e.g. Civil Procedure Rules 2010" oninput="saveSettings()"/>
-          </div>
+        <div class="field">
+          <label>Applicable Rules (optional)</label>
+          <input type="text" id="customRules" placeholder="e.g. Civil Procedure Rules 2010" oninput="saveSettings()"/>
         </div>
       </div>
     </div>
@@ -713,56 +701,11 @@ const jurisdictionData = {
   ],
 };
 
-function loadJurisdictions(){
-  const countryEl = document.getElementById('country');
-  countryEl.innerHTML = '';
-  for(const c of Object.keys(jurisdictionData)){
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    countryEl.appendChild(opt);
-  }
-}
-
-function populateJurisdictions(country, selectedValue){
-  const el = document.getElementById('jurisdiction');
-  el.innerHTML = '';
-  for(const j of (jurisdictionData[country] || [])){
-    const opt = document.createElement('option');
-    opt.value = j.value; opt.textContent = j.label;
-    el.appendChild(opt);
-  }
-  // Always add custom option at the bottom of every country
-  const customOpt = document.createElement('option');
-  customOpt.value = 'CUSTOM';
-  customOpt.textContent = '— Enter court name manually —';
-  el.appendChild(customOpt);
-  if(selectedValue) el.value = selectedValue;
-  toggleCustomCourt();
-}
-
-function toggleCustomCourt(){
-  const show = document.getElementById('jurisdiction').value === 'CUSTOM';
-  document.getElementById('customCourtRow').style.display = show ? 'block' : 'none';
-}
-
-function toggleCustomCountry(){
-  const show = document.getElementById('country').value === 'Other / Custom';
-  document.getElementById('customCountryRow').style.display = show ? 'block' : 'none';
-}
-
-function onCountryChange(){
-  toggleCustomCountry();
-  populateJurisdictions(document.getElementById('country').value, null);
-  saveSettings();
-}
-
 async function loadSession(){
-  loadJurisdictions();
   const r = await fetch('/api/session');
   const s = await r.json();
-  const country = s.country || 'Canada';
-  document.getElementById('country').value = country;
-  populateJurisdictions(country, s.jurisdiction || 'ON');
+  document.getElementById('country').value = s.country || '';
+  document.getElementById('jurisdiction').value = s.jurisdiction || '';
   const oldKeys = ['application_record','book_of_authorities','motion_record','index_of_materials','compendium','appeal_book','trial_record','exhibits','factum'];
   const rawDocType = s.doc_type || '';
   document.getElementById('docType').value = oldKeys.includes(rawDocType) ? '' : rawDocType;
@@ -770,10 +713,7 @@ async function loadSession(){
   document.getElementById('courtFile').value = s.court_file || '';
   document.getElementById('parties').value = s.parties || '';
   document.getElementById('recitals').value = s.recitals || '';
-  document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
-  document.getElementById('customCountry').value = s.custom_country || '';
-  toggleCustomCountry();
   document.getElementById('useDividers').checked = s.use_dividers !== false;
   items = s.items || [];
   tabs  = s.tabs  || [];
@@ -787,8 +727,6 @@ async function saveSettings(){
     body: JSON.stringify({
       country: document.getElementById('country').value,
       jurisdiction: document.getElementById('jurisdiction').value,
-      custom_country: document.getElementById('customCountry').value,
-      custom_court: document.getElementById('customCourt').value,
       custom_rules: document.getElementById('customRules').value,
       doc_type: document.getElementById('docType').value,
       title: document.getElementById('docTitle').value,
