@@ -359,9 +359,10 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         fontSize=14, spaceAfter=16, spaceBefore=16)
 
     court_name, rule_body = resolve_jurisdiction(country, jurisdiction)
-    if jurisdiction == "CUSTOM":
-        court_name = custom_court
-        rule_body  = custom_rules
+    if not court_name:
+        court_name = custom_court or jurisdiction
+    if not rule_body:
+        rule_body = custom_rules
 
     story = []
 
@@ -401,7 +402,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
                 story.append(Spacer(1, 0.1*inch))
-        story.append(PageBreak())
+        story.append(Spacer(1, 24))
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
@@ -417,26 +418,44 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     sub_st = ParagraphStyle("sub",  parent=normal, fontSize=10, leading=15)
     sub_rt = ParagraphStyle("subr", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
-    toc_data = [[
-        Paragraph("<b>Item</b>",      th_st),
-        Paragraph("<b>Document</b>", th_st),
-        Paragraph("<b>Page(s)</b>",  th_rt),
-    ]]
+    # Detect if any document has a date — if so, add Date column
+    has_date = any(i.get("doc_date") for i in items) or \
+               any(i.get("doc_date") for t in tabs for i in t.get("items", []))
+    date_st  = ParagraphStyle("date",  parent=normal, fontSize=10, leading=15)
+    date_rt  = ParagraphStyle("dater", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
+
+    def make_header_row():
+        if has_date:
+            return [Paragraph("<b>Item</b>", th_st),
+                    Paragraph("<b>Document</b>", th_st),
+                    Paragraph("<b>Date</b>", th_st),
+                    Paragraph("<b>Page(s)</b>", th_rt)]
+        return [Paragraph("<b>Item</b>", th_st),
+                Paragraph("<b>Document</b>", th_st),
+                Paragraph("<b>Page(s)</b>", th_rt)]
+
+    def make_row(label_para, name_para, date_val, page_para):
+        if has_date:
+            return [label_para, name_para, Paragraph(date_val or "", date_st), page_para]
+        return [label_para, name_para, page_para]
+
+    toc_data = [make_header_row()]
 
     current_page = 1  # logical page number in the body (excluding dividers)
     item_num = 1      # global item counter — continues across individual items and tab sub-items
 
-    # Individual items — numbered 1, 2, 3… continuing into tab sub-items
+    # Individual items — numbered 1, 2, 3… — no tab dividers for individual items
     for item in items:
         name     = item.get("custom_name") or item.get("filename", "Document")
         pc       = item.get("page_count", 1)
         page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
-        toc_data.append([
+        toc_data.append(make_row(
             Paragraph(str(item_num), row_st),
             Paragraph(name, row_st),
+            item.get("doc_date", ""),
             Paragraph(page_str, row_rt),
-        ])
-        current_page += pc + (1 if use_dividers else 0)
+        ))
+        current_page += pc  # individual items never have divider pages
         item_num += 1
 
     # Grouped tabs — Tab A, Tab B… sub-items continue numbering from individual items
@@ -451,22 +470,24 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         tab_pg_str = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
 
         shaded_rows.append(len(toc_data))
-        toc_data.append([
+        toc_data.append(make_row(
             Paragraph(f"<b>Tab {label}</b>", grp_st),
             Paragraph(f"<b>{tab_name}</b>",  grp_st),
-            Paragraph(tab_pg_str,             grp_rt),
-        ])
+            "",
+            Paragraph(tab_pg_str, grp_rt),
+        ))
 
         doc_page = current_page
         for item in tab_items:
             pc   = item.get("page_count", 1)
             name = item.get("custom_name") or item.get("filename", "Document")
             ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
-            toc_data.append([
+            toc_data.append(make_row(
                 Paragraph(str(item_num), sub_st),
                 Paragraph(f"  {name}", sub_st),
+                item.get("doc_date", ""),
                 Paragraph(ps, sub_rt),
-            ])
+            ))
             doc_page += pc
             item_num += 1
 
@@ -487,7 +508,11 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     for r in shaded_rows:
         ts.append(("BACKGROUND", (0,r),(-1,r), tab_shade))
 
-    toc_table = Table(toc_data, colWidths=[0.9*inch, 4.5*inch, 0.8*inch])
+    if has_date:
+        col_widths = [0.7*inch, 3.8*inch, 0.9*inch, 0.8*inch]
+    else:
+        col_widths = [0.9*inch, 4.5*inch, 0.8*inch]
+    toc_table = Table(toc_data, colWidths=col_widths)
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
     story.append(PageBreak())
@@ -521,8 +546,8 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Approximate Y of first data row (after margin + heading + header row)
-    first_row_top = page_height - 90 - 56 - 30
+    # Y of first data row (after top margin + TOC heading + table header row)
+    first_row_top = page_height - 90 - 56
     ROW_H = 30   # individual item rows and group summary rows
     SUB_H = 25   # sub-document rows within a group
 
@@ -530,13 +555,12 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     y = 0
     current_pdf = first_page_index
 
-    # Individual items
+    # Individual items — no divider pages, link directly to document
     for item in items:
-        target = current_pdf  # link to divider (or doc if no dividers)
-        link_rows.append((y, ROW_H, target))
+        link_rows.append((y, ROW_H, current_pdf))
         y += ROW_H
         pc = item.get("page_count", 1)
-        current_pdf += (1 + pc) if use_dividers else pc
+        current_pdf += pc  # individual items never have divider pages
 
     # Grouped tabs — summary row + sub-rows
     for tab in tabs:
@@ -598,18 +622,8 @@ def merge_pdfs(session_data, output_path):
 
     toc_page_index = cover_count - 1
     first_page_idx = cover_count
-    # 2. Individual items — each gets its own numbered divider (if enabled) + doc pages
-    for i, item in enumerate(items):
-        label = str(i + 1)
-        name  = item.get("custom_name") or item.get("filename", f"Document {label}")
-
-        if use_dividers:
-            div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-            generate_divider_page(label, name, div_path)
-            for pg in PdfReader(div_path).pages:
-                writer.add_page(pg)
-            os.remove(div_path)
-
+    # 2. Individual items — no divider pages, just the document pages
+    for item in items:
         doc_path = item.get("filepath")
         if doc_path and os.path.exists(doc_path):
             for pg in PdfReader(doc_path).pages:
@@ -978,6 +992,8 @@ def update_item(item_id):
         if item["id"] == item_id:
             if "custom_name" in data:
                 item["custom_name"] = data["custom_name"]
+            if "doc_date" in data:
+                item["doc_date"] = data["doc_date"]
             break
     save_session(sid, sess)
     return jsonify({"ok": True})
@@ -1098,6 +1114,8 @@ def update_tab_item(tab_id, item_id):
                 if item["id"] == item_id:
                     if "custom_name" in data:
                         item["custom_name"] = data["custom_name"]
+                    if "doc_date" in data:
+                        item["doc_date"] = data["doc_date"]
                     break
             break
     save_session(sid, sess)

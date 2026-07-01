@@ -321,6 +321,9 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   padding:1px 0;
 }
 .doc-name input:hover,.doc-name input:focus{border-bottom-color:var(--gold)}
+.doc-date-input{width:110px;flex-shrink:0;font-size:0.72rem;font-family:inherit;border:none;border-bottom:1px solid transparent;background:transparent;color:var(--muted);padding:2px 4px;outline:none}
+.doc-date-input::placeholder{color:#bbb}
+.doc-date-input:hover,.doc-date-input:focus{border-bottom-color:var(--gold);color:var(--navy)}
 .doc-pages{font-size:0.72rem;color:var(--muted);flex-shrink:0;white-space:nowrap}
 
 /* ── Empty state ──────────────────────────────────── */
@@ -798,6 +801,9 @@ function renderInd(){
           onblur="renameInd('${item.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
       </span>
+      <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Date (optional)"
+        onblur="saveDateInd('${item.id}',this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
       <span class="doc-pages">${item.page_count} pg</span>
       <button class="btn btn-remove" onclick="deleteInd('${item.id}')" title="Remove">✕</button>`;
     row.addEventListener('dragstart', e=>{
@@ -827,6 +833,18 @@ async function renameInd(id, name){
   const item = items.find(i=>i.id===id);
   if(item) item.custom_name = name;
   await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
+}
+
+async function saveDateInd(id, date){
+  const item = items.find(i=>i.id===id);
+  if(item) item.doc_date = date;
+  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_date:date})});
+}
+
+async function saveDateGrpItem(tabId, itemId, date){
+  const tab = tabs.find(t=>t.id===tabId);
+  if(tab){ const item = tab.items.find(i=>i.id===itemId); if(item) item.doc_date = date; }
+  await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_date:date})});
 }
 
 async function deleteInd(id){
@@ -886,6 +904,9 @@ function renderGrps(){
             onblur="renameGrpItem('${tab.id}','${item.id}',this.value)"
             onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
         </span>
+        <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Date (optional)"
+          onblur="saveDateGrpItem('${tab.id}','${item.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
         <span class="doc-pages">${item.page_count} pg</span>
         <button class="btn btn-remove" onclick="deleteGrpItem('${tab.id}','${item.id}')" title="Remove">✕</button>`;
       row.addEventListener('dragstart', e=>{
