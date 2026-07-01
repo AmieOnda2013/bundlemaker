@@ -511,6 +511,12 @@ footer span{color:var(--gold)}
           <label>Country</label>
           <select id="country" onchange="onCountryChange()"></select>
         </div>
+        <div id="customCountryRow" style="display:none">
+          <div class="field">
+            <label>Country Name</label>
+            <input type="text" id="customCountry" placeholder="e.g. Kenya, Philippines, Nigeria" oninput="saveSettings()"/>
+          </div>
+        </div>
         <div class="field">
           <label>Court</label>
           <select id="jurisdiction" onchange="saveSettings()"></select>
@@ -734,7 +740,13 @@ function toggleCustomCourt(){
   document.getElementById('customCourtRow').style.display = show ? 'block' : 'none';
 }
 
+function toggleCustomCountry(){
+  const show = document.getElementById('country').value === 'Other / Custom';
+  document.getElementById('customCountryRow').style.display = show ? 'block' : 'none';
+}
+
 function onCountryChange(){
+  toggleCustomCountry();
   populateJurisdictions(document.getElementById('country').value, null);
   saveSettings();
 }
@@ -755,6 +767,8 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customCourt').value = s.custom_court || '';
   document.getElementById('customRules').value = s.custom_rules || '';
+  document.getElementById('customCountry').value = s.custom_country || '';
+  toggleCustomCountry();
   document.getElementById('useDividers').checked = s.use_dividers !== false;
   items = s.items || [];
   tabs  = s.tabs  || [];
@@ -768,6 +782,7 @@ async function saveSettings(){
     body: JSON.stringify({
       country: document.getElementById('country').value,
       jurisdiction: document.getElementById('jurisdiction').value,
+      custom_country: document.getElementById('customCountry').value,
       custom_court: document.getElementById('customCourt').value,
       custom_rules: document.getElementById('customRules').value,
       doc_type: document.getElementById('docType').value,
