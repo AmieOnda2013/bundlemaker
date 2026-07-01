@@ -89,12 +89,30 @@ for _d in (UPLOAD_FOLDER, OUTPUT_FOLDER, SESSIONS_FOLDER):
 
 _db_ready = False
 
+def _migrate_db():
+    """Add any missing columns to existing tables without losing data."""
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token VARCHAR(128)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_period VARCHAR(20) DEFAULT 'monthly'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS bundles_used INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS bundles_reset_date TIMESTAMP",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)",
+    ]
+    for sql in migrations:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            app.logger.warning(f"Migration skipped ({e})")
+    db.session.commit()
+
 @app.before_request
 def _ensure_db():
     global _db_ready
     if not _db_ready:
         try:
             db.create_all()
+            _migrate_db()
             _db_ready = True
         except Exception as e:
             app.logger.error(f"DB init error (will retry): {e}")
