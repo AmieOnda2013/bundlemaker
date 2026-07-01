@@ -5,6 +5,7 @@ import uuid
 import shutil
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message
 from pypdf import PdfReader, PdfWriter
 from pypdf.annotations import Link
 from pypdf.generic import RectangleObject
@@ -17,7 +18,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.platypus import PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import stripe
-from models import db, User
+from models import db, User, PLAN_LIMITS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
@@ -38,15 +39,35 @@ app.config["SESSION_COOKIE_SECURE"]    = os.environ.get("RAILWAY_ENVIRONMENT") =
 
 db.init_app(app)
 
+# ── Mail ─────────────────────────────────────────────────────────────────────
+app.config["MAIL_SERVER"]   = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"]     = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"]  = True
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@bundlemaker.app")
+mail = Mail(app)
+
 # ── Stripe ────────────────────────────────────────────────────────────────────
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_SOLO_PRICE_ID  = os.environ.get("STRIPE_SOLO_PRICE_ID", "")
-STRIPE_FIRM_PRICE_ID  = os.environ.get("STRIPE_FIRM_PRICE_ID", "")
 
 PLANS = {
-    "solo": {"name": "Solo",  "price": "$19/mo", "price_id": STRIPE_SOLO_PRICE_ID, "limit": None},
-    "firm": {"name": "Firm",  "price": "$49/mo", "price_id": STRIPE_FIRM_PRICE_ID, "limit": None},
+    "solo": {
+        "name": "Solo", "bundles": 20,
+        "monthly": {"price": "$23/mo",  "price_id": os.environ.get("STRIPE_SOLO_MONTHLY_PRICE_ID", "")},
+        "annual":  {"price": "$19/mo",  "price_id": os.environ.get("STRIPE_SOLO_ANNUAL_PRICE_ID",  ""), "total": "$228/yr"},
+    },
+    "professional": {
+        "name": "Professional", "bundles": 60,
+        "monthly": {"price": "$59/mo",  "price_id": os.environ.get("STRIPE_PRO_MONTHLY_PRICE_ID",  "")},
+        "annual":  {"price": "$49/mo",  "price_id": os.environ.get("STRIPE_PRO_ANNUAL_PRICE_ID",   ""), "total": "$588/yr"},
+    },
+    "firm": {
+        "name": "Firm", "bundles": None,
+        "monthly": {"price": "$119/mo", "price_id": os.environ.get("STRIPE_FIRM_MONTHLY_PRICE_ID", "")},
+        "annual":  {"price": "$99/mo",  "price_id": os.environ.get("STRIPE_FIRM_ANNUAL_PRICE_ID",  ""), "total": "$1,188/yr"},
+    },
 }
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -622,11 +643,58 @@ def register():
         else:
             user = User(email=email)
             user.set_password(password)
+            token = user.generate_verify_token()
             db.session.add(user)
             db.session.commit()
+            _send_verification_email(user, token)
             login_user(user, remember=True)
+            flash("Account created! Please check your email to verify your address before generating bundles.", "info")
             return redirect(url_for("home"))
     return render_template("register.html", error=error)
+
+
+def _send_verification_email(user, token):
+    try:
+        verify_url = url_for("verify_email", token=token, _external=True)
+        msg = Message(
+            subject="Verify your BundleMaker email",
+            recipients=[user.email],
+            html=f"""
+            <p>Welcome to BundleMaker!</p>
+            <p>Please click the link below to verify your email address and unlock your 3 free bundle generations:</p>
+            <p><a href="{verify_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify Email Address</a></p>
+            <p>Or copy this link: {verify_url}</p>
+            <p>If you did not create a BundleMaker account, you can safely ignore this email.</p>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        app.logger.error(f"Failed to send verification email: {e}")
+
+
+@app.route("/verify-email/<token>")
+def verify_email(token):
+    user = User.query.filter_by(email_verify_token=token).first()
+    if not user:
+        flash("Invalid or expired verification link.", "error")
+        return redirect(url_for("login"))
+    user.email_verified = True
+    user.email_verify_token = None
+    db.session.commit()
+    flash("Email verified! You can now generate bundles.", "success")
+    return redirect(url_for("home"))
+
+
+@app.route("/resend-verification")
+@login_required
+def resend_verification():
+    if current_user.email_verified:
+        return redirect(url_for("home"))
+    token = current_user.generate_verify_token()
+    db.session.commit()
+    _send_verification_email(current_user, token)
+    flash("Verification email resent. Please check your inbox.", "info")
+    return redirect(url_for("home"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -666,13 +734,14 @@ def pricing():
 @app.route("/upgrade/<plan>")
 @login_required
 def upgrade(plan):
-    if plan not in PLANS:
+    period = request.args.get("period", "monthly")  # monthly | annual
+    if plan not in PLANS or period not in ("monthly", "annual"):
         return redirect(url_for("account"))
-    price_id = PLANS[plan]["price_id"]
+    price_id = PLANS[plan][period]["price_id"]
     if not price_id or not stripe.api_key:
+        flash("Stripe is not configured yet. Please contact support.", "error")
         return redirect(url_for("account"))
 
-    # Create or retrieve Stripe customer
     if not current_user.stripe_customer_id:
         customer = stripe.Customer.create(email=current_user.email)
         current_user.stripe_customer_id = customer.id
@@ -685,8 +754,8 @@ def upgrade(plan):
         line_items=[{"price": price_id, "quantity": 1}],
         mode="subscription",
         success_url=f"{base_url}/upgrade/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{base_url}/account",
-        metadata={"user_id": str(current_user.id), "plan": plan},
+        cancel_url=f"{base_url}/pricing",
+        metadata={"user_id": str(current_user.id), "plan": plan, "period": period},
     )
     return redirect(checkout.url, code=303)
 
@@ -725,30 +794,37 @@ def stripe_webhook():
     if event["type"] == "checkout.session.completed":
         user_id = obj.get("metadata", {}).get("user_id")
         plan    = obj.get("metadata", {}).get("plan")
+        period  = obj.get("metadata", {}).get("period", "monthly")
         sub_id  = obj.get("subscription")
         if user_id and plan:
             user = User.query.get(int(user_id))
             if user:
                 user.plan = plan
+                user.plan_period = period
                 user.stripe_subscription_id = sub_id
+                user.bundles_used = 0
+                import datetime
+                user.bundles_reset_date = datetime.datetime.utcnow() + datetime.timedelta(days=30)
                 db.session.commit()
 
     elif event["type"] in ("customer.subscription.updated", "customer.subscription.deleted"):
-        sub    = obj
-        status = sub.get("status")
+        sub     = obj
+        status  = sub.get("status")
         cust_id = sub.get("customer")
         user = User.query.filter_by(stripe_customer_id=cust_id).first()
         if user:
             if status in ("canceled", "unpaid", "incomplete_expired"):
                 user.plan = "free"
+                user.plan_period = "monthly"
                 user.stripe_subscription_id = None
             elif status == "active":
-                # Determine plan from price ID
                 price_id = sub["items"]["data"][0]["price"]["id"]
                 for plan_key, plan_data in PLANS.items():
-                    if plan_data["price_id"] == price_id:
-                        user.plan = plan_key
-                        break
+                    for pd in ("monthly", "annual"):
+                        if plan_data[pd]["price_id"] == price_id:
+                            user.plan = plan_key
+                            user.plan_period = pd
+                            break
             db.session.commit()
 
     return "OK", 200
@@ -993,12 +1069,23 @@ def delete_tab_item(tab_id, item_id):
 @app.route("/api/generate", methods=["POST"])
 @login_required
 def generate():
-    # Enforce free-tier bundle limit
-    if not current_user.can_generate():
+    # Reset monthly counter if due
+    current_user.reset_monthly_bundles_if_due()
+    db.session.commit()
+
+    if not current_user.email_verified:
         return jsonify({
-            "error": "You have used all 3 free bundles. Please upgrade to continue.",
-            "upgrade": True
+            "error": "Please verify your email address before generating bundles. Check your inbox for a verification link.",
+            "verify": True
         }), 403
+
+    if not current_user.can_generate():
+        limit = PLAN_LIMITS.get(current_user.plan, 0)
+        if current_user.plan == "free":
+            msg = "You have used all 3 free bundles. Upgrade to continue."
+        else:
+            msg = f"You have reached your {limit} bundle limit for this month. Upgrade for more."
+        return jsonify({"error": msg, "upgrade": True}), 403
 
     sid  = session.get("sid")
     sess = get_session(sid)
