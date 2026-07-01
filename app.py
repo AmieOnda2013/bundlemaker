@@ -458,9 +458,10 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         current_page += pc  # individual items never have divider pages
         item_num += 1
 
-    # Grouped tabs — Tab A, Tab B… sub-items continue numbering from individual items
+    # Grouped tabs — Tab A, Tab B… sub-items numbered separately starting at 1
     tab_shade = colors.Color(0.93, 0.91, 0.87)
     shaded_rows = []  # row indices for shading
+    tab_item_num = 1  # continuous across all tabs, starts at 1
 
     for grp_idx, tab in enumerate(tabs):
         label      = alpha_label(grp_idx)
@@ -483,13 +484,13 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             name = item.get("custom_name") or item.get("filename", "Document")
             ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
             toc_data.append(make_row(
-                Paragraph(str(item_num), sub_st),
+                Paragraph(str(tab_item_num), sub_st),
                 Paragraph(f"  {name}", sub_st),
                 item.get("doc_date", ""),
                 Paragraph(ps, sub_rt),
             ))
             doc_page += pc
-            item_num += 1
+            tab_item_num += 1
 
         current_page += total_pc + (1 if use_dividers else 0)
 

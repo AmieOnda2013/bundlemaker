@@ -215,14 +215,15 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 }
 .btn-reset:hover{border-color:var(--navy3);color:var(--navy);background:var(--parchment)}
 .btn-remove{
-  background:transparent;
-  border:1px solid #e0c0c0;
+  background:#fdf4f4;
+  border:1px solid #e8c0c0;
   color:#c0392b;
   font-size:0.75rem;
   padding:3px 9px;
   border-radius:3px;
+  flex-shrink:0;
 }
-.btn-remove:hover{background:#fdf0ef;border-color:#c0392b}
+.btn-remove:hover{background:#fde8e8;border-color:#c0392b;color:#a93226}
 
 /* ── Drop zone ────────────────────────────────────── */
 .drop-zone{
@@ -888,7 +889,7 @@ function renderGrps(){
 
     const itemsList = document.createElement('div');
     itemsList.className = 'doc-list';
-    tab.items.forEach(item=>{
+    tab.items.forEach((item, ii)=>{
       const name  = item.custom_name || item.filename;
       const isImg = item.file_type === 'image';
       const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
@@ -896,8 +897,13 @@ function renderGrps(){
       row.className  = 'doc-item';
       row.dataset.id = item.id;
       row.draggable  = true;
+      // Compute continuous number across all tabs
+      let tabItemNum = 1;
+      for(let t=0; t<ti; t++) tabItemNum += tabs[t].items.length;
+      tabItemNum += ii + 1;
       row.innerHTML  = `
         <span class="drag-handle" title="Drag to reorder">⠿</span>
+        <span class="num-badge">${tabItemNum}</span>
         <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
         <span class="doc-name">
           <input type="text" value="${escHtml(name)}" placeholder="Document name"
