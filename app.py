@@ -77,7 +77,7 @@ login_manager.login_message = "Please log in to access BundleMaker."
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 UPLOAD_FOLDER   = os.path.join(_BASE_DIR, "uploads")
 OUTPUT_FOLDER   = os.path.join(_BASE_DIR, "output")
@@ -839,6 +839,19 @@ def home():
             session["sid"] = uuid.uuid4().hex
         return render_template("index.html")
     return render_template("landing.html")
+
+@app.route("/health")
+def health():
+    status = {"app": "ok", "db": "unknown", "db_url_type": "unknown"}
+    db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    status["db_url_type"] = "postgresql" if "postgresql" in db_url else "sqlite"
+    try:
+        db.session.execute(db.text("SELECT 1"))
+        status["db"] = "connected"
+    except Exception as e:
+        status["db"] = f"error: {e}"
+    from flask import jsonify
+    return jsonify(status)
 
 @app.route("/privacy")
 def privacy():
