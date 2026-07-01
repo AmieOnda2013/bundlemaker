@@ -731,6 +731,11 @@ function populateJurisdictions(country, selectedValue){
     opt.value = j.value; opt.textContent = j.label;
     el.appendChild(opt);
   }
+  // Always add custom option at the bottom of every country
+  const customOpt = document.createElement('option');
+  customOpt.value = 'CUSTOM';
+  customOpt.textContent = '— Enter court name manually —';
+  el.appendChild(customOpt);
   if(selectedValue) el.value = selectedValue;
   toggleCustomCourt();
 }
