@@ -170,7 +170,7 @@ def _default_session():
         "use_dividers": True,
         "doc_type": "application_record",
         "title": "", "court_file": "", "parties": "", "recitals": "",
-        "country": "Canada", "jurisdiction": "ON",
+        "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
     }
 
@@ -543,8 +543,8 @@ def merge_pdfs(session_data, output_path):
         session_data.get("court_file", ""),
         session_data.get("parties", ""),
         toc_path,
-        country=session_data.get("country", "Canada"),
-        jurisdiction=session_data.get("jurisdiction", "ON"),
+        country=session_data.get("country", ""),
+        jurisdiction=session_data.get("jurisdiction", ""),
         custom_court=session_data.get("custom_court", ""),
         custom_rules=session_data.get("custom_rules", ""),
         recitals=session_data.get("recitals", ""),
