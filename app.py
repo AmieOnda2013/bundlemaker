@@ -843,9 +843,15 @@ def home():
 
 @app.errorhandler(500)
 def internal_error(e):
-    app.logger.error(f"500 error: {e}")
-    db.session.rollback()
-    return f"<h2>Server Error</h2><pre>{e}</pre><p>Please try again or contact support@bundlemaker.app</p>", 500
+    import traceback
+    orig = getattr(e, "original_exception", e)
+    tb = traceback.format_exc()
+    app.logger.error(f"500 error: {orig}\n{tb}")
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    return f"<h2>Server Error</h2><pre>{orig}\n\n{tb}</pre><p>Contact support@bundlemaker.app</p>", 500
 
 @app.route("/health")
 def health():
