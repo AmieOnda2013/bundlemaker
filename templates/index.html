@@ -312,9 +312,9 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 }
 .type-badge.pdf{background:#e8f0fe;color:#1a56db}
 .type-badge.image{background:#fef3c7;color:#92400e}
-.doc-name{flex:1;min-width:0}
+.doc-name{flex:1 1 80px;min-width:60px;overflow:hidden}
 .doc-name input{
-  border:none;background:transparent;width:100%;
+  border:none;background:transparent;width:100%;min-width:0;
   font-family:'Inter',sans-serif;font-size:0.88rem;
   color:var(--ink);outline:none;
   border-bottom:1px dashed transparent;
@@ -322,7 +322,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   padding:1px 0;
 }
 .doc-name input:hover,.doc-name input:focus{border-bottom-color:var(--gold)}
-.doc-date-input{width:110px;flex-shrink:0;font-size:0.72rem;font-family:inherit;border:none;border-bottom:1px solid transparent;background:transparent;color:var(--muted);padding:2px 4px;outline:none}
+.doc-date-input{flex:0 0 96px;min-width:0;font-size:0.72rem;font-family:inherit;border:none;border-bottom:1px solid transparent;background:transparent;color:var(--muted);padding:2px 4px;outline:none}
 .doc-date-input::placeholder{color:#bbb}
 .doc-date-input:hover,.doc-date-input:focus{border-bottom-color:var(--gold);color:var(--navy)}
 .doc-pages{font-size:0.72rem;color:var(--muted);flex-shrink:0;white-space:nowrap}
@@ -643,6 +643,7 @@ let activeGrpId = null;
 let indDragId   = null;
 let grpDragId   = null;
 let itemDragId  = null;
+let dragPayload = null;  // {itemId, fromSection:'ind'|'tab', fromTabId}
 
 // Jurisdiction data embedded directly — no network call needed
 const jurisdictionData = {
@@ -758,7 +759,16 @@ indDZ.addEventListener('dragover', e=>{ e.preventDefault(); indDZ.classList.add(
 indDZ.addEventListener('dragleave', ()=> indDZ.classList.remove('over'));
 indDZ.addEventListener('drop', e=>{
   e.preventDefault(); indDZ.classList.remove('over');
-  if(e.dataTransfer.files.length) handleIndUpload(e.dataTransfer.files);
+  if(dragPayload) transferItem(dragPayload.itemId, 'individual', null, null);
+  else if(e.dataTransfer.files.length) handleIndUpload(e.dataTransfer.files);
+});
+
+const indList = document.getElementById('indDocList');
+indList.addEventListener('dragover', e=>{ if(dragPayload && dragPayload.fromSection!=='ind'){ e.preventDefault(); indList.classList.add('drag-over'); } });
+indList.addEventListener('dragleave', ()=> indList.classList.remove('drag-over'));
+indList.addEventListener('drop', e=>{
+  e.preventDefault(); indList.classList.remove('drag-over');
+  if(dragPayload && dragPayload.fromSection!=='ind') transferItem(dragPayload.itemId, 'individual', null, null);
 });
 
 /* ── Individual Documents ── */
@@ -808,22 +818,27 @@ function renderInd(){
       <span class="doc-pages">${item.page_count} pg</span>
       <button class="btn btn-remove" onclick="deleteInd('${item.id}')" title="Remove">✕</button>`;
     row.addEventListener('dragstart', e=>{
-      indDragId = item.id; row.classList.add('dragging');
+      indDragId = item.id;
+      dragPayload = {itemId: item.id, fromSection:'ind', fromTabId:null};
+      row.classList.add('dragging');
       e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('text/plain', item.id);
     });
     row.addEventListener('dragend', ()=>{
       row.classList.remove('dragging');
-      list.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
+      dragPayload = null; indDragId = null;
+      document.querySelectorAll('.doc-item,.tab-drop-zone,#indDocList').forEach(d=>d.classList.remove('drag-over','over'));
     });
     row.addEventListener('dragover', e=>{
       e.preventDefault();
-      if(indDragId && indDragId!==item.id) row.classList.add('drag-over');
+      if(dragPayload && dragPayload.itemId!==item.id) row.classList.add('drag-over');
     });
     row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
     row.addEventListener('drop', e=>{
       e.preventDefault(); row.classList.remove('drag-over');
-      if(indDragId && indDragId!==item.id) reorderInd(indDragId, item.id);
+      if(!dragPayload || dragPayload.itemId===item.id) return;
+      if(dragPayload.fromSection==='ind') reorderInd(dragPayload.itemId, item.id);
+      else transferItem(dragPayload.itemId, 'individual', null, item.id);
     });
     list.appendChild(row);
   });
@@ -860,6 +875,30 @@ async function reorderInd(srcId, tgtId){
   const [m] = items.splice(si,1); items.splice(ti,0,m);
   renderInd();
   await fetch('/api/items/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:items.map(i=>i.id)})});
+}
+
+async function transferItem(itemId, toSection, toTabId, beforeId){
+  const r = await fetch('/api/items/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({item_id:itemId, to_section:toSection, to_tab_id:toTabId, before_id:beforeId})});
+  const d = await r.json();
+  if(!d.ok){ toast('Move failed','error'); return; }
+  const it = d.item;
+  // Remove from local state wherever it lives
+  items = items.filter(i=>i.id!==itemId);
+  tabs.forEach(t=>{ t.items = t.items.filter(i=>i.id!==itemId); });
+  // Insert into destination
+  if(toSection==='individual'){
+    const idx = beforeId ? items.findIndex(i=>i.id===beforeId) : -1;
+    idx>=0 ? items.splice(idx,0,it) : items.push(it);
+  } else {
+    const tab = tabs.find(t=>t.id===toTabId);
+    if(tab){
+      const idx = beforeId ? tab.items.findIndex(i=>i.id===beforeId) : -1;
+      idx>=0 ? tab.items.splice(idx,0,it) : tab.items.push(it);
+    }
+  }
+  dragPayload = null;
+  renderInd(); renderGrps(); updateCount();
 }
 
 /* ── Document Groups ── */
@@ -916,24 +955,30 @@ function renderGrps(){
         <span class="doc-pages">${item.page_count} pg</span>
         <button class="btn btn-remove" onclick="deleteGrpItem('${tab.id}','${item.id}')" title="Remove">✕</button>`;
       row.addEventListener('dragstart', e=>{
-        itemDragId = item.id; row.classList.add('dragging');
+        itemDragId = item.id;
+        dragPayload = {itemId: item.id, fromSection:'tab', fromTabId: tab.id};
+        row.classList.add('dragging');
         e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setData('text/plain', item.id);
         e.stopPropagation();
       });
       row.addEventListener('dragend', ()=>{
         row.classList.remove('dragging');
-        itemsList.querySelectorAll('.doc-item').forEach(d=>d.classList.remove('drag-over'));
+        dragPayload = null; itemDragId = null;
+        document.querySelectorAll('.doc-item,.tab-drop-zone,#indDocList').forEach(d=>d.classList.remove('drag-over','over'));
       });
       row.addEventListener('dragover', e=>{
         e.preventDefault(); e.stopPropagation();
-        if(itemDragId && itemDragId!==item.id) row.classList.add('drag-over');
+        if(dragPayload && dragPayload.itemId!==item.id) row.classList.add('drag-over');
       });
       row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
       row.addEventListener('drop', e=>{
         e.preventDefault(); e.stopPropagation();
         row.classList.remove('drag-over');
-        if(itemDragId && itemDragId!==item.id) reorderGrpItem(tab.id, itemDragId, item.id);
+        if(!dragPayload || dragPayload.itemId===item.id) return;
+        const sameTab = dragPayload.fromSection==='tab' && dragPayload.fromTabId===tab.id;
+        if(sameTab) reorderGrpItem(tab.id, dragPayload.itemId, item.id);
+        else transferItem(dragPayload.itemId, 'tab', tab.id, item.id);
       });
       itemsList.appendChild(row);
     });
@@ -946,7 +991,8 @@ function renderGrps(){
     dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
     dz.addEventListener('drop', e=>{
       e.preventDefault(); dz.classList.remove('over');
-      if(e.dataTransfer.files.length) uploadToGrp(tab.id, e.dataTransfer.files);
+      if(dragPayload) transferItem(dragPayload.itemId, 'tab', tab.id, null);
+      else if(e.dataTransfer.files.length) uploadToGrp(tab.id, e.dataTransfer.files);
     });
 
     wrapper.appendChild(header);

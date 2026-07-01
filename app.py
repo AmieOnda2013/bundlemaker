@@ -998,6 +998,52 @@ def reorder_items():
     return jsonify({"ok": True})
 
 
+@app.route("/api/items/transfer", methods=["POST"])
+@login_required
+def transfer_item():
+    sid  = session.get("sid")
+    sess = get_session(sid)
+    data      = request.json or {}
+    item_id   = data.get("item_id")
+    to_section = data.get("to_section")   # "individual" or "tab"
+    to_tab_id  = data.get("to_tab_id")
+    before_id  = data.get("before_id")
+
+    # Find and remove from current location
+    item = None
+    for i, it in enumerate(sess["items"]):
+        if it["id"] == item_id:
+            item = sess["items"].pop(i)
+            break
+    if item is None:
+        for tab in sess["tabs"]:
+            for i, it in enumerate(tab["items"]):
+                if it["id"] == item_id:
+                    item = tab["items"].pop(i)
+                    break
+            if item is not None:
+                break
+
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+
+    # Insert at destination
+    if to_section == "individual":
+        dest = sess["items"]
+        idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
+        dest.insert(idx, item)
+    else:
+        for tab in sess["tabs"]:
+            if tab["id"] == to_tab_id:
+                dest = tab["items"]
+                idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
+                dest.insert(idx, item)
+                break
+
+    save_session(sid, sess)
+    return jsonify({"ok": True, "item": item})
+
+
 @app.route("/api/items/<item_id>", methods=["PATCH"])
 @login_required
 def update_item(item_id):
