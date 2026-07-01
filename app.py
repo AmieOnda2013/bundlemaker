@@ -22,6 +22,7 @@ from models import db, User, PLAN_LIMITS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
+app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 365  # 1 year
 
 # ── Database ─────────────────────────────────────────────────────────────────
 _BASE_DIR = os.environ.get("DATA_DIR") or os.path.dirname(__file__)
@@ -638,7 +639,7 @@ def register():
             error = "Password must be at least 8 characters."
         elif password != confirm:
             error = "Passwords do not match."
-        elif User.query.filter_by(email=email).first():
+        elif db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none():
             error = "An account with that email already exists."
         else:
             user = User(email=email)
@@ -674,7 +675,7 @@ def _send_verification_email(user, token):
 
 @app.route("/verify-email/<token>")
 def verify_email(token):
-    user = User.query.filter_by(email_verify_token=token).first()
+    user = db.session.execute(db.select(User).filter_by(email_verify_token=token)).scalar_one_or_none()
     if not user:
         flash("Invalid or expired verification link.", "error")
         return redirect(url_for("login"))
@@ -705,7 +706,7 @@ def login():
     if request.method == "POST":
         email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        user     = User.query.filter_by(email=email).first()
+        user     = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user and user.check_password(password):
             login_user(user, remember=True)
             return redirect(request.args.get("next") or url_for("home"))
@@ -797,7 +798,7 @@ def stripe_webhook():
         period  = obj.get("metadata", {}).get("period", "monthly")
         sub_id  = obj.get("subscription")
         if user_id and plan:
-            user = User.query.get(int(user_id))
+            user = db.session.get(User, int(user_id))
             if user:
                 user.plan = plan
                 user.plan_period = period
@@ -811,7 +812,7 @@ def stripe_webhook():
         sub     = obj
         status  = sub.get("status")
         cust_id = sub.get("customer")
-        user = User.query.filter_by(stripe_customer_id=cust_id).first()
+        user = db.session.execute(db.select(User).filter_by(stripe_customer_id=cust_id)).scalar_one_or_none()
         if user:
             if status in ("canceled", "unpaid", "incomplete_expired"):
                 user.plan = "free"
@@ -839,6 +840,12 @@ def home():
             session["sid"] = uuid.uuid4().hex
         return render_template("index.html")
     return render_template("landing.html")
+
+@app.errorhandler(500)
+def internal_error(e):
+    app.logger.error(f"500 error: {e}")
+    db.session.rollback()
+    return f"<h2>Server Error</h2><pre>{e}</pre><p>Please try again or contact support@bundlemaker.app</p>", 500
 
 @app.route("/health")
 def health():
