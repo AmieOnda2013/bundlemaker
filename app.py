@@ -24,6 +24,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 365  # 1 year
 
+# Comma-separated owner/admin emails — these accounts bypass all bundle limits and email verification
+_OWNER_EMAILS = {e.strip().lower() for e in os.environ.get("OWNER_EMAILS", "").split(",") if e.strip()}
+
+def is_owner(user=None):
+    u = user or current_user
+    return bool(_OWNER_EMAILS and getattr(u, "email", None) and u.email.lower() in _OWNER_EMAILS)
+
 # ── Database ─────────────────────────────────────────────────────────────────
 _BASE_DIR = os.environ.get("DATA_DIR") or os.path.dirname(__file__)
 _db_url = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(_BASE_DIR, 'bundlemaker.db')}"
@@ -1206,13 +1213,13 @@ def generate():
     current_user.reset_monthly_bundles_if_due()
     db.session.commit()
 
-    if not current_user.email_verified:
+    if not current_user.email_verified and not is_owner():
         return jsonify({
             "error": "Please verify your email address before generating bundles. Check your inbox for a verification link.",
             "verify": True
         }), 403
 
-    if not current_user.can_generate():
+    if not current_user.can_generate() and not is_owner():
         limit = PLAN_LIMITS.get(current_user.plan, 0)
         if current_user.plan == "free":
             msg = "You have used all 3 free bundles. Upgrade to continue."
@@ -1229,9 +1236,9 @@ def generate():
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     try:
         merge_pdfs(sess, out_path)
-        # Track usage
-        current_user.bundles_used += 1
-        db.session.commit()
+        if not is_owner():
+            current_user.bundles_used += 1
+            db.session.commit()
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({
