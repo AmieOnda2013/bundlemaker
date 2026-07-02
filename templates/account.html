@@ -19,17 +19,30 @@
     .row-label { font-size: 0.85rem; color: #666; }
     .row-value { font-size: 0.92rem; font-weight: 600; color: #0d1b2a; }
     .badge { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 11px; border-radius: 20px; }
-    .badge-free  { background: #e8e4da; color: #777; }
-    .badge-solo  { background: #0d1b2a; color: #c9a84c; }
-    .badge-firm  { background: #1e3a5f; color: #c9a84c; }
+    .badge-free         { background: #e8e4da; color: #777; }
+    .badge-solo         { background: #0d1b2a; color: #c9a84c; }
+    .badge-professional { background: #0d1b2a; color: #c9a84c; }
+    .badge-firm         { background: #1e3a5f; color: #c9a84c; }
     .progress-wrap { width: 100%; }
     .progress-bar { height: 7px; background: #eee; border-radius: 4px; margin-top: 10px; overflow: hidden; }
     .progress-fill { height: 100%; background: #c9a84c; border-radius: 4px; }
     .progress-label { font-size: 0.72rem; color: #aaa; margin-top: 5px; }
+    /* Billing toggle */
+    .billing-toggle { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+    .billing-toggle span { font-size:0.82rem; color:#888; }
+    .billing-toggle span.active { color:#0d1b2a; font-weight:600; }
+    .toggle { position:relative; display:inline-block; width:40px; height:22px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; cursor:pointer; inset:0; background:#ccc; border-radius:22px; transition:.2s; }
+    .slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
+    input:checked + .slider { background:#c9a84c; }
+    input:checked + .slider:before { transform:translateX(18px); }
+    .save-badge { background:#0d1b2a; color:#c9a84c; font-size:0.6rem; font-weight:700; letter-spacing:0.06em; padding:2px 7px; border-radius:10px; text-transform:uppercase; }
     /* Plan cards */
-    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+    .plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 4px; }
+    @media(max-width:640px){ .plan-grid{ grid-template-columns:1fr; } }
     .plan-option {
-      border: 1.5px solid #e0ddd5; border-radius: 8px; padding: 20px;
+      border: 1.5px solid #e0ddd5; border-radius: 8px; padding: 18px;
       position: relative; transition: border-color 0.2s;
     }
     .plan-option:hover { border-color: #c9a84c; }
@@ -41,9 +54,10 @@
       padding: 2px 10px; border-radius: 10px;
     }
     .plan-name  { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 4px; }
-    .plan-price { font-size: 1.5rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
-    .plan-price span { font-size: 0.8rem; font-weight: 400; color: #aaa; }
-    .plan-desc  { font-size: 0.78rem; color: #777; margin-bottom: 14px; line-height: 1.5; }
+    .plan-price { font-size: 1.4rem; font-weight: 700; color: #0d1b2a; margin-bottom: 2px; }
+    .plan-price span { font-size: 0.78rem; font-weight: 400; color: #aaa; }
+    .plan-annual-note { font-size: 0.7rem; color: #aaa; margin-bottom: 4px; }
+    .plan-desc  { font-size: 0.76rem; color: #777; margin-bottom: 14px; line-height: 1.5; }
     .btn { display: block; width: 100%; padding: 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; text-align: center; text-decoration: none; border: none; transition: background 0.2s; letter-spacing: 0.03em; }
     .btn-primary { background: #0d1b2a; color: #c9a84c; }
     .btn-primary:hover { background: #1e3a5f; }
@@ -108,20 +122,47 @@
   <!-- Plans -->
   <div class="card">
     <div class="card-title">Plans</div>
+
+    <div class="billing-toggle">
+      <span class="active" id="lbl-mo">Monthly</span>
+      <label class="toggle">
+        <input type="checkbox" id="billingToggle" onchange="toggleBilling()"/>
+        <span class="slider"></span>
+      </label>
+      <span id="lbl-yr">Annual <span class="save-badge">Save 17%</span></span>
+    </div>
+
     <div class="plan-grid">
 
       <!-- Solo -->
       <div class="plan-option {% if current_user.plan == 'solo' %}current{% endif %}">
         {% if current_user.plan == 'solo' %}<div class="current-tag">Active</div>{% endif %}
         <div class="plan-name">Solo</div>
-        <div class="plan-price">$19 <span>/ month</span></div>
-        <div class="plan-desc">Unlimited bundles for one user. Perfect for sole practitioners.</div>
+        <div class="plan-price" id="price-solo">$23 <span>/ month</span></div>
+        <div class="plan-annual-note" id="note-solo" style="display:none">Billed $228/year</div>
+        <div class="plan-desc">20 bundles per month. All document types and courts.</div>
         {% if current_user.plan == 'solo' %}
+          <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
+        {% elif current_user.plan in ('professional','firm') %}
+          <span class="btn btn-muted">Downgrade via billing</span>
+        {% else %}
+          <a href="#" id="btn-solo" onclick="goUpgrade('solo')" class="btn btn-primary">Upgrade — $23/mo</a>
+        {% endif %}
+      </div>
+
+      <!-- Professional -->
+      <div class="plan-option {% if current_user.plan == 'professional' %}current{% endif %}">
+        {% if current_user.plan == 'professional' %}<div class="current-tag">Active</div>{% endif %}
+        <div class="plan-name">Professional</div>
+        <div class="plan-price" id="price-pro">$59 <span>/ month</span></div>
+        <div class="plan-annual-note" id="note-pro" style="display:none">Billed $588/year</div>
+        <div class="plan-desc">60 bundles per month. Priority email support.</div>
+        {% if current_user.plan == 'professional' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
         {% elif current_user.plan == 'firm' %}
           <span class="btn btn-muted">Downgrade via billing</span>
         {% else %}
-          <a href="/upgrade/solo" class="btn btn-primary">Upgrade — $19/mo</a>
+          <a href="#" id="btn-pro" onclick="goUpgrade('professional')" class="btn btn-primary">Upgrade — $59/mo</a>
         {% endif %}
       </div>
 
@@ -129,19 +170,49 @@
       <div class="plan-option {% if current_user.plan == 'firm' %}current{% endif %}">
         {% if current_user.plan == 'firm' %}<div class="current-tag">Active</div>{% endif %}
         <div class="plan-name">Firm</div>
-        <div class="plan-price">$49 <span>/ month</span></div>
-        <div class="plan-desc">Unlimited bundles for up to 5 team members.</div>
+        <div class="plan-price" id="price-firm">$119 <span>/ month</span></div>
+        <div class="plan-annual-note" id="note-firm" style="display:none">Billed $1,188/year</div>
+        <div class="plan-desc">Unlimited bundles. Priority support.</div>
         {% if current_user.plan == 'firm' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
-        {% elif current_user.plan == 'solo' %}
-          <a href="/upgrade/firm" class="btn btn-primary">Upgrade — $49/mo</a>
         {% else %}
-          <a href="/upgrade/firm" class="btn btn-primary">Upgrade — $49/mo</a>
+          <a href="#" id="btn-firm" onclick="goUpgrade('firm')" class="btn btn-primary">Upgrade — $119/mo</a>
         {% endif %}
       </div>
 
     </div>
   </div>
+
+  <script>
+    const monthly = {solo:'$23',pro:'$59',firm:'$119'};
+    const annual  = {solo:'$19',pro:'$49',firm:'$99'};
+    const btnMo   = {solo:'Upgrade — $23/mo',pro:'Upgrade — $59/mo',firm:'Upgrade — $119/mo'};
+    const btnYr   = {solo:'Upgrade — $19/mo',pro:'Upgrade — $49/mo',firm:'Upgrade — $99/mo'};
+    let period = 'monthly';
+
+    function toggleBilling(){
+      const annual_on = document.getElementById('billingToggle').checked;
+      period = annual_on ? 'annual' : 'monthly';
+      const prices = annual_on ? annual : monthly;
+      const btns   = annual_on ? btnYr  : btnMo;
+      document.getElementById('lbl-mo').classList.toggle('active', !annual_on);
+      document.getElementById('lbl-yr').classList.toggle('active', annual_on);
+      [['solo','price-solo','note-solo','btn-solo'],
+       ['pro', 'price-pro', 'note-pro', 'btn-pro'],
+       ['firm','price-firm','note-firm','btn-firm']].forEach(([k,pid,nid,bid])=>{
+        const pe = document.getElementById(pid);
+        const ne = document.getElementById(nid);
+        const be = document.getElementById(bid);
+        if(pe) pe.innerHTML = prices[k]+' <span>/ month</span>';
+        if(ne) ne.style.display = annual_on ? '' : 'none';
+        if(be) be.textContent = btns[k];
+      });
+    }
+
+    function goUpgrade(plan){
+      window.location.href = '/upgrade/'+plan+'?period='+period;
+    }
+  </script>
 
   <!-- Sign out -->
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
