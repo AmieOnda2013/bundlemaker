@@ -648,10 +648,28 @@ footer span{color:var(--gold)}
 
       <hr class="divider" style="margin:20px 0"/>
 
-      <!-- Extra column header -->
-      <div class="section-label">Optional Extra Column</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Add a column to the table of contents (e.g. Date, Reference, Volume)</div>
-      <input type="text" id="colHeader" placeholder="Column name (e.g. Date)" oninput="saveColHeader();renderTocPreview()"
+      <!-- Column headers -->
+      <div class="section-label">Table of Contents Columns</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px">Customise the column headers. Leave blank to use defaults.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:0.68rem;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Item #</div>
+          <input type="text" id="colItemHeader" placeholder="Item" oninput="saveTocHeaders();renderTocPreview()"
+            style="width:100%;padding:7px 9px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;box-sizing:border-box"/>
+        </div>
+        <div>
+          <div style="font-size:0.68rem;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Document</div>
+          <input type="text" id="colDocHeader" placeholder="Document" oninput="saveTocHeaders();renderTocPreview()"
+            style="width:100%;padding:7px 9px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;box-sizing:border-box"/>
+        </div>
+        <div>
+          <div style="font-size:0.68rem;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Page(s)</div>
+          <input type="text" id="colPageHeader" placeholder="Page(s)" oninput="saveTocHeaders();renderTocPreview()"
+            style="width:100%;padding:7px 9px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;box-sizing:border-box"/>
+        </div>
+      </div>
+      <div style="font-size:0.68rem;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Extra Column (optional)</div>
+      <input type="text" id="colHeader" placeholder="e.g. Date, Reference, Volume" oninput="saveColHeader();renderTocPreview()"
         style="width:100%;padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-family:inherit;margin-bottom:4px;box-sizing:border-box"/>
 
       <hr class="divider" style="margin:20px 0"/>
@@ -760,6 +778,9 @@ async function loadSession(){
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('useDividers').checked = s.use_dividers !== false;
   document.getElementById('colHeader').value = s.col_header || '';
+  document.getElementById('colItemHeader').value = s.col_item_header || '';
+  document.getElementById('colDocHeader').value  = s.col_doc_header  || '';
+  document.getElementById('colPageHeader').value = s.col_page_header || '';
   items = s.items || [];
   tabs  = s.tabs  || [];
   renderInd();
@@ -794,8 +815,24 @@ function saveColHeader(){
   }, 500);
 }
 
+let _tocHeaderTimer = null;
+function saveTocHeaders(){
+  clearTimeout(_tocHeaderTimer);
+  _tocHeaderTimer = setTimeout(()=>{
+    fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        col_item_header: document.getElementById('colItemHeader').value,
+        col_doc_header:  document.getElementById('colDocHeader').value,
+        col_page_header: document.getElementById('colPageHeader').value,
+      })});
+  }, 500);
+}
+
 function renderTocPreview(){
-  const colHeader = document.getElementById('colHeader').value.trim();
+  const colHeader  = document.getElementById('colHeader').value.trim();
+  const hItem = document.getElementById('colItemHeader').value.trim() || 'Item';
+  const hDoc  = document.getElementById('colDocHeader').value.trim()  || 'Document';
+  const hPage = document.getElementById('colPageHeader').value.trim() || 'Page(s)';
   const hasCol = colHeader !== '';
   const el = document.getElementById('tocPreview');
   if(!items.length && !tabs.length){
@@ -808,10 +845,10 @@ function renderTocPreview(){
   const trShade = 'background:#f0ece3';
   let html = '<table style="width:100%;border-collapse:collapse;font-family:Times New Roman,Times,serif">';
   html += '<thead><tr>';
-  html += `<th style="${thStyle};width:52px;white-space:nowrap">#</th>`;
-  html += `<th style="${thStyle}">Document</th>`;
+  html += `<th style="${thStyle};width:52px;white-space:nowrap">${escHtml(hItem)}</th>`;
+  html += `<th style="${thStyle}">${escHtml(hDoc)}</th>`;
   if(hasCol) html += `<th style="${thStyle};width:140px">${escHtml(colHeader)}</th>`;
-  html += `<th style="${thStyle};width:60px;text-align:right">Page(s)</th>`;
+  html += `<th style="${thStyle};width:60px;text-align:right">${escHtml(hPage)}</th>`;
   html += '</tr></thead><tbody>';
 
   let pageNum = 1;
@@ -830,7 +867,7 @@ function renderTocPreview(){
   }
 
   tabs.forEach((tab, gi)=>{
-    const grpLabel = tab.label || `Group ${gi+1}`;
+    const grpLabel = tab.label || '';
     const tabName = tab.name || '';
     const tabItems = tab.items || [];
     const totalPc = tabItems.reduce((s,i)=>s+(i.page_count||1),0)||1;

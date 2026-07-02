@@ -218,6 +218,9 @@ def _default_session():
         "custom_court": "", "custom_rules": "",
         "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
         "tab_prefix": "Tab",   # label prefix for groups (e.g. "Tab", "Exhibit", "Schedule")
+        "col_item_header": "",   # TOC column: item/number header (default "#" / "Item")
+        "col_doc_header": "",    # TOC column: document name header (default "Document")
+        "col_page_header": "",   # TOC column: page(s) header (default "Page(s)")
     }
 
 def get_session(sid):
@@ -240,6 +243,9 @@ def get_session(sid):
             data["col_header"] = ""
         if "tab_prefix" not in data:
             data["tab_prefix"] = "Tab"
+        for _k in ("col_item_header", "col_doc_header", "col_page_header"):
+            if _k not in data:
+                data[_k] = ""
         # Remove legacy bundle_mode if present
         data.pop("bundle_mode", None)
         return data
@@ -399,7 +405,8 @@ def _make_file_item(f, ext):
 def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        output_path, country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
-                       use_dividers=True, col_header="", tab_prefix="Tab"):
+                       use_dividers=True, col_header="", tab_prefix="Tab",
+                       col_item_header="", col_doc_header="", col_page_header=""):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -495,15 +502,19 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     date_st  = ParagraphStyle("date",  parent=normal, fontSize=10, leading=15)
     date_rt  = ParagraphStyle("dater", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
+    h_item = col_item_header or "Item"
+    h_doc  = col_doc_header  or "Document"
+    h_page = col_page_header or "Page(s)"
+
     def make_header_row():
         if has_col:
-            return [Paragraph("<b>Item</b>", th_st),
-                    Paragraph("<b>Document</b>", th_st),
+            return [Paragraph(f"<b>{h_item}</b>", th_st),
+                    Paragraph(f"<b>{h_doc}</b>",  th_st),
                     Paragraph(f"<b>{col_label}</b>", th_st),
-                    Paragraph("<b>Page(s)</b>", th_rt)]
-        return [Paragraph("<b>Item</b>", th_st),
-                Paragraph("<b>Document</b>", th_st),
-                Paragraph("<b>Page(s)</b>", th_rt)]
+                    Paragraph(f"<b>{h_page}</b>", th_rt)]
+        return [Paragraph(f"<b>{h_item}</b>", th_st),
+                Paragraph(f"<b>{h_doc}</b>",  th_st),
+                Paragraph(f"<b>{h_page}</b>", th_rt)]
 
     def make_row(label_para, name_para, date_val, page_para):
         if has_col:
@@ -705,6 +716,9 @@ def merge_pdfs(session_data, output_path):
         use_dividers=use_dividers,
         col_header=session_data.get("col_header", ""),
         tab_prefix=session_data.get("tab_prefix", "Tab"),
+        col_item_header=session_data.get("col_item_header", ""),
+        col_doc_header=session_data.get("col_doc_header", ""),
+        col_page_header=session_data.get("col_page_header", ""),
     )
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
@@ -1031,7 +1045,8 @@ def update_session():
     data = request.json
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","parties","recitals",
-                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix"):
+                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
+                "col_item_header","col_doc_header","col_page_header"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
