@@ -133,7 +133,8 @@ TEMPLATES = {
 }
 
 IMAGE_EXTENSIONS   = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic"}
-ALLOWED_EXTENSIONS = {".pdf"} | IMAGE_EXTENSIONS
+WORD_EXTENSIONS    = {".docx", ".doc"}
+ALLOWED_EXTENSIONS = {".pdf"} | IMAGE_EXTENSIONS | WORD_EXTENSIONS
 
 JURISDICTIONS = {
     "Canada": [
@@ -299,6 +300,52 @@ def image_to_pdf(image_path, pdf_path):
         f.write(buf.getvalue())
 
 
+def word_to_pdf(word_path, pdf_path):
+    """Convert a .docx (or .doc) file to PDF using python-docx + ReportLab."""
+    from docx import Document as DocxDocument
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.lib.pagesizes import letter
+
+    doc = DocxDocument(word_path)
+    styles = getSampleStyleSheet()
+    normal = styles["Normal"]
+    normal.fontName = "Times-Roman"
+    normal.fontSize = 11
+    normal.leading  = 16
+
+    heading_st = ParagraphStyle("wh", parent=normal, fontName="Times-Bold", fontSize=12, spaceAfter=6, spaceBefore=10)
+
+    story = []
+    for para in doc.paragraphs:
+        text = para.text
+        if not text.strip():
+            story.append(Spacer(1, 6))
+            continue
+        style = heading_st if para.style.name.startswith("Heading") else normal
+        # Preserve bold runs
+        parts = []
+        for run in para.runs:
+            t = run.text.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+            if run.bold:
+                parts.append(f"<b>{t}</b>")
+            elif run.italic:
+                parts.append(f"<i>{t}</i>")
+            else:
+                parts.append(t)
+        html = "".join(parts) or text.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+        story.append(Paragraph(html, style))
+
+    if not story:
+        story.append(Paragraph("(empty document)", normal))
+
+    doc_pdf = SimpleDocTemplate(pdf_path, pagesize=letter,
+                                rightMargin=72, leftMargin=72,
+                                topMargin=72, bottomMargin=72)
+    doc_pdf.build(story)
+
+
 def get_pdf_page_count(filepath):
     try:
         return len(PdfReader(filepath).pages)
@@ -323,17 +370,23 @@ def _make_file_item(f, ext):
         image_to_pdf(raw_dest, pdf_dest)
         os.remove(raw_dest)
         filepath = pdf_dest
+    elif ext in WORD_EXTENSIONS:
+        pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
+        word_to_pdf(raw_dest, pdf_dest)
+        os.remove(raw_dest)
+        filepath = pdf_dest
     else:
         filepath = raw_dest
     base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
     page_count = get_pdf_page_count(filepath)
+    file_type  = "image" if ext in IMAGE_EXTENSIONS else ("word" if ext in WORD_EXTENSIONS else "pdf")
     return {
         "id":           item_id,
         "filename":     base_name,
         "custom_name":  "",
         "filepath":     filepath,
         "page_count":   page_count,
-        "file_type":    "image" if ext in IMAGE_EXTENSIONS else "pdf",
+        "file_type":    file_type,
         "original_ext": ext,
     }
 

@@ -600,10 +600,10 @@ footer span{color:var(--gold)}
       <div class="section-label">Individual Documents</div>
       <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Each file is numbered in order (1, 2, 3…)</div>
       <div class="drop-zone" id="indDropZone" onclick="document.getElementById('indFileInput').click()">
-        <input type="file" id="indFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
+        <input type="file" id="indFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
         <div class="drop-zone-icon">⬆</div>
         <div class="drop-zone-label">Drop files here or click to browse</div>
-        <div class="drop-zone-hint">PDF · JPG · PNG · TIFF · WEBP · BMP</div>
+        <div class="drop-zone-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>
       </div>
       <div class="doc-list" id="indDocList"></div>
       <div id="indEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No individual documents added yet.</div>
@@ -620,7 +620,7 @@ footer span{color:var(--gold)}
       </button>
 
       <!-- Hidden file input for group uploads -->
-      <input type="file" id="grpFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleGrpUpload(this.files)"/>
+      <input type="file" id="grpFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleGrpUpload(this.files)"/>
 
       <hr class="divider" style="margin:20px 0"/>
 
@@ -836,7 +836,7 @@ function renderTocPreview(){
 }
 
 /* ── Helpers ── */
-const ALLOWED_EXTS = ['.pdf','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
+const ALLOWED_EXTS = ['.pdf','.docx','.doc','.jpg','.jpeg','.png','.gif','.bmp','.tiff','.tif','.webp'];
 function isAllowed(name){ return ALLOWED_EXTS.some(e=>name.toLowerCase().endsWith(e)); }
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
