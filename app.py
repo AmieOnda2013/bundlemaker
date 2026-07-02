@@ -762,33 +762,6 @@ def resend_verification():
     return redirect(url_for("home"))
 
 
-@app.route("/dev-delete-user/<email>")
-def dev_delete_user(email):
-    if not is_owner():
-        return "Forbidden", 403
-    user = db.session.execute(db.select(User).filter_by(email=email.lower())).scalar_one_or_none()
-    if not user:
-        return f"User {email} not found", 404
-    db.session.delete(user)
-    db.session.commit()
-    return f"Deleted {email}", 200
-
-
-@app.route("/dev-resend-verification/<email>")
-def dev_resend_verification(email):
-    if not is_owner():
-        return "Forbidden", 403
-    user = db.session.execute(db.select(User).filter_by(email=email.lower())).scalar_one_or_none()
-    if not user:
-        return f"User {email} not found", 404
-    import secrets
-    token = secrets.token_urlsafe(32)
-    user.email_verified = False
-    user.email_verify_token = token
-    db.session.commit()
-    _send_verification_email(user, token)
-    return f"Verification email sent to {email}", 200
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -945,14 +918,6 @@ def internal_error(e):
         pass
     return f"<h2>Server Error</h2><pre>{orig}\n\n{tb}</pre><p>Contact support@bundlemaker.app</p>", 500
 
-@app.route("/dev-verify-me")
-@login_required
-def dev_verify_me():
-    current_user.email_verified = True
-    current_user.email_verify_token = None
-    db.session.commit()
-    flash("Email verified. You can now generate bundles.", "success")
-    return redirect(url_for("home"))
 
 @app.route("/health")
 def health():
