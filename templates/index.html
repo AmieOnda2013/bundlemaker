@@ -810,7 +810,7 @@ function renderTocPreview(){
   html += '<thead><tr>';
   html += `<th style="${thStyle};width:52px;white-space:nowrap">#</th>`;
   html += `<th style="${thStyle}">Document</th>`;
-  if(hasCol) html += `<th style="${thStyle};width:90px">${escHtml(colHeader)}</th>`;
+  if(hasCol) html += `<th style="${thStyle};width:140px">${escHtml(colHeader)}</th>`;
   html += `<th style="${thStyle};width:60px;text-align:right">Page(s)</th>`;
   html += '</tr></thead><tbody>';
 
@@ -1036,7 +1036,7 @@ function renderGrps(){
     header.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-        <span class="tab-badge" style="font-size:0.85rem;padding:5px 14px;flex:1;text-align:left" title="Click to set group label (e.g. ANNEX A, SCHEDULE 1)" onclick="editTabLabel('${tab.id}',this)">${escHtml(grpLabel) || '<span style="opacity:0.5;font-weight:400">Click to set label (e.g. ANNEX A)</span>'}</span>
+        <span class="tab-badge" style="font-size:0.85rem;padding:5px 14px;flex:1;text-align:left" title="Click to set group label (e.g. TAB A, ANNEX A, SCHEDULE 1)" onclick="editTabLabel('${tab.id}',this)">${escHtml(grpLabel) || '<span style="opacity:0.5;font-weight:400">Click to set label (e.g. TAB A, ANNEX A)</span>'}</span>
         <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
       </div>
       <input class="tab-name-input" type="text" value="${escHtml(tab.name)}"

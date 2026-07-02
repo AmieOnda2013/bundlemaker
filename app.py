@@ -595,7 +595,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     max_label_len = max((len(t.get("label") or f"{tab_prefix} A") for t in tabs), default=len(tab_prefix) + 2)
     prefix_w = max(0.9, 0.55 + max_label_len * 0.065) * inch
     if has_col:
-        col_widths = [prefix_w, 3.8*inch - (prefix_w - 0.9*inch), 0.9*inch, 0.8*inch]
+        col_widths = [prefix_w, 3.3*inch - (prefix_w - 0.9*inch), 1.4*inch, 0.8*inch]
     else:
         col_widths = [prefix_w, 4.5*inch - (prefix_w - 0.9*inch), 0.8*inch]
     toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
