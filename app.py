@@ -534,16 +534,16 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     shaded_rows = []  # row indices for shading
 
     for grp_idx, tab in enumerate(tabs):
-        label      = alpha_label(grp_idx)
-        row_prefix = tab.get("prefix") or tab_prefix
-        tab_name   = tab.get("name") or f"{row_prefix} {label}"
-        tab_items  = tab.get("items", [])
-        total_pc   = sum(i.get("page_count", 1) for i in tab_items) or 1
-        tab_pg_str = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
+        alpha_lbl      = alpha_label(grp_idx)
+        tab_full_label = tab.get("label") or f"{tab_prefix} {alpha_lbl}"
+        tab_name       = tab.get("name") or tab_full_label
+        tab_items      = tab.get("items", [])
+        total_pc       = sum(i.get("page_count", 1) for i in tab_items) or 1
+        tab_pg_str     = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
 
         shaded_rows.append(len(toc_data))
         toc_data.append(make_row(
-            Paragraph(f"<b>{row_prefix} {label}</b>", grp_st),
+            Paragraph(f"<b>{tab_full_label}</b>", grp_st),
             Paragraph(f"<b>{tab_name}</b>",  grp_st),
             "",
             Paragraph(tab_pg_str, grp_rt),
@@ -592,8 +592,8 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         for _ in _tab.get("items", []):
             row_heights.append(_SUB_H)
 
-    max_prefix_len = max((len(t.get("prefix") or tab_prefix) for t in tabs), default=len(tab_prefix))
-    prefix_w = max(0.9, 0.6 + max_prefix_len * 0.07) * inch
+    max_label_len = max((len(t.get("label") or f"{tab_prefix} A") for t in tabs), default=len(tab_prefix) + 2)
+    prefix_w = max(0.9, 0.55 + max_label_len * 0.065) * inch
     if has_col:
         col_widths = [prefix_w, 3.8*inch - (prefix_w - 0.9*inch), 0.9*inch, 0.8*inch]
     else:
@@ -606,7 +606,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     doc.build(story)
 
 
-def generate_divider_page(tab_label, name, output_path, tab_prefix="Tab"):
+def generate_divider_page(tab_full_label, name, output_path):
     doc = SimpleDocTemplate(output_path, pagesize=letter,
         rightMargin=1*inch, leftMargin=1.25*inch,
         topMargin=2*inch, bottomMargin=1*inch)
@@ -614,7 +614,7 @@ def generate_divider_page(tab_label, name, output_path, tab_prefix="Tab"):
     normal = styles["Normal"]
     story = [
         Spacer(1, 1.5*inch),
-        Paragraph(f"{tab_prefix.upper()} {tab_label}", ParagraphStyle("big", parent=normal,
+        Paragraph(tab_full_label.upper(), ParagraphStyle("big", parent=normal,
             fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=24)),
         Paragraph(name, ParagraphStyle("nm", parent=normal,
             fontName="Times-Roman", fontSize=14, alignment=TA_CENTER, leading=20)),
@@ -723,14 +723,14 @@ def merge_pdfs(session_data, output_path):
 
     # 3. Grouped tabs — Tab A, Tab B… (independent alpha sequence)
     for grp_idx, tab in enumerate(tabs):
-        label    = alpha_label(grp_idx)
+        alpha_lbl      = alpha_label(grp_idx)
         global_prefix  = session_data.get("tab_prefix", "Tab")
-        tab_prefix_val = tab.get("prefix") or global_prefix
-        tab_name = tab.get("name") or f"{tab_prefix_val} {label}"
+        tab_full_label = tab.get("label") or f"{global_prefix} {alpha_lbl}"
+        tab_name       = tab.get("name") or tab_full_label
 
         if use_dividers:
             div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-            generate_divider_page(label, tab_name, div_path, tab_prefix=tab_prefix_val)
+            generate_divider_page(tab_full_label, tab_name, div_path)
             for pg in PdfReader(div_path).pages:
                 writer.add_page(pg)
             os.remove(div_path)
@@ -1172,7 +1172,7 @@ def create_tab():
     sid  = session.get("sid")
     sess = get_session(sid)
     data = request.json or {}
-    tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "prefix": "", "items": []}
+    tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "label": "", "items": []}
     sess["tabs"].append(tab)
     save_session(sid, sess)
     return jsonify(tab)
@@ -1200,8 +1200,8 @@ def update_tab(tab_id):
         if tab["id"] == tab_id:
             if "name" in data:
                 tab["name"] = data["name"]
-            if "prefix" in data:
-                tab["prefix"] = data["prefix"]
+            if "label" in data:
+                tab["label"] = data["label"]
             break
     save_session(sid, sess)
     return jsonify({"ok": True})
