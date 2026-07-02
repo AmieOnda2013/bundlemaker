@@ -1040,7 +1040,7 @@ function renderGrps(){
         <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
       </div>
       <input class="tab-name-input" type="text" value="${escHtml(tab.name)}"
-        placeholder="Group description (optional, appears below label in TOC)"
+        placeholder="Group description (optional)"
         onblur="renameGrp('${tab.id}',this.value)"
         onkeydown="if(event.key==='Enter')this.blur()"
         style="margin-left:24px"/>`;
