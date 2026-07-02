@@ -215,6 +215,7 @@ def _default_session():
         "title": "", "court_file": "", "parties": "", "recitals": "",
         "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
+        "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
     }
 
 def get_session(sid):
@@ -233,6 +234,8 @@ def get_session(sid):
             data["tabs"] = []
         if "use_dividers" not in data:
             data["use_dividers"] = True
+        if "col_header" not in data:
+            data["col_header"] = ""
         # Remove legacy bundle_mode if present
         data.pop("bundle_mode", None)
         return data
@@ -340,7 +343,7 @@ def _make_file_item(f, ext):
 def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        output_path, country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
-                       use_dividers=True):
+                       use_dividers=True, col_header=""):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -428,24 +431,26 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     sub_st = ParagraphStyle("sub",  parent=normal, fontSize=10, leading=15)
     sub_rt = ParagraphStyle("subr", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
-    # Detect if any document has a date — if so, add Date column
-    has_date = any(i.get("doc_date") for i in items) or \
-               any(i.get("doc_date") for t in tabs for i in t.get("items", []))
+    # Detect if any document has an extra column value — if so, add the column
+    has_col = bool(col_header) or \
+              any(i.get("doc_date") for i in items) or \
+              any(i.get("doc_date") for t in tabs for i in t.get("items", []))
+    col_label = col_header or "Date"
     date_st  = ParagraphStyle("date",  parent=normal, fontSize=10, leading=15)
     date_rt  = ParagraphStyle("dater", parent=normal, fontSize=10, alignment=TA_RIGHT, leading=15)
 
     def make_header_row():
-        if has_date:
+        if has_col:
             return [Paragraph("<b>Item</b>", th_st),
                     Paragraph("<b>Document</b>", th_st),
-                    Paragraph("<b>Date</b>", th_st),
+                    Paragraph(f"<b>{col_label}</b>", th_st),
                     Paragraph("<b>Page(s)</b>", th_rt)]
         return [Paragraph("<b>Item</b>", th_st),
                 Paragraph("<b>Document</b>", th_st),
                 Paragraph("<b>Page(s)</b>", th_rt)]
 
     def make_row(label_para, name_para, date_val, page_para):
-        if has_date:
+        if has_col:
             return [label_para, name_para, Paragraph(date_val or "", date_st), page_para]
         return [label_para, name_para, page_para]
 
@@ -530,7 +535,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         for _ in _tab.get("items", []):
             row_heights.append(_SUB_H)
 
-    if has_date:
+    if has_col:
         col_widths = [0.7*inch, 3.8*inch, 0.9*inch, 0.8*inch]
     else:
         col_widths = [0.9*inch, 4.5*inch, 0.8*inch]
@@ -639,6 +644,7 @@ def merge_pdfs(session_data, output_path):
         custom_rules=session_data.get("custom_rules", ""),
         recitals=session_data.get("recitals", ""),
         use_dividers=use_dividers,
+        col_header=session_data.get("col_header", ""),
     )
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
@@ -963,7 +969,7 @@ def update_session():
     data = request.json
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","parties","recitals",
-                "country","jurisdiction","custom_court","custom_rules","use_dividers"):
+                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)

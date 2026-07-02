@@ -622,6 +622,21 @@ footer span{color:var(--gold)}
       <!-- Hidden file input for group uploads -->
       <input type="file" id="grpFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleGrpUpload(this.files)"/>
 
+      <hr class="divider" style="margin:20px 0"/>
+
+      <!-- Extra column header -->
+      <div class="section-label">Optional Extra Column</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Add a column to the table of contents (e.g. Date, Reference, Volume)</div>
+      <input type="text" id="colHeader" placeholder="Column name (e.g. Date)" oninput="saveColHeader();renderTocPreview()"
+        style="width:100%;padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-family:inherit;margin-bottom:4px;box-sizing:border-box"/>
+
+      <hr class="divider" style="margin:20px 0"/>
+
+      <!-- TOC Preview -->
+      <div class="section-label">Table of Contents Preview</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px">Live preview of your index as it will appear in the bundle</div>
+      <div id="tocPreview" style="font-size:0.78rem;font-family:'Times New Roman',Times,serif;border:1px solid #ddd;border-radius:6px;overflow:hidden;background:#fff"></div>
+
     </div>
   </div>
 
@@ -720,10 +735,12 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('useDividers').checked = s.use_dividers !== false;
+  document.getElementById('colHeader').value = s.col_header || '';
   items = s.items || [];
   tabs  = s.tabs  || [];
   renderInd();
   renderGrps();
+  renderTocPreview();
 }
 
 async function saveSettings(){
@@ -739,8 +756,83 @@ async function saveSettings(){
       parties: document.getElementById('parties').value,
       recitals: document.getElementById('recitals').value,
       use_dividers: document.getElementById('useDividers').checked,
+      col_header: document.getElementById('colHeader').value,
     })
   });
+}
+
+let _colHeaderTimer = null;
+function saveColHeader(){
+  clearTimeout(_colHeaderTimer);
+  _colHeaderTimer = setTimeout(()=>{
+    fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({col_header: document.getElementById('colHeader').value})});
+  }, 500);
+}
+
+function renderTocPreview(){
+  const colHeader = document.getElementById('colHeader').value.trim();
+  const hasCol = colHeader !== '';
+  const el = document.getElementById('tocPreview');
+  if(!items.length && !tabs.length){
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:#aaa;font-family:inherit;font-size:0.78rem">No documents added yet</div>';
+    return;
+  }
+  const thStyle = 'padding:6px 8px;border-bottom:2px solid #000;font-weight:bold;background:#f5f2eb;font-size:0.78rem';
+  const tdStyle = 'padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:0.76rem;vertical-align:top';
+  const tdRStyle = 'padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:0.76rem;text-align:right;vertical-align:top;white-space:nowrap';
+  const trShade = 'background:#f0ece3';
+  let html = '<table style="width:100%;border-collapse:collapse;font-family:Times New Roman,Times,serif">';
+  html += '<thead><tr>';
+  html += `<th style="${thStyle};width:44px">#</th>`;
+  html += `<th style="${thStyle}">Document</th>`;
+  if(hasCol) html += `<th style="${thStyle};width:90px">${escHtml(colHeader)}</th>`;
+  html += `<th style="${thStyle};width:60px;text-align:right">Page(s)</th>`;
+  html += '</tr></thead><tbody>';
+
+  let pageNum = 1;
+  let itemNum = 1;
+
+  for(const item of items){
+    const name = item.custom_name || item.filename || 'Document';
+    const pc = item.page_count || 1;
+    const pageStr = pc===1 ? String(pageNum) : `${pageNum}–${pageNum+pc-1}`;
+    html += `<tr><td style="${tdStyle}">${itemNum}</td>`;
+    html += `<td style="${tdStyle}">${escHtml(name)}</td>`;
+    if(hasCol) html += `<td style="${tdStyle}">${escHtml(item.doc_date||'')}</td>`;
+    html += `<td style="${tdRStyle}">${pageStr}</td></tr>`;
+    pageNum += pc;
+    itemNum++;
+  }
+
+  const alpha = n=>{ let r=''; while(n>=0){r=String.fromCharCode(65+(n%26))+r;n=Math.floor(n/26)-1;} return r; };
+  tabs.forEach((tab, gi)=>{
+    const label = alpha(gi);
+    const tabName = tab.name || `Tab ${label}`;
+    const tabItems = tab.items || [];
+    const totalPc = tabItems.reduce((s,i)=>s+(i.page_count||1),0)||1;
+    const tabPageStr = totalPc===1 ? String(pageNum) : `${pageNum}–${pageNum+totalPc-1}`;
+    html += `<tr style="${trShade}"><td style="${tdStyle}"><b>Tab ${label}</b></td>`;
+    html += `<td style="${tdStyle}"><b>${escHtml(tabName)}</b></td>`;
+    if(hasCol) html += `<td style="${tdStyle}"></td>`;
+    html += `<td style="${tdRStyle}"><b>${tabPageStr}</b></td></tr>`;
+    let docPage = pageNum;
+    for(const item of tabItems){
+      const name = item.custom_name || item.filename || 'Document';
+      const pc = item.page_count || 1;
+      const ps = pc===1 ? String(docPage) : `${docPage}–${docPage+pc-1}`;
+      html += `<tr><td style="${tdStyle};padding-left:16px">${itemNum}</td>`;
+      html += `<td style="${tdStyle};padding-left:16px;font-size:0.73rem">${escHtml(name)}</td>`;
+      if(hasCol) html += `<td style="${tdStyle};font-size:0.73rem">${escHtml(item.doc_date||'')}</td>`;
+      html += `<td style="${tdRStyle};font-size:0.73rem">${ps}</td></tr>`;
+      docPage += pc;
+      itemNum++;
+    }
+    pageNum += totalPc;
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 /* ── Helpers ── */
@@ -1105,6 +1197,7 @@ function updateCount(){
   const el = document.getElementById('docCount');
   el.style.display = total ? 'inline' : 'none';
   el.textContent   = `${total} document${total!==1?'s':''}`;
+  renderTocPreview();
 }
 
 /* ── Generate / Reset ── */
