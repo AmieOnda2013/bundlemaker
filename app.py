@@ -22,6 +22,7 @@ from models import db, User, PLAN_LIMITS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 365  # 1 year
 
 # Comma-separated owner/admin emails — these accounts bypass all bundle limits and email verification
@@ -49,7 +50,7 @@ db.init_app(app)
 
 # ── Mail (Brevo HTTP API) ─────────────────────────────────────────────────────
 BREVO_API_KEY     = os.environ.get("BREVO_API_KEY", "")
-MAIL_FROM_EMAIL   = os.environ.get("MAIL_FROM_EMAIL", "atty.onda@outlook.com")
+MAIL_FROM_EMAIL   = os.environ.get("MAIL_FROM_EMAIL", "noreply@bundlemaker.app")
 MAIL_FROM_NAME    = os.environ.get("MAIL_FROM_NAME", "BundleMaker")
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ def _migrate_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS bundles_used INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS bundles_reset_date TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)",
     ]
     for sql in migrations:
         try:
@@ -863,7 +865,10 @@ def login():
         user     = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user and user.check_password(password):
             login_user(user, remember=True)
-            return redirect(request.args.get("next") or url_for("home"))
+            next_url = request.args.get("next", "")
+            if next_url and not next_url.startswith("/"):
+                next_url = ""
+            return redirect(next_url or url_for("home"))
         error = "Invalid email or password."
     return render_template("login.html", error=error)
 
@@ -1005,7 +1010,11 @@ def internal_error(e):
         db.session.rollback()
     except Exception:
         pass
-    return f"<h2>Server Error</h2><pre>{orig}\n\n{tb}</pre><p>Contact support@bundlemaker.app</p>", 500
+    return render_template("error.html", message="Something went wrong on our end. Please try again or contact support@bundlemaker.app."), 500
+
+@app.errorhandler(413)
+def file_too_large(e):
+    return jsonify({"error": "File too large. Maximum upload size is 50 MB per request."}), 413
 
 
 @app.route("/health")
@@ -1337,8 +1346,20 @@ def generate():
         if not is_owner():
             current_user.bundles_used += 1
             db.session.commit()
+        # Clean up uploaded source files now that the bundle is built
+        all_items = list(sess.get("items", []))
+        for t in sess.get("tabs", []):
+            all_items.extend(t.get("items", []))
+        for item in all_items:
+            fp = item.get("filepath")
+            if fp and os.path.exists(fp):
+                try:
+                    os.remove(fp)
+                except OSError:
+                    pass
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Generate error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to generate bundle. Please try again."}), 500
     return jsonify({
         "filename": out_name,
         "bundles_used": current_user.bundles_used,
