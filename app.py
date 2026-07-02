@@ -217,6 +217,7 @@ def _default_session():
         "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
         "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
+        "tab_prefix": "Tab",   # label prefix for groups (e.g. "Tab", "Exhibit", "Schedule")
     }
 
 def get_session(sid):
@@ -237,6 +238,8 @@ def get_session(sid):
             data["use_dividers"] = True
         if "col_header" not in data:
             data["col_header"] = ""
+        if "tab_prefix" not in data:
+            data["tab_prefix"] = "Tab"
         # Remove legacy bundle_mode if present
         data.pop("bundle_mode", None)
         return data
@@ -396,7 +399,7 @@ def _make_file_item(f, ext):
 def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        output_path, country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
-                       use_dividers=True, col_header=""):
+                       use_dividers=True, col_header="", tab_prefix="Tab"):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -539,7 +542,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
 
         shaded_rows.append(len(toc_data))
         toc_data.append(make_row(
-            Paragraph(f"<b>Tab {label}</b>", grp_st),
+            Paragraph(f"<b>{tab_prefix} {label}</b>", grp_st),
             Paragraph(f"<b>{tab_name}</b>",  grp_st),
             "",
             Paragraph(tab_pg_str, grp_rt),
@@ -588,10 +591,11 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         for _ in _tab.get("items", []):
             row_heights.append(_SUB_H)
 
+    prefix_w = max(0.9, 0.6 + len(tab_prefix) * 0.07) * inch
     if has_col:
-        col_widths = [0.7*inch, 3.8*inch, 0.9*inch, 0.8*inch]
+        col_widths = [prefix_w, 3.8*inch - (prefix_w - 0.9*inch), 0.9*inch, 0.8*inch]
     else:
-        col_widths = [0.9*inch, 4.5*inch, 0.8*inch]
+        col_widths = [prefix_w, 4.5*inch - (prefix_w - 0.9*inch), 0.8*inch]
     toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
@@ -600,7 +604,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     doc.build(story)
 
 
-def generate_divider_page(tab_label, name, output_path):
+def generate_divider_page(tab_label, name, output_path, tab_prefix="Tab"):
     doc = SimpleDocTemplate(output_path, pagesize=letter,
         rightMargin=1*inch, leftMargin=1.25*inch,
         topMargin=2*inch, bottomMargin=1*inch)
@@ -608,7 +612,7 @@ def generate_divider_page(tab_label, name, output_path):
     normal = styles["Normal"]
     story = [
         Spacer(1, 1.5*inch),
-        Paragraph(f"TAB {tab_label}", ParagraphStyle("big", parent=normal,
+        Paragraph(f"{tab_prefix.upper()} {tab_label}", ParagraphStyle("big", parent=normal,
             fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=24)),
         Paragraph(name, ParagraphStyle("nm", parent=normal,
             fontName="Times-Roman", fontSize=14, alignment=TA_CENTER, leading=20)),
@@ -698,6 +702,7 @@ def merge_pdfs(session_data, output_path):
         recitals=session_data.get("recitals", ""),
         use_dividers=use_dividers,
         col_header=session_data.get("col_header", ""),
+        tab_prefix=session_data.get("tab_prefix", "Tab"),
     )
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
@@ -717,11 +722,12 @@ def merge_pdfs(session_data, output_path):
     # 3. Grouped tabs — Tab A, Tab B… (independent alpha sequence)
     for grp_idx, tab in enumerate(tabs):
         label    = alpha_label(grp_idx)
-        tab_name = tab.get("name") or f"Tab {label}"
+        tab_prefix_val = session_data.get("tab_prefix", "Tab")
+        tab_name = tab.get("name") or f"{tab_prefix_val} {label}"
 
         if use_dividers:
             div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-            generate_divider_page(label, tab_name, div_path)
+            generate_divider_page(label, tab_name, div_path, tab_prefix=tab_prefix_val)
             for pg in PdfReader(div_path).pages:
                 writer.add_page(pg)
             os.remove(div_path)
@@ -1022,7 +1028,7 @@ def update_session():
     data = request.json
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","parties","recitals",
-                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header"):
+                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
@@ -1040,6 +1046,8 @@ def get_jurisdictions():
 @app.route("/api/upload", methods=["POST"])
 @login_required
 def upload():
+    if "sid" not in session:
+        session["sid"] = uuid.uuid4().hex
     sid  = session.get("sid")
     sess = get_session(sid)
     added = []
@@ -1207,6 +1215,8 @@ def delete_tab(tab_id):
 @app.route("/api/tabs/<tab_id>/upload", methods=["POST"])
 @login_required
 def upload_to_tab(tab_id):
+    if "sid" not in session:
+        session["sid"] = uuid.uuid4().hex
     sid  = session.get("sid")
     sess = get_session(sid)
     tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
