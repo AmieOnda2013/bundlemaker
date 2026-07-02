@@ -5,7 +5,7 @@ import uuid
 import shutil
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_mail import Mail, Message
+import requests as http_requests
 from pypdf import PdfReader, PdfWriter
 from pypdf.annotations import Link
 from pypdf.generic import RectangleObject
@@ -47,15 +47,10 @@ app.config["SESSION_COOKIE_SECURE"]    = os.environ.get("RAILWAY_ENVIRONMENT") =
 
 db.init_app(app)
 
-# ── Mail ─────────────────────────────────────────────────────────────────────
-app.config["MAIL_SERVER"]   = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"]     = int(os.environ.get("MAIL_PORT", 465))
-app.config["MAIL_USE_TLS"]  = os.environ.get("MAIL_USE_TLS", "false").lower() == "true"
-app.config["MAIL_USE_SSL"]  = os.environ.get("MAIL_USE_SSL", "true").lower() == "true"
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
-app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@bundlemaker.app")
-mail = Mail(app)
+# ── Mail (Brevo HTTP API) ─────────────────────────────────────────────────────
+BREVO_API_KEY     = os.environ.get("BREVO_API_KEY", "")
+MAIL_FROM_EMAIL   = os.environ.get("MAIL_FROM_EMAIL", "atty.onda@outlook.com")
+MAIL_FROM_NAME    = os.environ.get("MAIL_FROM_NAME", "BundleMaker")
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -713,25 +708,33 @@ def register():
 def _send_verification_email(user, token):
     verify_url = url_for("verify_email", token=token, _external=True)
     recipient = user.email
-    msg = Message(
-        subject="Verify your BundleMaker email",
-        recipients=[recipient],
-        html=f"""
-        <p>Welcome to BundleMaker!</p>
-        <p>Please click the link below to verify your email address and unlock your 3 free bundle generations:</p>
-        <p><a href="{verify_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify Email Address</a></p>
-        <p>Or copy this link: {verify_url}</p>
-        <p>If you did not create a BundleMaker account, you can safely ignore this email.</p>
-        """
-    )
-    def _send(app_, msg_):
+    html = f"""
+    <p>Welcome to BundleMaker!</p>
+    <p>Please click the link below to verify your email address and unlock your 3 free bundle generations:</p>
+    <p><a href="{verify_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify Email Address</a></p>
+    <p>Or copy this link: {verify_url}</p>
+    <p>If you did not create a BundleMaker account, you can safely ignore this email.</p>
+    """
+    def _send(app_):
         with app_.app_context():
             try:
-                mail.send(msg_)
+                resp = http_requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": MAIL_FROM_NAME, "email": MAIL_FROM_EMAIL},
+                        "to": [{"email": recipient}],
+                        "subject": "Verify your BundleMaker email",
+                        "htmlContent": html,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code >= 300:
+                    app_.logger.error(f"Brevo API error: {resp.status_code} {resp.text}")
             except Exception as e:
                 app_.logger.error(f"Failed to send verification email: {e}")
     import threading
-    threading.Thread(target=_send, args=(app, msg), daemon=True).start()
+    threading.Thread(target=_send, args=(app,), daemon=True).start()
 
 
 @app.route("/verify-email/<token>")
