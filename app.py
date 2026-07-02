@@ -220,8 +220,12 @@ def _default_session():
 def get_session(sid):
     path = session_path(sid)
     if os.path.exists(path):
-        with open(path) as f:
-            data = json.load(f)
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            app.logger.warning(f"Corrupted session {sid}, resetting")
+            return _default_session()
         # Migrate: old flat-only sessions (items but no tabs)
         if "items" not in data:
             data["items"] = []
@@ -235,8 +239,11 @@ def get_session(sid):
     return _default_session()
 
 def save_session(sid, data):
-    with open(session_path(sid), "w") as f:
+    path = session_path(sid)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(data, f)
+    os.replace(tmp, path)
 
 
 # ── Label helpers ────────────────────────────────────────────────────────────
