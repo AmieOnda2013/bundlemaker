@@ -710,22 +710,27 @@ def register():
 
 
 def _send_verification_email(user, token):
-    try:
-        verify_url = url_for("verify_email", token=token, _external=True)
-        msg = Message(
-            subject="Verify your BundleMaker email",
-            recipients=[user.email],
-            html=f"""
-            <p>Welcome to BundleMaker!</p>
-            <p>Please click the link below to verify your email address and unlock your 3 free bundle generations:</p>
-            <p><a href="{verify_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify Email Address</a></p>
-            <p>Or copy this link: {verify_url}</p>
-            <p>If you did not create a BundleMaker account, you can safely ignore this email.</p>
-            """
-        )
-        mail.send(msg)
-    except Exception as e:
-        app.logger.error(f"Failed to send verification email: {e}")
+    verify_url = url_for("verify_email", token=token, _external=True)
+    recipient = user.email
+    msg = Message(
+        subject="Verify your BundleMaker email",
+        recipients=[recipient],
+        html=f"""
+        <p>Welcome to BundleMaker!</p>
+        <p>Please click the link below to verify your email address and unlock your 3 free bundle generations:</p>
+        <p><a href="{verify_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify Email Address</a></p>
+        <p>Or copy this link: {verify_url}</p>
+        <p>If you did not create a BundleMaker account, you can safely ignore this email.</p>
+        """
+    )
+    def _send(app_, msg_):
+        with app_.app_context():
+            try:
+                mail.send(msg_)
+            except Exception as e:
+                app_.logger.error(f"Failed to send verification email: {e}")
+    import threading
+    threading.Thread(target=_send, args=(app, msg), daemon=True).start()
 
 
 @app.route("/verify-email/<token>")
