@@ -288,6 +288,30 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   flex-shrink:0;
   letter-spacing:0.06em;
   font-family:'Inter',sans-serif;
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+}
+.tab-badge:hover::after{
+  content:'✎';
+  font-size:0.6rem;
+  margin-left:4px;
+  opacity:0.7;
+}
+.tab-prefix-input{
+  background:var(--navy);
+  color:var(--gold);
+  font-size:0.68rem;
+  font-weight:700;
+  border:1.5px solid var(--gold);
+  border-radius:3px;
+  padding:2px 6px;
+  width:70px;
+  text-align:center;
+  letter-spacing:0.06em;
+  font-family:'Inter',sans-serif;
+  outline:none;
+  flex-shrink:0;
 }
 .num-badge{
   background:var(--cream);
@@ -1029,7 +1053,7 @@ function renderGrps(){
     header.className = 'tab-group-header';
     header.innerHTML = `
       <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-      <span class="tab-badge" style="font-size:0.85rem;padding:3px 10px">TAB ${escHtml(lbl)}</span>
+      <span class="tab-badge" style="font-size:0.85rem;padding:3px 10px" title="Click to rename group label" onclick="editTabPrefix('${tab.id}',this,'${lbl}')">${escHtml((tab.prefix||(document.getElementById('tabPrefix').value)||'Tab').toUpperCase())} ${escHtml(lbl)}</span>
       <input class="tab-name-input" type="text" value="${escHtml(tab.name)}"
         placeholder="Group name / description"
         onblur="renameGrp('${tab.id}',this.value)"
@@ -1151,6 +1175,26 @@ async function renameGrp(id, name){
   if(tab) tab.name = name;
   await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
   renderGrps();
+}
+
+function editTabPrefix(id, badgeEl, lbl){
+  const tab = tabs.find(t=>t.id===id);
+  if(!tab) return;
+  const current = tab.prefix || document.getElementById('tabPrefix').value || 'Tab';
+  const inp = document.createElement('input');
+  inp.className = 'tab-prefix-input';
+  inp.value = current;
+  inp.style.width = Math.max(60, current.length * 10 + 20) + 'px';
+  badgeEl.replaceWith(inp);
+  inp.focus(); inp.select();
+  async function commit(){
+    const val = inp.value.trim() || '';
+    tab.prefix = val;
+    await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefix:val})});
+    renderGrps();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=current; inp.blur(); } });
 }
 
 async function deleteGrp(id){
