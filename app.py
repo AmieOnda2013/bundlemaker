@@ -771,6 +771,22 @@ def dev_delete_user(email):
     return f"Deleted {email}", 200
 
 
+@app.route("/dev-resend-verification/<email>")
+def dev_resend_verification(email):
+    if not is_owner():
+        return "Forbidden", 403
+    user = db.session.execute(db.select(User).filter_by(email=email.lower())).scalar_one_or_none()
+    if not user:
+        return f"User {email} not found", 404
+    import secrets
+    token = secrets.token_urlsafe(32)
+    user.email_verified = False
+    user.email_verify_token = token
+    db.session.commit()
+    _send_verification_email(user, token)
+    return f"Verification email sent to {email}", 200
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
