@@ -758,6 +758,18 @@ def resend_verification():
     return redirect(url_for("home"))
 
 
+@app.route("/dev-delete-user/<email>")
+def dev_delete_user(email):
+    if not is_owner():
+        return "Forbidden", 403
+    user = db.session.execute(db.select(User).filter_by(email=email.lower())).scalar_one_or_none()
+    if not user:
+        return f"User {email} not found", 404
+    db.session.delete(user)
+    db.session.commit()
+    return f"Deleted {email}", 200
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
