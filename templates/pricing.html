@@ -66,6 +66,7 @@
     <span class="toggle-label" id="lbl-annual">Annual <span class="save-badge">Save 17%</span></span>
   </div>
 
+  {% if not current_user.is_authenticated %}
   <div class="free-card">
     <div class="info">
       <h3>Free Trial — $0</h3>
@@ -73,6 +74,7 @@
     </div>
     <a href="/register" class="btn-outline">Start Free</a>
   </div>
+  {% endif %}
 
   <div class="cards">
     <div class="card">
