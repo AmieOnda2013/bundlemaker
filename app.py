@@ -63,18 +63,18 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 PLANS = {
     "solo": {
         "name": "Solo", "bundles": 20,
-        "monthly": {"price": "$23/mo",  "price_id": os.environ.get("STRIPE_SOLO_MONTHLY_PRICE_ID", "")},
-        "annual":  {"price": "$19/mo",  "price_id": os.environ.get("STRIPE_SOLO_ANNUAL_PRICE_ID",  ""), "total": "$228/yr"},
+        "monthly": {"price": "$19/mo",  "price_id": os.environ.get("STRIPE_SOLO_MONTHLY_PRICE_ID", "")},
+        "annual":  {"price": "$16/mo",  "price_id": os.environ.get("STRIPE_SOLO_ANNUAL_PRICE_ID",  ""), "total": "$192/yr"},
     },
     "professional": {
         "name": "Professional", "bundles": 60,
-        "monthly": {"price": "$59/mo",  "price_id": os.environ.get("STRIPE_PRO_MONTHLY_PRICE_ID",  "")},
-        "annual":  {"price": "$49/mo",  "price_id": os.environ.get("STRIPE_PRO_ANNUAL_PRICE_ID",   ""), "total": "$588/yr"},
+        "monthly": {"price": "$49/mo",  "price_id": os.environ.get("STRIPE_PRO_MONTHLY_PRICE_ID",  "")},
+        "annual":  {"price": "$41/mo",  "price_id": os.environ.get("STRIPE_PRO_ANNUAL_PRICE_ID",   ""), "total": "$492/yr"},
     },
     "firm": {
         "name": "Firm", "bundles": None,
-        "monthly": {"price": "$119/mo", "price_id": os.environ.get("STRIPE_FIRM_MONTHLY_PRICE_ID", "")},
-        "annual":  {"price": "$99/mo",  "price_id": os.environ.get("STRIPE_FIRM_ANNUAL_PRICE_ID",  ""), "total": "$1,188/yr"},
+        "monthly": {"price": "$99/mo",  "price_id": os.environ.get("STRIPE_FIRM_MONTHLY_PRICE_ID", "")},
+        "annual":  {"price": "$82/mo",  "price_id": os.environ.get("STRIPE_FIRM_ANNUAL_PRICE_ID",  ""), "total": "$984/yr"},
     },
 }
 
