@@ -431,28 +431,40 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 
 /* ── Divider entries ──────────────────────────────── */
 .divider-entry {
-  display:flex; align-items:center; gap:8px;
-  background: var(--navy); color: var(--gold);
-  border-radius: var(--radius); padding: 8px 10px;
-  margin-bottom: 4px;
+  background:var(--white);
+  border:1px solid var(--border2);
+  border-left:4px solid var(--navy);
+  border-radius:4px;
+  padding:10px 14px;
+  display:flex; align-items:center; gap:10px;
   cursor:grab;
+  box-shadow:0 1px 4px rgba(13,27,42,0.06);
+  transition:box-shadow .15s, border-color .15s;
 }
-.divider-entry.dragging{opacity:0.35}
-.divider-entry.drag-over{box-shadow:0 0 0 2px var(--gold2)}
+.divider-entry:hover{box-shadow:var(--shadow)}
+.divider-entry.dragging{opacity:0.35;transform:scale(0.98)}
+.divider-entry.drag-over{border-left-color:var(--gold);background:rgba(201,168,76,0.05);box-shadow:var(--shadow2)}
 .divider-title-input {
-  width:100%; background:transparent; border:none; border-bottom:1.5px solid var(--gold);
-  color:var(--gold); font-weight:700; font-size:0.88rem; font-family:inherit;
-  outline:none; padding:2px 0;
+  width:100%; background:transparent; border:none;
+  border-bottom:1.5px solid var(--border);
+  color:var(--navy); font-weight:700; font-size:0.88rem; font-family:inherit;
+  outline:none; padding:2px 0; letter-spacing:0.02em;
 }
-.divider-title-input::placeholder { color: rgba(201,168,76,0.5); }
+.divider-title-input:focus { border-bottom-color:var(--gold); }
+.divider-title-input::placeholder { color:var(--muted); font-weight:400; }
 .divider-desc-input {
   width:100%; background:transparent; border:none;
-  color: rgba(201,168,76,0.8); font-size:0.78rem; font-family:inherit;
-  outline:none; padding:2px 0; margin-top:2px;
+  color:var(--ink2); font-size:0.78rem; font-family:inherit;
+  outline:none; padding:2px 0; margin-top:4px;
+  border-bottom:1px dashed transparent;
 }
-.divider-desc-input::placeholder { color: rgba(201,168,76,0.35); }
-.restart-label { font-size:0.68rem; color:rgba(201,168,76,0.8); white-space:nowrap; cursor:pointer; flex-shrink:0; }
-.restart-label input { margin-right:3px; }
+.divider-desc-input:focus { border-bottom-color:var(--border); }
+.divider-desc-input::placeholder { color:var(--muted); font-style:italic; }
+.restart-label {
+  font-size:0.68rem; color:var(--muted); white-space:nowrap;
+  cursor:pointer; flex-shrink:0; display:flex; align-items:center; gap:4px;
+}
+.restart-label input { accent-color:var(--navy); }
 
 /* ── Footer ───────────────────────────────────────── */
 footer{
@@ -968,6 +980,7 @@ function renderEntries(){
     row.draggable  = true;
 
     if(entry.type === 'divider'){
+      if(entry.restart_num) num = 1;
       row.className = 'divider-entry';
       row.innerHTML = `
         <span class="drag-handle" title="Drag to reorder">⠿</span>
@@ -984,7 +997,6 @@ function renderEntries(){
         <button class="btn btn-remove" onclick="deleteEntry('${entry.id}')" title="Remove">✕</button>`;
     } else {
       // doc entry
-      if(entry.restart_num) num = 1; // shouldn't happen on doc but guard
       const name  = entry.custom_name || entry.filename;
       const isImg = entry.file_type === 'image';
       const ext   = (entry.original_ext||'.pdf').replace('.','').toUpperCase();
