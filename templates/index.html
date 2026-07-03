@@ -521,6 +521,21 @@ footer span{color:var(--gold)}
   </div>
 </header>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, msg in messages %}
+  <div style="background:{% if category == 'error' %}#fff0f0{% elif category == 'success' %}#f0faf0{% else %}#fffbe6{% endif %};border-bottom:1px solid {% if category == 'error' %}#f5c6c6{% elif category == 'success' %}#b2dfdb{% else %}#ffe082{% endif %};color:{% if category == 'error' %}#c0392b{% elif category == 'success' %}#2e7d32{% else %}#7a5700{% endif %};padding:12px 24px;font-size:0.88rem;text-align:center;">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endwith %}
+
+{% if current_user.is_authenticated and not current_user.email_verified %}
+<div style="background:#fffbe6;border-bottom:1px solid #ffe082;color:#7a5700;padding:12px 24px;font-size:0.88rem;text-align:center;">
+  Please verify your email address before generating bundles. Check your inbox for a verification link.
+  <a href="/resend-verification" style="color:#7a5700;font-weight:700;margin-left:8px;">Resend email</a>
+</div>
+{% endif %}
+
 <!-- ── Main ── -->
 <div class="page">
 <div class="layout">

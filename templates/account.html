@@ -104,7 +104,7 @@
         <span class="row-value">{{ current_user.bundles_used }} &mdash; Unlimited</span>
       </div>
       {% elif current_user.plan in ['solo', 'professional'] %}
-        {% set limit = 20 if current_user.plan == 'solo' else 60 %}
+        {% set limit = plan_limits[current_user.plan] %}
         {% set remaining = [limit - current_user.bundles_used, 0] | max %}
         {% set pct = [(current_user.bundles_used / limit * 100), 100] | min | round %}
       <div style="display:flex;justify-content:space-between;width:100%">

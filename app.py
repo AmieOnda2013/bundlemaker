@@ -4,6 +4,7 @@ import json
 import uuid
 import shutil
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
+from markupsafe import escape
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import requests as http_requests
 from pypdf import PdfReader, PdfWriter
@@ -147,8 +148,8 @@ JURISDICTIONS = {
         {"value": "BC",     "label": "British Columbia",             "court": "SUPREME COURT OF BRITISH COLUMBIA",       "rule_body": "Supreme Court Civil Rules, B.C. Reg. 168/2009"},
         {"value": "AB",     "label": "Alberta",                     "court": "COURT OF KING'S BENCH OF ALBERTA",        "rule_body": "Alberta Rules of Court, Alta. Reg. 124/2010"},
         {"value": "QC",     "label": "Québec",                      "court": "SUPERIOR COURT",                          "rule_body": "Code of Civil Procedure, CQLR c. C-25.01"},
-        {"value": "MB",     "label": "Manitoba",                    "court": "COURT OF KING'S BENCH OF MANITOBA",       "rule_body": "Court of Queen's Bench Rules, Man. Reg. 553/88"},
-        {"value": "SK",     "label": "Saskatchewan",                "court": "COURT OF KING'S BENCH FOR SASKATCHEWAN",  "rule_body": "Queen's Bench Rules"},
+        {"value": "MB",     "label": "Manitoba",                    "court": "COURT OF KING'S BENCH OF MANITOBA",       "rule_body": "King's Bench Rules, Man. Reg. 553/88"},
+        {"value": "SK",     "label": "Saskatchewan",                "court": "COURT OF KING'S BENCH FOR SASKATCHEWAN",  "rule_body": "King's Bench Rules (Sask.)"},
         {"value": "NS",     "label": "Nova Scotia",                 "court": "SUPREME COURT OF NOVA SCOTIA",            "rule_body": "Nova Scotia Civil Procedure Rules"},
         {"value": "NB",     "label": "New Brunswick",               "court": "COURT OF KING'S BENCH OF NEW BRUNSWICK",  "rule_body": "Rules of Court, NB Reg. 82-73"},
         {"value": "CA_FED", "label": "Federal Court of Canada",     "court": "FEDERAL COURT",                           "rule_body": "Federal Courts Rules, SOR/98-106"},
@@ -867,7 +868,7 @@ def forgot_password():
         if user:
             token = user.generate_reset_token()
             db.session.commit()
-            reset_url = request.host_url.rstrip("/") + f"/reset-password/{token}"
+            reset_url = url_for("reset_password", token=token, _external=True)
             html = f"""
             <p>You requested a password reset for your BundleMaker account.</p>
             <p><a href="{reset_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a></p>
@@ -952,7 +953,7 @@ def logout():
 @app.route("/account")
 @login_required
 def account():
-    return render_template("account.html", plans=PLANS)
+    return render_template("account.html", plans=PLANS, plan_limits=PLAN_LIMITS)
 
 
 @app.route("/pricing")
@@ -1076,6 +1077,9 @@ def stripe_webhook():
                 for plan_key, plan_data in PLANS.items():
                     for pd in ("monthly", "annual"):
                         if plan_data[pd]["price_id"] == price_id:
+                            if user.plan != plan_key:
+                                user.bundles_used = 0
+                                user.bundles_reset_date = datetime.datetime.utcnow() + datetime.timedelta(days=30)
                             user.plan = plan_key
                             user.plan_period = pd
                             app.logger.info(f"Updated {user.email} to {plan_key} ({pd}) via subscription event")
@@ -1140,7 +1144,7 @@ def admin_set_plan():
       <button type="submit">Update Plan</button>
     </form>
     <table><tr><th>Email</th><th>Plan</th><th>Bundles used</th><th>Verified</th></tr>
-    {''.join(f"<tr><td>{u.email}</td><td>{u.plan}</td><td>{u.bundles_used}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
+    {''.join(f"<tr><td>{escape(u.email)}</td><td>{escape(u.plan)}</td><td>{u.bundles_used}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
     </table></body></html>"""
     return html
 
@@ -1194,18 +1198,26 @@ def terms():
     return render_template("terms.html")
 
 
+def _get_sid():
+    """Always returns a valid sid, initializing the session if needed."""
+    if "sid" not in session:
+        session["sid"] = uuid.uuid4().hex
+    return session["sid"]
+
+
 @app.route("/api/session", methods=["GET"])
 @login_required
 def get_session_data():
-    sid = session.get("sid", uuid.uuid4().hex)
-    session["sid"] = sid
+    sid = _get_sid()
     return jsonify(get_session(sid))
 
 
 @app.route("/api/session", methods=["POST"])
 @login_required
 def update_session():
-    sid  = session.get("sid")
+    if "sid" not in session:
+        session["sid"] = uuid.uuid4().hex
+    sid  = _get_sid()
     data = request.json
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","parties","recitals",
@@ -1230,7 +1242,7 @@ def get_jurisdictions():
 def upload():
     if "sid" not in session:
         session["sid"] = uuid.uuid4().hex
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     added = []
     for f in request.files.getlist("files"):
@@ -1247,14 +1259,14 @@ def upload():
 @app.route("/api/items", methods=["GET"])
 @login_required
 def get_items():
-    sid = session.get("sid")
+    sid = _get_sid()
     return jsonify(get_session(sid).get("items", []))
 
 
 @app.route("/api/items/reorder", methods=["POST"])
 @login_required
 def reorder_items():
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     order = request.json.get("order", [])
     id_map = {i["id"]: i for i in sess["items"]}
@@ -1266,7 +1278,7 @@ def reorder_items():
 @app.route("/api/items/transfer", methods=["POST"])
 @login_required
 def transfer_item():
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     data      = request.json or {}
     item_id   = data.get("item_id")
@@ -1312,7 +1324,7 @@ def transfer_item():
 @app.route("/api/items/<item_id>", methods=["PATCH"])
 @login_required
 def update_item(item_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     data = request.json or {}
     for item in sess["items"]:
@@ -1329,7 +1341,7 @@ def update_item(item_id):
 @app.route("/api/items/<item_id>", methods=["DELETE"])
 @login_required
 def delete_item(item_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     sess["items"] = [i for i in sess["items"] if i["id"] != item_id]
     save_session(sid, sess)
@@ -1341,14 +1353,14 @@ def delete_item(item_id):
 @app.route("/api/tabs", methods=["GET"])
 @login_required
 def get_tabs():
-    sid = session.get("sid")
+    sid = _get_sid()
     return jsonify(get_session(sid).get("tabs", []))
 
 
 @app.route("/api/tabs", methods=["POST"])
 @login_required
 def create_tab():
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     data = request.json or {}
     tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "label": "", "items": []}
@@ -1360,7 +1372,7 @@ def create_tab():
 @app.route("/api/tabs/reorder", methods=["POST"])
 @login_required
 def reorder_tabs():
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     order = request.json.get("order", [])
     id_map = {t["id"]: t for t in sess["tabs"]}
@@ -1372,7 +1384,7 @@ def reorder_tabs():
 @app.route("/api/tabs/<tab_id>", methods=["PATCH"])
 @login_required
 def update_tab(tab_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     data = request.json or {}
     for tab in sess["tabs"]:
@@ -1389,7 +1401,7 @@ def update_tab(tab_id):
 @app.route("/api/tabs/<tab_id>", methods=["DELETE"])
 @login_required
 def delete_tab(tab_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
     save_session(sid, sess)
@@ -1401,7 +1413,7 @@ def delete_tab(tab_id):
 def upload_to_tab(tab_id):
     if "sid" not in session:
         session["sid"] = uuid.uuid4().hex
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
     if tab is None:
@@ -1421,7 +1433,7 @@ def upload_to_tab(tab_id):
 @app.route("/api/tabs/<tab_id>/items/reorder", methods=["POST"])
 @login_required
 def reorder_tab_items(tab_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
     if tab is None:
@@ -1436,7 +1448,7 @@ def reorder_tab_items(tab_id):
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["PATCH"])
 @login_required
 def update_tab_item(tab_id, item_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     data = request.json or {}
     for tab in sess["tabs"]:
@@ -1456,7 +1468,7 @@ def update_tab_item(tab_id, item_id):
 @app.route("/api/tabs/<tab_id>/items/<item_id>", methods=["DELETE"])
 @login_required
 def delete_tab_item(tab_id, item_id):
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     for tab in sess["tabs"]:
         if tab["id"] == tab_id:
@@ -1489,7 +1501,7 @@ def generate():
             msg = f"You have reached your {limit} bundle limit for this month. Upgrade for more."
         return jsonify({"error": msg, "upgrade": True}), 403
 
-    sid  = session.get("sid")
+    sid  = _get_sid()
     sess = get_session(sid)
     total = len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", []))
     if total == 0:
@@ -1515,6 +1527,7 @@ def generate():
     except Exception as e:
         app.logger.error(f"Generate error: {e}", exc_info=True)
         return jsonify({"error": "Failed to generate bundle. Please try again."}), 500
+    session["last_bundle"] = out_name
     return jsonify({
         "filename": out_name,
         "bundles_used": current_user.bundles_used,
@@ -1525,8 +1538,10 @@ def generate():
 @app.route("/api/download/<filename>")
 @login_required
 def download(filename):
-    # Security: only allow filenames that belong to the current session
     safe_name = os.path.basename(filename)
+    # Only allow downloading the bundle this user just generated
+    if session.get("last_bundle") != safe_name:
+        return "Forbidden", 403
     path = os.path.join(OUTPUT_FOLDER, safe_name)
     if not os.path.exists(path):
         return "Not found", 404
@@ -1547,7 +1562,7 @@ def download(filename):
 @app.route("/api/reset", methods=["POST"])
 @login_required
 def reset():
-    sid = session.get("sid")
+    sid = _get_sid()
     save_session(sid, _default_session())
     return jsonify({"ok": True})
 
