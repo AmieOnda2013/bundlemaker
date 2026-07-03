@@ -948,14 +948,24 @@ def billing_portal():
 
 @app.route("/webhooks/stripe", methods=["POST"])
 def stripe_webhook():
-    payload   = request.get_data()
+    import datetime
+    payload    = request.get_data()
     sig_header = request.headers.get("Stripe-Signature", "")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        app.logger.error("STRIPE_WEBHOOK_SECRET is not set — cannot verify webhook")
+        return "Webhook secret not configured", 500
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except (ValueError, stripe.error.SignatureVerificationError):
+    except ValueError as e:
+        app.logger.error(f"Stripe webhook bad payload: {e}")
+        return "Invalid payload", 400
+    except stripe.error.SignatureVerificationError as e:
+        app.logger.error(f"Stripe webhook signature failed: {e}")
         return "Invalid signature", 400
 
+    app.logger.info(f"Stripe webhook received: {event['type']}")
     obj = event["data"]["object"]
 
     if event["type"] == "checkout.session.completed":
@@ -963,27 +973,35 @@ def stripe_webhook():
         plan    = obj.get("metadata", {}).get("plan")
         period  = obj.get("metadata", {}).get("period", "monthly")
         sub_id  = obj.get("subscription")
+        app.logger.info(f"checkout.session.completed: user_id={user_id} plan={plan} period={period}")
         if user_id and plan:
             user = db.session.get(User, int(user_id))
             if user:
-                user.plan = plan
-                user.plan_period = period
+                user.plan                  = plan
+                user.plan_period           = period
                 user.stripe_subscription_id = sub_id
-                user.bundles_used = 0
-                import datetime
-                user.bundles_reset_date = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+                user.email_verified        = True   # paying users are always verified
+                user.bundles_used          = 0
+                user.bundles_reset_date    = datetime.datetime.utcnow() + datetime.timedelta(days=30)
                 db.session.commit()
+                app.logger.info(f"Updated user {user.email} to plan={plan}")
+            else:
+                app.logger.error(f"checkout.session.completed: no user found for id={user_id}")
+        else:
+            app.logger.error(f"checkout.session.completed: missing metadata user_id or plan in {obj.get('metadata')}")
 
     elif event["type"] in ("customer.subscription.updated", "customer.subscription.deleted"):
         sub     = obj
         status  = sub.get("status")
         cust_id = sub.get("customer")
+        app.logger.info(f"{event['type']}: customer={cust_id} status={status}")
         user = db.session.execute(db.select(User).filter_by(stripe_customer_id=cust_id)).scalar_one_or_none()
         if user:
             if status in ("canceled", "unpaid", "incomplete_expired"):
                 user.plan = "free"
                 user.plan_period = "monthly"
                 user.stripe_subscription_id = None
+                app.logger.info(f"Reverted {user.email} to free (status={status})")
             elif status == "active":
                 price_id = sub["items"]["data"][0]["price"]["id"]
                 for plan_key, plan_data in PLANS.items():
@@ -991,8 +1009,11 @@ def stripe_webhook():
                         if plan_data[pd]["price_id"] == price_id:
                             user.plan = plan_key
                             user.plan_period = pd
+                            app.logger.info(f"Updated {user.email} to {plan_key} ({pd}) via subscription event")
                             break
             db.session.commit()
+        else:
+            app.logger.warning(f"subscription event: no user found for stripe_customer_id={cust_id}")
 
     return "OK", 200
 
