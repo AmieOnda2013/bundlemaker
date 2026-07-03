@@ -552,17 +552,16 @@ footer span{color:var(--gold)}
       <div class="panel-body">
         <div class="field">
           <label>Country <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
-          <select id="country" onchange="onCountryChange()" style="width:100%">
-            <option value="">— Select country —</option>
-            <option value="Canada">Canada</option>
-            <option value="United States">United States</option>
-            <option value="United Kingdom">United Kingdom</option>
-            <option value="Australia">Australia</option>
-            <option value="New Zealand">New Zealand</option>
-            <option value="Ireland">Ireland</option>
-            <option value="Singapore">Singapore</option>
-            <option value="Other">Other / Custom</option>
-          </select>
+          <input type="text" id="country" placeholder="e.g. Canada, United States, United Kingdom" oninput="onCountryChange()" autocomplete="off" list="country-suggestions"/>
+          <datalist id="country-suggestions">
+            <option value="Canada"/>
+            <option value="United States"/>
+            <option value="United Kingdom"/>
+            <option value="Australia"/>
+            <option value="New Zealand"/>
+            <option value="Ireland"/>
+            <option value="Singapore"/>
+          </datalist>
         </div>
         <div class="field" id="regionField" style="display:none">
           <label id="regionLabel">Province / State</label>
@@ -994,7 +993,9 @@ function getCourtOptions(regionValue) {
 }
 
 function onCountryChange() {
-  const country = document.getElementById('country').value;
+  const raw = document.getElementById('country').value.trim();
+  // Match typed value to a known key (case-insensitive)
+  const country = Object.keys(REGIONS).find(k => k.toLowerCase() === raw.toLowerCase()) || raw;
   const regionField       = document.getElementById('regionField');
   const regionCustomField = document.getElementById('regionCustomField');
   const regionSel         = document.getElementById('region');
@@ -1078,8 +1079,7 @@ function onCourtSelectChange() {
 // Restore cascading dropdowns from saved session values
 function restoreJurisdictionUI(country, savedRegion, savedJurisdiction) {
   if (!country) return;
-  const countrySel = document.getElementById('country');
-  countrySel.value = country;
+  document.getElementById('country').value = country;
   onCountryChange();  // populates region dropdown
 
   if (savedRegion && document.getElementById('region')) {
