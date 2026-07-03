@@ -1398,7 +1398,7 @@ function addParty(data) {
   const roleIn = document.createElement('input');
   roleIn.className = 'party-role';
   roleIn.type = 'text';
-  roleIn.placeholder = 'Role (e.g. Plaintiff)';
+  roleIn.placeholder = 'Role — select or type own';
   roleIn.value = data?.role || '';
   roleIn.setAttribute('list', 'role-suggestions');
   roleIn.style.cssText = 'font-size:0.85rem';
