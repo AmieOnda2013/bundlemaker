@@ -414,7 +414,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        custom_court="", custom_rules="", recitals="",
                        use_dividers=True, col_header="", tab_prefix="Tab",
                        col_item_header="", col_doc_header="", col_page_header="",
-                       place=""):
+                       place="", page_offset=0):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -607,7 +607,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
 
     toc_data = [make_header_row()]
 
-    current_page = 1  # logical page number in the body (excluding dividers)
+    current_page = 1 + page_offset  # absolute PDF page number of first body page
     item_num = 1      # global item counter — continues across individual items and tab sub-items
 
     # Individual items — numbered 1, 2, 3… — no tab dividers for individual items
@@ -784,14 +784,10 @@ def merge_pdfs(session_data, output_path):
 
     writer = PdfWriter()
 
-    # 1. Cover + TOC
-    toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
-    generate_cover_toc(
-        doc_type, items, tabs,
-        session_data.get("title", ""),
-        session_data.get("court_file", ""),
-        session_data.get("parties", ""),
-        toc_path,
+    # 1. Cover + TOC — two-pass so page numbers reflect actual PDF positions.
+    #    Pass 1: generate with offset=0 just to learn how many pages cover+TOC takes.
+    #    Pass 2: regenerate with offset=cover_count so TOC page numbers are correct.
+    toc_kwargs = dict(
         country=session_data.get("country", ""),
         jurisdiction=session_data.get("jurisdiction", ""),
         custom_court=session_data.get("custom_court", ""),
@@ -805,6 +801,19 @@ def merge_pdfs(session_data, output_path):
         col_page_header=session_data.get("col_page_header", ""),
         place=session_data.get("place", ""),
     )
+    toc_args = (doc_type, items, tabs,
+                session_data.get("title", ""),
+                session_data.get("court_file", ""),
+                session_data.get("parties", ""))
+
+    toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
+    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=0)
+    cover_count = len(PdfReader(toc_path).pages)
+    os.remove(toc_path)
+
+    # Pass 2: correct page numbers
+    toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
+    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count)
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
     for pg in rdr.pages:
