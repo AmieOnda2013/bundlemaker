@@ -136,15 +136,15 @@
 
       <!-- Solo -->
       <div class="plan-option {% if current_user.plan == 'solo' %}current{% endif %}">
-        {% if current_user.plan == 'solo' %}<div class="current-tag">Active</div>{% endif %}
+        {% if current_user.plan == 'solo' %}<div class="current-tag">Current Plan</div>{% endif %}
         <div class="plan-name">Solo</div>
         <div class="plan-price" id="price-solo">$19 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-solo" style="display:none">Billed $192/year</div>
         <div class="plan-desc">20 bundles per month. All document types and courts.</div>
         {% if current_user.plan == 'solo' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
-        {% elif current_user.plan in ('professional','firm') %}
-          <span class="btn btn-muted">Downgrade via billing</span>
+        {% elif current_user.plan in ('professional', 'firm') %}
+          <a href="/billing-portal" class="btn btn-portal">Downgrade to Solo</a>
         {% else %}
           <a href="#" id="btn-solo" onclick="goUpgrade('solo')" class="btn btn-primary">Upgrade — $19/mo</a>
         {% endif %}
@@ -152,7 +152,7 @@
 
       <!-- Professional -->
       <div class="plan-option {% if current_user.plan == 'professional' %}current{% endif %}">
-        {% if current_user.plan == 'professional' %}<div class="current-tag">Active</div>{% endif %}
+        {% if current_user.plan == 'professional' %}<div class="current-tag">Current Plan</div>{% endif %}
         <div class="plan-name">Professional</div>
         <div class="plan-price" id="price-pro">$49 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-pro" style="display:none">Billed $492/year</div>
@@ -160,7 +160,7 @@
         {% if current_user.plan == 'professional' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
         {% elif current_user.plan == 'firm' %}
-          <span class="btn btn-muted">Downgrade via billing</span>
+          <a href="/billing-portal" class="btn btn-portal">Downgrade to Professional</a>
         {% else %}
           <a href="#" id="btn-pro" onclick="goUpgrade('professional')" class="btn btn-primary">Upgrade — $49/mo</a>
         {% endif %}
@@ -168,7 +168,7 @@
 
       <!-- Firm -->
       <div class="plan-option {% if current_user.plan == 'firm' %}current{% endif %}">
-        {% if current_user.plan == 'firm' %}<div class="current-tag">Active</div>{% endif %}
+        {% if current_user.plan == 'firm' %}<div class="current-tag">Current Plan</div>{% endif %}
         <div class="plan-name">Firm</div>
         <div class="plan-price" id="price-firm">$99 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-firm" style="display:none">Billed $984/year</div>
