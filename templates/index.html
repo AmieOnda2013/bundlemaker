@@ -1032,36 +1032,40 @@ function renderGrps(){
 
     const hasTitle = !!(tab.label || '').trim();
     const hasDesc  = !!(tab.name  || '').trim();
-    const header = document.createElement('div');
-    header.className = 'tab-group-header';
-    header.style.cssText = 'flex-direction:column;align-items:stretch;gap:6px';
-    header.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-        <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#aaa;flex:1">Group</span>
-        <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
-      </div>
-      ${hasTitle ? `
-      <div style="display:flex;align-items:center;gap:6px;margin-left:22px">
+
+    // Top bar: drag handle + delete only
+    const topBar = document.createElement('div');
+    topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px 0';
+    topBar.innerHTML = `
+      <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
+      <button class="btn btn-remove" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>`;
+
+    // Optional title field (shown when title has been set)
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = 'padding:0 12px;' + (hasTitle ? '' : 'display:none');
+    titleRow.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px">
         <input type="text" value="${escHtml(tab.label||'')}"
-          placeholder="Chapter / Tab title (e.g. TAB A, Chapter 1)"
+          placeholder="e.g. TAB A, Chapter 1, Annex A"
           class="grp-label-input"
-          style="flex:1;padding:5px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit;min-width:0"
+          style="flex:1;padding:6px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit;min-width:0"
           onblur="saveLabelGrp('${tab.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()"/>
-        <button onclick="removeGrpTitle('${tab.id}')" title="Remove title" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px">✕</button>
-      </div>` : `
-      <button class="grp-add-btn" onclick="showGrpTitle('${tab.id}',this)">+ Add Chapter / Tab Title</button>`}
-      ${hasTitle && hasDesc ? `
-      <div style="display:flex;align-items:center;gap:6px;margin-left:22px">
+        <button onclick="removeGrpTitle('${tab.id}')" title="Remove title" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
+      </div>`;
+
+    // Optional description field (shown when both title + desc set)
+    const descRow = document.createElement('div');
+    descRow.style.cssText = 'padding:0 12px;' + (hasTitle && hasDesc ? '' : 'display:none');
+    descRow.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px">
         <input type="text" value="${escHtml(tab.name||'')}"
-          placeholder="Description (appears below title in smaller text)"
-          style="flex:1;padding:4px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;min-width:0;color:#555"
+          placeholder="Description — appears 1 line below title in smaller text"
+          style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;min-width:0;color:#555"
           onblur="renameGrp('${tab.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()"/>
-        <button onclick="removeGrpDesc('${tab.id}')" title="Remove description" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px">✕</button>
-      </div>` : hasTitle ? `
-      <button class="grp-add-btn" style="margin-left:22px" onclick="showGrpDesc('${tab.id}',this)">+ Add description</button>` : ''}`;
+        <button onclick="removeGrpDesc('${tab.id}')" title="Remove description" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
+      </div>`;
 
     const itemsList = document.createElement('div');
     itemsList.className = 'doc-list';
@@ -1132,9 +1136,19 @@ function renderGrps(){
       else if(e.dataTransfer.files.length) uploadToGrp(tab.id, e.dataTransfer.files);
     });
 
-    wrapper.appendChild(header);
+    // Two action buttons below the drop zone
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;padding:0 12px 12px';
+    btnRow.innerHTML = `
+      <button class="grp-add-btn" style="flex:1" onclick="showGrpTitle('${tab.id}')">+ Add Tab / Chapter Title</button>
+      <button class="grp-add-btn" style="flex:1" onclick="showGrpDesc('${tab.id}')" ${hasTitle ? '' : 'disabled style="flex:1;opacity:0.4;cursor:not-allowed"'}>+ Add Description</button>`;
+
+    wrapper.appendChild(topBar);
+    wrapper.appendChild(titleRow);
+    wrapper.appendChild(descRow);
     wrapper.appendChild(itemsList);
     wrapper.appendChild(dz);
+    wrapper.appendChild(btnRow);
 
     // Group drag-to-reorder
     wrapper.addEventListener('dragstart', e=>{
@@ -1188,16 +1202,16 @@ async function saveLabelGrp(id, val){
   renderTocPreview();
 }
 
-function showGrpTitle(id, btn){
-  const tab = tabs.find(t=>t.id===id);
-  if(!tab) return;
-  tab.label = '';
-  renderGrps();
-  // Focus the newly revealed input
-  setTimeout(()=>{
-    const grp = document.querySelector(`.tab-group[data-id="${id}"] .grp-label-input`);
-    if(grp) grp.focus();
-  }, 30);
+function showGrpTitle(id){
+  const grp = document.querySelector(`.tab-group[data-id="${id}"]`);
+  if(!grp) return;
+  const titleRow = grp.children[1]; // topBar=0, titleRow=1
+  titleRow.style.display = '';
+  const inp = titleRow.querySelector('input');
+  if(inp){ inp.value = ''; inp.focus(); }
+  // Enable the description button
+  const descBtn = grp.querySelector('.grp-add-btn:last-child');
+  if(descBtn){ descBtn.disabled = false; descBtn.style.opacity = ''; descBtn.style.cursor = ''; }
 }
 
 async function removeGrpTitle(id){
@@ -1208,15 +1222,15 @@ async function removeGrpTitle(id){
   renderGrps(); renderTocPreview();
 }
 
-function showGrpDesc(id, btn){
+function showGrpDesc(id){
   const tab = tabs.find(t=>t.id===id);
-  if(!tab) return;
-  tab.name = '';
-  renderGrps();
-  setTimeout(()=>{
-    const grp = document.querySelector(`.tab-group[data-id="${id}"] .tab-group-header input[placeholder*="Description"]`);
-    if(grp) grp.focus();
-  }, 30);
+  if(!tab || !(tab.label||'').trim()) return; // need title first
+  const grp = document.querySelector(`.tab-group[data-id="${id}"]`);
+  if(!grp) return;
+  const descRow = grp.children[2]; // topBar=0, titleRow=1, descRow=2
+  descRow.style.display = '';
+  const inp = descRow.querySelector('input');
+  if(inp){ inp.value = ''; inp.focus(); }
 }
 
 async function removeGrpDesc(id){
