@@ -733,7 +733,12 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             for _ in _tab.get("items", []):
                 row_heights.append(_SUB_H)
 
-    max_label_len = max((len(t.get("label") or f"{tab_prefix} A") for t in tabs), default=len(tab_prefix) + 2)
+    if entries:
+        div_title_lens = [len(e.get("title", "")) for e in entries if e.get("type") == "divider" and e.get("title", "").strip()]
+        max_label_len = max(div_title_lens) if div_title_lens else 0
+    else:
+        max_label_len = max((len(t.get("label") or f"{tab_prefix} A") for t in tabs), default=len(tab_prefix) + 2)
+    max_label_len = max(max_label_len, 18)  # always fit at least 18 characters
     prefix_w = max(0.9, 0.55 + max_label_len * 0.065) * inch
     if has_col:
         col_widths = [prefix_w, 3.3*inch - (prefix_w - 0.9*inch), 1.4*inch, 0.8*inch]
