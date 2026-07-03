@@ -583,6 +583,10 @@ footer span{color:var(--gold)}
           <input type="text" id="docTitle" placeholder="e.g. Statement of Claim" oninput="saveSettings()"/>
         </div>
         <div class="field">
+          <label>Province / State / Country <span style="font-weight:400;text-transform:none;font-size:0.7rem">(appears above court name)</span></label>
+          <input type="text" id="place" placeholder="e.g. Ontario, England & Wales, New South Wales" oninput="saveSettings()"/>
+        </div>
+        <div class="field">
           <label>Court File No. <span style="font-weight:400;text-transform:none;font-size:0.7rem">(optional)</span></label>
           <input type="text" id="courtFile" placeholder="e.g. CV-24-00123456-0000" oninput="saveSettings()"/>
         </div>
@@ -789,6 +793,7 @@ async function loadSession(){
   const rawDocType = s.doc_type || '';
   document.getElementById('docType').value = oldKeys.includes(rawDocType) ? '' : rawDocType;
   document.getElementById('docTitle').value = s.title || '';
+  document.getElementById('place').value = s.place || '';
   document.getElementById('courtFile').value = s.court_file || '';
   // Parties: support old string format and new array format
   let partiesData = [];
@@ -822,6 +827,7 @@ async function saveSettings(){
       custom_rules: document.getElementById('customRules').value,
       doc_type: document.getElementById('docType').value,
       title: document.getElementById('docTitle').value,
+      place: document.getElementById('place').value,
       court_file: document.getElementById('courtFile').value,
       parties: getPartiesData(),
       recitals: document.getElementById('recitals').value,
@@ -1435,6 +1441,7 @@ async function resetSession(){
   await fetch('/api/reset',{method:'POST'});
   items = []; tabs = [];
   document.getElementById('docTitle').value  = '';
+  document.getElementById('place').value     = '';
   document.getElementById('courtFile').value = '';
   renderParties([]);
   document.getElementById('recitals').value  = '';

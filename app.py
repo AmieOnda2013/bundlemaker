@@ -218,7 +218,7 @@ def _default_session():
         "tabs": [],            # grouped tabs [{id, name, items:[...]}]
         "use_dividers": True,
         "doc_type": "application_record",
-        "title": "", "court_file": "", "parties": "", "recitals": "",
+        "title": "", "court_file": "", "place": "", "parties": "", "recitals": "",
         "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
         "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
@@ -411,7 +411,8 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        output_path, country="Canada", jurisdiction="ON",
                        custom_court="", custom_rules="", recitals="",
                        use_dividers=True, col_header="", tab_prefix="Tab",
-                       col_item_header="", col_doc_header="", col_page_header=""):
+                       col_item_header="", col_doc_header="", col_page_header="",
+                       place=""):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -447,77 +448,85 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
 
     story = []
 
+    # Shared styles used in cover page
+    right_st = ParagraphStyle("right_st", parent=normal,
+        alignment=TA_RIGHT, fontSize=12, spaceAfter=6)
+    left_st = ParagraphStyle("left_st", parent=normal,
+        alignment=TA_LEFT, fontSize=12, spaceAfter=0)
+    name_st = ParagraphStyle("name_st", parent=normal,
+        alignment=TA_CENTER, fontName="Times-Bold", fontSize=12, spaceAfter=0, leading=18)
+    role_st = ParagraphStyle("role_st", parent=normal,
+        alignment=TA_RIGHT, fontSize=12, spaceAfter=0, leading=18)
+    and_st  = ParagraphStyle("and_st",  parent=normal,
+        alignment=TA_CENTER, fontSize=11, spaceAfter=0, leading=20)
+
     # ── Cover Page ──────────────────────────────────────────────────────────
     story.append(Spacer(1, 0.75*inch))
-    if country and country != "Other / Custom":
-        story.append(Paragraph(country.upper(), center_bold))
+
+    # Place (province / state / country label) — shown in italics above court name
+    if place:
+        story.append(Paragraph(f"<i>{place.upper()}</i>", center_bold))
         story.append(Spacer(1, 0.15*inch))
+    elif country and country != "Other / Custom":
+        story.append(Paragraph(f"<i>{country.upper()}</i>", center_bold))
+        story.append(Spacer(1, 0.15*inch))
+
     if court_name:
         story.append(Paragraph(court_name, center_bold))
     story.append(Spacer(1, 0.4*inch))
+
     if court_file:
-        right_st = ParagraphStyle("right_st", parent=normal,
-            alignment=TA_RIGHT, fontSize=12, spaceAfter=6)
         story.append(Paragraph(f"Court File No.: {court_file}", right_st))
-        story.append(Spacer(1, 0.25*inch))
+        story.append(Spacer(1, 0.2*inch))
+
     if parties:
         # Accept both new structured list and legacy plain string
         if isinstance(parties, list):
             structured = [p for p in parties if p.get("name") or p.get("role")]
         else:
-            # Legacy: plain text — render as-is
             structured = None
 
         if structured:
-            # Group into left (first role) vs right (second role) columns.
-            # Left column = first unique role group, right = second.
-            # Separate groups by the order roles first appear.
-            seen_roles, groups = [], {}
-            for p in structured:
-                role = p.get("role", "").strip() or "Party"
-                if role not in seen_roles:
-                    seen_roles.append(role)
-                groups.setdefault(role, []).append(p.get("name", "").strip().upper())
+            # Render in proper legal style:
+            #   BETWEEN:  [blank]
+            #             PARTY NAME (centered)           Role (right)
+            #             — and —   (centered)
+            #             PARTY NAME (centered)           Role (right)
 
-            if len(seen_roles) == 1:
-                # Only one role — center them
-                role = seen_roles[0]
-                for name in groups[role]:
-                    story.append(Paragraph(name, center_bold))
-                story.append(Paragraph(role.upper(), center_normal))
-            else:
-                # Two or more roles — classic two-column legal style
-                left_role  = seen_roles[0]
-                right_role = seen_roles[1]
-                left_names  = groups[left_role]
-                right_names = groups[right_role]
+            # "BETWEEN:" row
+            between_st = ParagraphStyle("between_st", parent=normal,
+                fontName="Times-Bold", fontSize=12, alignment=TA_LEFT, spaceAfter=0)
+            story.append(Table(
+                [[Paragraph("B E T W E E N :", between_st), ""]],
+                colWidths=[1.5*inch, 4.5*inch],
+                style=[("VALIGN",(0,0),(-1,-1),"TOP"), ("BOTTOMPADDING",(0,0),(-1,-1),8)],
+            ))
 
-                left_cell  = "<br/>".join(f"<b>{n}</b>" for n in left_names) + f"<br/><i>{left_role}</i>"
-                right_cell = "<br/>".join(f"<b>{n}</b>" for n in right_names) + f"<br/><i>{right_role}</i>"
+            for i, party in enumerate(structured):
+                name = party.get("name", "").strip().upper()
+                role = party.get("role", "").strip()
 
-                # Additional parties beyond first two roles, centered below
-                extra_rows = []
-                for role in seen_roles[2:]:
-                    extra_rows.append(Paragraph("— and —", center_normal))
-                    for name in groups[role]:
-                        extra_rows.append(Paragraph(f"<b>{name}</b>", center_normal))
-                    extra_rows.append(Paragraph(role.upper(), center_normal))
-
-                cell_st = ParagraphStyle("pcell", parent=normal,
-                    fontName="Times-Roman", fontSize=11, leading=16, alignment=TA_CENTER)
-                tbl = Table(
-                    [[Paragraph(left_cell, cell_st), Paragraph("— and —", cell_st), Paragraph(right_cell, cell_st)]],
-                    colWidths=[2.5*inch, 1.0*inch, 2.5*inch],
+                # Name (center col) + Role (right col) on same row
+                row_tbl = Table(
+                    [[Paragraph(name, name_st), Paragraph(role, role_st)]],
+                    colWidths=[4.0*inch, 2.0*inch],
+                    style=[
+                        ("VALIGN",  (0,0), (-1,-1), "MIDDLE"),
+                        ("TOPPADDING",    (0,0), (-1,-1), 2),
+                        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+                    ],
                 )
-                tbl.setStyle(TableStyle([
-                    ("VALIGN", (0,0), (-1,-1), "TOP"),
-                    ("ALIGN",  (0,0), (-1,-1), "CENTER"),
-                    ("TOPPADDING",    (0,0), (-1,-1), 4),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-                ]))
-                story.append(tbl)
-                for r in extra_rows:
-                    story.append(r)
+                story.append(row_tbl)
+
+                # "- and -" separator between parties (not after last)
+                if i < len(structured) - 1:
+                    story.append(Spacer(1, 0.05*inch))
+                    story.append(Table(
+                        [["", Paragraph("- and -", and_st), ""]],
+                        colWidths=[1.5*inch, 3.0*inch, 1.5*inch],
+                        style=[("VALIGN",(0,0),(-1,-1),"MIDDLE"), ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2)],
+                    ))
+                    story.append(Spacer(1, 0.05*inch))
         else:
             # Legacy plain text
             for line in str(parties).strip().split("\n"):
@@ -783,6 +792,7 @@ def merge_pdfs(session_data, output_path):
         col_item_header=session_data.get("col_item_header", ""),
         col_doc_header=session_data.get("col_doc_header", ""),
         col_page_header=session_data.get("col_page_header", ""),
+        place=session_data.get("place", ""),
     )
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
@@ -1279,7 +1289,7 @@ def update_session():
     sid  = _get_sid()
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type","title","court_file","parties","recitals",
+    for key in ("doc_type","title","court_file","place","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
                 "col_item_header","col_doc_header","col_page_header"):
         if key in data:
