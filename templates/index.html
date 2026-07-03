@@ -853,11 +853,15 @@ function renderTocPreview(){
         const title = e.title || '';
         const desc  = e.desc  || '';
         if(e.restart_num) num = 1;
-        if(title && useDividers) pageNum += 1;
         if(title){
-          html += `<tr style="${trShade}"><td colspan="${hasCol?4:3}" style="${tdStyle}"><b>${escHtml(title.toUpperCase())}</b>`;
-          if(desc) html += ` <span style="font-weight:400;font-size:0.72rem">— ${escHtml(desc)}</span>`;
-          html += `</td></tr>`;
+          const divPage = pageNum;
+          if(useDividers) pageNum += 1;
+          html += `<tr style="${trShade}">`;
+          html += `<td style="${tdStyle}"><b>${escHtml(title.toUpperCase())}</b></td>`;
+          html += `<td style="${tdStyle}">${desc ? `<span style="font-weight:400;font-size:0.72rem">${escHtml(desc)}</span>` : ''}</td>`;
+          if(hasCol) html += `<td style="${tdStyle}"></td>`;
+          html += `<td style="${tdRStyle}"><b>${divPage}</b></td>`;
+          html += `</tr>`;
         }
       } else {
         const name = e.custom_name || e.filename || 'Document';
