@@ -923,7 +923,14 @@ def upgrade(plan):
 @app.route("/upgrade/success")
 @login_required
 def upgrade_success():
-    return render_template("upgrade_success.html")
+    plan = current_user.plan
+    plan_data = PLANS.get(plan, {})
+    bundles = plan_data.get("bundles")  # None = unlimited
+    plan_name = plan_data.get("name", plan.capitalize())
+    return render_template("upgrade_success.html",
+        plan_name=plan_name,
+        bundles=bundles,
+    )
 
 
 @app.route("/billing-portal")

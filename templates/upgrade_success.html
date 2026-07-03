@@ -22,8 +22,13 @@
   <div class="card">
     <div class="check">🎉</div>
     <h1>You're all set!</h1>
-    <p>Your subscription is active. You now have unlimited bundle generation.<br/>
+    {% if bundles %}
+    <p>Your <strong>{{ plan_name }}</strong> subscription is active. You can now generate up to <strong>{{ bundles }} bundles per month</strong>.<br/>
     A receipt has been sent to your email.</p>
+    {% else %}
+    <p>Your <strong>{{ plan_name }}</strong> subscription is active. You now have <strong>unlimited bundle generation</strong>.<br/>
+    A receipt has been sent to your email.</p>
+    {% endif %}
     <a href="/" class="btn">Start Making Bundles</a>
     <a href="/account" class="sub-link">Manage your account</a>
   </div>
