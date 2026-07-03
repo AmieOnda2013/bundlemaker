@@ -218,7 +218,7 @@ def _default_session():
         "tabs": [],            # grouped tabs [{id, name, items:[...]}]
         "use_dividers": True,
         "doc_type": "application_record",
-        "title": "", "court_file": "", "place": "", "parties": "", "recitals": "",
+        "title": "", "court_file": "", "place": "", "region": "", "parties": "", "recitals": "",
         "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
         "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
@@ -1289,7 +1289,7 @@ def update_session():
     sid  = _get_sid()
     data = request.json
     sess = get_session(sid)
-    for key in ("doc_type","title","court_file","place","parties","recitals",
+    for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
                 "col_item_header","col_doc_header","col_page_header"):
         if key in data:
