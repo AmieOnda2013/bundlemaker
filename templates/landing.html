@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BundleMaker — Court-Ready Legal Bundles in Minutes</title>
   <meta name="description" content="BundleMaker automatically compiles PDFs and documents into indexed, court-ready legal bundles with cover pages, table of contents, and tab dividers."/>
+  <!-- Open Graph / link preview -->
+  <meta property="og:type"        content="website"/>
+  <meta property="og:url"         content="https://www.bundlemaker.app/"/>
+  <meta property="og:title"       content="BundleMaker — Court-Ready Legal Bundles in Minutes"/>
+  <meta property="og:description" content="Upload your documents, add tabs and chapters, and download a fully indexed court bundle with a hyperlinked table of contents. Try free — 3 bundles included."/>
+  <meta property="og:image"       content="https://www.bundlemaker.app/static/og-image.png"/>
+  <meta property="og:image:width"  content="1200"/>
+  <meta property="og:image:height" content="630"/>
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card"        content="summary_large_image"/>
+  <meta name="twitter:title"       content="BundleMaker — Court-Ready Legal Bundles in Minutes"/>
+  <meta name="twitter:description" content="Upload your documents, add tabs and chapters, and download a fully indexed court bundle with a hyperlinked table of contents. Try free — 3 bundles included."/>
+  <meta name="twitter:image"       content="https://www.bundlemaker.app/static/og-image.png"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,11 +134,20 @@
     @media(max-width:640px){
       nav { padding: 0 20px; }
       .nav-links { display: none; }
-      .hero { padding: 64px 24px 56px; }
-      .hero h1 { font-size: 2.1rem; }
-      section { padding: 56px 24px; }
-      .privacy-banner { padding: 48px 24px; }
-      footer { padding: 40px 24px; }
+      .hero { padding: 56px 20px 48px; }
+      .hero h1 { font-size: 2rem; }
+      .hero p { font-size: 0.95rem; }
+      section { padding: 48px 20px; }
+      .section-sub { font-size: 0.9rem; }
+      .privacy-banner { padding: 40px 20px; }
+      footer { padding: 36px 20px; }
+      .plans { grid-template-columns: 1fr !important; max-width: 420px !important; }
+      .footer-inner { flex-direction: column; gap: 24px; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+    @media(max-width:400px){
+      .hero h1 { font-size: 1.7rem; }
+      nav { padding: 0 14px; }
     }
   </style>
 </head>

@@ -477,6 +477,58 @@ footer{
   letter-spacing:0.04em;
 }
 footer span{color:var(--gold)}
+
+/* ── Mobile responsive ────────────────────────────── */
+@media(max-width:768px){
+  header{padding:0 16px}
+  .header-inner{gap:12px;padding:14px 0}
+  .header-icon{width:40px;height:40px}
+  .header-icon svg{width:40px;height:40px}
+  .header-text h1{font-size:1.4rem}
+  .header-subtitle{display:none}
+  .header-inner > div:last-child > a:first-child{font-size:0.72rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .page{padding:16px 12px}
+  .layout{grid-template-columns:1fr;gap:16px}
+
+  .panel-body{padding:14px}
+
+  /* Generate button full-width */
+  #generateBtn{width:100%;font-size:1rem;padding:14px}
+
+  /* Doc item rows — stack badge/name/actions more comfortably */
+  .doc-item{flex-wrap:wrap;gap:6px;padding:8px 10px}
+  .doc-item-num{min-width:22px}
+  .doc-name{flex:1 1 120px}
+  .doc-date-input{flex:0 0 80px}
+
+  /* Divider entries */
+  .divider-entry{padding:8px 10px;gap:8px}
+
+  /* Drop zone */
+  .drop-zone{padding:28px 16px}
+
+  /* TOC preview table scrollable */
+  #tocPreview{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* TOC column buttons row */
+  .toc-col-grid,
+  [style*="grid-template-columns: 1fr 1fr 1fr"]{
+    grid-template-columns:1fr !important;
+  }
+
+  /* Generate + new bundle buttons */
+  .btn-row{flex-direction:column}
+
+  /* Modal dialog */
+  #upgradeModal > div{padding:28px 20px !important;margin:16px !important}
+}
+
+@media(max-width:480px){
+  .header-text h1{font-size:1.2rem}
+  .doc-date-input{display:none}
+  .page{padding:10px 8px}
+}
 </style>
 </head>
 <body>
