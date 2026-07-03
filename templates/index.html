@@ -438,21 +438,25 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 }
 .tab-name-input:hover,.tab-name-input:focus{border-bottom-color:var(--gold)}
 .tab-drop-zone{
-  border:1.5px dashed var(--border);
-  border-radius:4px;
-  margin:10px 12px;
-  padding:10px 14px;
+  border:2px dashed var(--border);
+  border-radius:var(--radius);
+  margin:10px 12px 12px;
+  padding:36px 24px;
   text-align:center;
-  font-size:0.78rem;
+  font-size:0.88rem;
   color:var(--muted);
   cursor:pointer;
-  transition:background .15s,border-color .15s;
+  background:var(--parchment);
+  transition:all .2s;
 }
 .tab-drop-zone:hover,.tab-drop-zone.over{
-  background:var(--parchment);
   border-color:var(--gold);
-  color:var(--ink);
+  background:rgba(201,168,76,0.06);
+  color:var(--navy);
 }
+.tab-drop-zone .dz-icon{font-size:2rem;opacity:0.35;margin-bottom:10px}
+.tab-drop-zone .dz-label{font-weight:500;color:var(--ink2);margin-bottom:4px}
+.tab-drop-zone .dz-hint{font-size:0.75rem;color:var(--muted)}
 .doc-list:empty + .tab-drop-zone,
 .doc-list:has(*) + .tab-drop-zone { margin-top:6px; }
 
@@ -1132,7 +1136,7 @@ function renderGrps(){
 
     const dz = document.createElement('div');
     dz.className = 'tab-drop-zone';
-    dz.innerHTML = `<span>⬆ Drop files here or <u style="cursor:pointer">click to browse</u></span>`;
+    dz.innerHTML = `<div class="dz-icon">⬆</div><div class="dz-label">Drop files here or <u>click to browse</u></div><div class="dz-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>`;
     dz.addEventListener('click', ()=>{ activeGrpId=tab.id; const fi=document.getElementById('grpFileInput'); fi.value=''; fi.click(); });
     dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
     dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
