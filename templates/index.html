@@ -429,6 +429,31 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
 .doc-list:empty + .tab-drop-zone,
 .doc-list:has(*) + .tab-drop-zone { margin-top:6px; }
 
+/* ── Divider entries ──────────────────────────────── */
+.divider-entry {
+  display:flex; align-items:center; gap:8px;
+  background: var(--navy); color: var(--gold);
+  border-radius: var(--radius); padding: 8px 10px;
+  margin-bottom: 4px;
+  cursor:grab;
+}
+.divider-entry.dragging{opacity:0.35}
+.divider-entry.drag-over{box-shadow:0 0 0 2px var(--gold2)}
+.divider-title-input {
+  width:100%; background:transparent; border:none; border-bottom:1.5px solid var(--gold);
+  color:var(--gold); font-weight:700; font-size:0.88rem; font-family:inherit;
+  outline:none; padding:2px 0;
+}
+.divider-title-input::placeholder { color: rgba(201,168,76,0.5); }
+.divider-desc-input {
+  width:100%; background:transparent; border:none;
+  color: rgba(201,168,76,0.8); font-size:0.78rem; font-family:inherit;
+  outline:none; padding:2px 0; margin-top:2px;
+}
+.divider-desc-input::placeholder { color: rgba(201,168,76,0.35); }
+.restart-label { font-size:0.68rem; color:rgba(201,168,76,0.8); white-space:nowrap; cursor:pointer; flex-shrink:0; }
+.restart-label input { margin-right:3px; }
+
 /* ── Footer ───────────────────────────────────────── */
 footer{
   text-align:center;
@@ -624,45 +649,17 @@ footer span{color:var(--gold)}
 
       <!-- Documents upload area -->
       <div class="drop-zone" id="indDropZone" onclick="document.getElementById('indFileInput').click()">
-        <input type="file" id="indFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
+        <input type="file" id="indFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleEntriesUpload(this.files)"/>
         <div class="drop-zone-icon">⬆</div>
         <div class="drop-zone-label">Drop files here or click to browse</div>
         <div class="drop-zone-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>
       </div>
 
-      <!-- Two optional buttons below the drop zone -->
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="grp-add-btn" style="flex:1" id="btnAddTitle" onclick="toggleSectionTitle()">+ Add Tab / Chapter Title</button>
-        <button class="grp-add-btn" style="flex:1" id="btnAddDesc"  onclick="toggleSectionDesc()"  disabled>+ Add Description</button>
-      </div>
+      <!-- Add divider button -->
+      <button class="grp-add-btn" style="width:100%;margin-top:8px" onclick="addDivider()">+ Add Tab / Chapter / Annex Title</button>
 
-      <!-- Section title input (hidden until activated) -->
-      <div id="sectionTitleRow" style="display:none;margin-top:6px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <input type="text" id="sectionTitle"
-            placeholder="e.g. TAB A, Chapter 1, Annex A"
-            style="flex:1;padding:6px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit"
-            oninput="onSectionTitleChange()"
-            onblur="saveSectionTitle()"
-            onkeydown="if(event.key==='Enter')this.blur()"/>
-          <button onclick="clearSectionTitle()" title="Remove" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
-        </div>
-      </div>
-
-      <!-- Section description input (hidden until activated) -->
-      <div id="sectionDescRow" style="display:none;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <input type="text" id="sectionDesc"
-            placeholder="Description — appears below title in smaller text"
-            style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;color:#555"
-            onblur="saveSectionDesc()"
-            onkeydown="if(event.key==='Enter')this.blur()"/>
-          <button onclick="clearSectionDesc()" title="Remove" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
-        </div>
-      </div>
-
-      <div class="doc-list" id="indDocList" style="margin-top:8px"></div>
-      <div id="indEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No documents added yet.</div>
+      <div class="doc-list" id="entriesList" style="margin-top:8px"></div>
+      <div id="entriesEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No documents added yet.</div>
 
       <!-- Hidden inputs & groups (kept for backend compatibility) -->
       <div id="groupsList" style="display:none"></div>
@@ -717,13 +714,14 @@ footer span{color:var(--gold)}
 <div id="toast"></div>
 
 <script>
-let items      = [];   // individual docs
-let tabs       = [];   // grouped tabs [{id, name, items:[...]}]
+let items      = [];   // individual docs (legacy)
+let tabs       = [];   // grouped tabs (legacy)
+let entries    = [];   // flat entries list (docs + dividers)
 let activeGrpId = null;
 let indDragId   = null;
 let grpDragId   = null;
 let itemDragId  = null;
-let dragPayload = null;  // {itemId, fromSection:'ind'|'tab', fromTabId}
+let dragPayload = null;  // {itemId, fromSection:'ind'|'tab', fromTabId} or {entryId}
 
 function onCountryChange() { saveSettings(); }
 
@@ -760,20 +758,20 @@ async function loadSession(){
   document.getElementById('colPageHeader').value = s.col_page_header || '';
   items = s.items || [];
   tabs  = s.tabs  || [];
-  // Restore section title/desc
-  const st = s.section_title || '';
-  const sd = s.section_desc  || '';
-  if(st){
-    document.getElementById('sectionTitle').value = st;
-    document.getElementById('sectionTitleRow').style.display = '';
-    document.getElementById('btnAddDesc').disabled = false;
+  // Load entries — migrate from items/tabs if entries is empty
+  if(s.entries && s.entries.length > 0){
+    entries = s.entries;
+  } else {
+    entries = [];
+    (s.items||[]).forEach(item => entries.push({...item, type:'doc'}));
+    (s.tabs||[]).forEach(tab => {
+      if((tab.label||'').trim() || (tab.name||'').trim()){
+        entries.push({type:'divider', id:tab.id+'_d', title:tab.label||'', desc:tab.name||'', restart_num:false});
+      }
+      (tab.items||[]).forEach(item => entries.push({...item, type:'doc'}));
+    });
   }
-  if(sd && st){
-    document.getElementById('sectionDesc').value = sd;
-    document.getElementById('sectionDescRow').style.display = '';
-  }
-  renderInd();
-  renderGrps();
+  renderEntries();
   renderTocPreview();
 }
 
@@ -826,7 +824,9 @@ function renderTocPreview(){
   const hPage = document.getElementById('colPageHeader').value.trim() || 'Page(s)';
   const hasCol = colHeader !== '';
   const el = document.getElementById('tocPreview');
-  if(!items.length && !tabs.length){
+
+  const hasEntries = entries.some(e=>e.type==='doc');
+  if(!hasEntries && !items.length && !tabs.length){
     el.innerHTML = '<div style="padding:16px;text-align:center;color:#aaa;font-family:inherit;font-size:0.78rem">No documents added yet</div>';
     return;
   }
@@ -846,46 +846,71 @@ function renderTocPreview(){
   const COVER_PAGES = 2;
   const useDividers = document.getElementById('useDividers').checked;
   let pageNum = 1 + COVER_PAGES;
-  let itemNum = 1;
+  let num = 1;
 
-  for(const item of items){
-    const name = item.custom_name || item.filename || 'Document';
-    const pc = item.page_count || 1;
-    const pageStr = pc===1 ? String(pageNum) : `${pageNum}–${pageNum+pc-1}`;
-    html += `<tr><td style="${tdStyle}">${itemNum}</td>`;
-    html += `<td style="${tdStyle}">${escHtml(name)}</td>`;
-    if(hasCol) html += `<td style="${tdStyle}">${escHtml(item.doc_date||'')}</td>`;
-    html += `<td style="${tdRStyle}">${pageStr}</td></tr>`;
-    pageNum += pc;
-    itemNum++;
-  }
-
-  tabs.forEach((tab, gi)=>{
-    const grpLabel = tab.label || '';
-    const tabName = tab.name || '';
-    const tabItems = tab.items || [];
-    const totalPc = tabItems.reduce((s,i)=>s+(i.page_count||1),0)||1;
-    // If dividers are on, each group starts 1 page later (divider page)
-    if(useDividers) pageNum += 1;
-    const tabPageStr = totalPc===1 ? String(pageNum) : `${pageNum}–${pageNum+totalPc-1}`;
-    const colspan = hasCol ? 2 : 1;
-    html += `<tr style="${trShade}"><td style="${tdStyle};white-space:nowrap"><b>${escHtml(grpLabel)}</b></td>`;
-    html += `<td colspan="${colspan}" style="${tdStyle}"><b>${escHtml(tabName)}</b></td>`;
-    html += `<td style="${tdRStyle}"><b>${tabPageStr}</b></td></tr>`;
-    let docPage = pageNum;
-    for(const item of tabItems){
+  if(entries.length){
+    for(const e of entries){
+      if(e.type === 'divider'){
+        const title = e.title || '';
+        const desc  = e.desc  || '';
+        if(e.restart_num) num = 1;
+        if(title && useDividers) pageNum += 1;
+        if(title){
+          html += `<tr style="${trShade}"><td colspan="${hasCol?4:3}" style="${tdStyle}"><b>${escHtml(title.toUpperCase())}</b>`;
+          if(desc) html += ` <span style="font-weight:400;font-size:0.72rem">— ${escHtml(desc)}</span>`;
+          html += `</td></tr>`;
+        }
+      } else {
+        const name = e.custom_name || e.filename || 'Document';
+        const pc = e.page_count || 1;
+        const pageStr = pc===1 ? String(pageNum) : `${pageNum}–${pageNum+pc-1}`;
+        html += `<tr><td style="${tdStyle}">${num}</td>`;
+        html += `<td style="${tdStyle}">${escHtml(name)}</td>`;
+        if(hasCol) html += `<td style="${tdStyle}">${escHtml(e.doc_date||'')}</td>`;
+        html += `<td style="${tdRStyle}">${pageStr}</td></tr>`;
+        pageNum += pc;
+        num++;
+      }
+    }
+  } else {
+    // Legacy: items + tabs
+    for(const item of items){
       const name = item.custom_name || item.filename || 'Document';
       const pc = item.page_count || 1;
-      const ps = pc===1 ? String(docPage) : `${docPage}–${docPage+pc-1}`;
-      html += `<tr><td style="${tdStyle};padding-left:16px">${itemNum}</td>`;
-      html += `<td style="${tdStyle};padding-left:16px;font-size:0.73rem">${escHtml(name)}</td>`;
-      if(hasCol) html += `<td style="${tdStyle};font-size:0.73rem">${escHtml(item.doc_date||'')}</td>`;
-      html += `<td style="${tdRStyle};font-size:0.73rem">${ps}</td></tr>`;
-      docPage += pc;
-      itemNum++;
+      const pageStr = pc===1 ? String(pageNum) : `${pageNum}–${pageNum+pc-1}`;
+      html += `<tr><td style="${tdStyle}">${num}</td>`;
+      html += `<td style="${tdStyle}">${escHtml(name)}</td>`;
+      if(hasCol) html += `<td style="${tdStyle}">${escHtml(item.doc_date||'')}</td>`;
+      html += `<td style="${tdRStyle}">${pageStr}</td></tr>`;
+      pageNum += pc;
+      num++;
     }
-    pageNum += totalPc;
-  });
+    tabs.forEach((tab)=>{
+      const grpLabel = tab.label || '';
+      const tabName = tab.name || '';
+      const tabItems = tab.items || [];
+      const totalPc = tabItems.reduce((s,i)=>s+(i.page_count||1),0)||1;
+      if(useDividers) pageNum += 1;
+      const tabPageStr = totalPc===1 ? String(pageNum) : `${pageNum}–${pageNum+totalPc-1}`;
+      const colspan = hasCol ? 2 : 1;
+      html += `<tr style="${trShade}"><td style="${tdStyle};white-space:nowrap"><b>${escHtml(grpLabel)}</b></td>`;
+      html += `<td colspan="${colspan}" style="${tdStyle}"><b>${escHtml(tabName)}</b></td>`;
+      html += `<td style="${tdRStyle}"><b>${tabPageStr}</b></td></tr>`;
+      let docPage = pageNum;
+      for(const item of tabItems){
+        const name = item.custom_name || item.filename || 'Document';
+        const pc = item.page_count || 1;
+        const ps = pc===1 ? String(docPage) : `${docPage}–${docPage+pc-1}`;
+        html += `<tr><td style="${tdStyle};padding-left:16px">${num}</td>`;
+        html += `<td style="${tdStyle};padding-left:16px;font-size:0.73rem">${escHtml(name)}</td>`;
+        if(hasCol) html += `<td style="${tdStyle};font-size:0.73rem">${escHtml(item.doc_date||'')}</td>`;
+        html += `<td style="${tdRStyle};font-size:0.73rem">${ps}</td></tr>`;
+        docPage += pc;
+        num++;
+      }
+      pageNum += totalPc;
+    });
+  }
 
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -901,441 +926,181 @@ function getLabel(i, docType){
   return docType==='book_of_authorities' ? String(i+1) : alpha(i);
 }
 
-/* ── Drop-zone wiring for Individual Documents ── */
+/* ── Drop-zone wiring for Entries ── */
 const indDZ = document.getElementById('indDropZone');
 indDZ.addEventListener('dragover', e=>{ e.preventDefault(); indDZ.classList.add('over'); });
 indDZ.addEventListener('dragleave', ()=> indDZ.classList.remove('over'));
 indDZ.addEventListener('drop', e=>{
   e.preventDefault(); indDZ.classList.remove('over');
-  if(dragPayload) transferItem(dragPayload.itemId, 'individual', null, null);
-  else if(e.dataTransfer.files.length) handleIndUpload(e.dataTransfer.files);
+  if(e.dataTransfer.files.length) handleEntriesUpload(e.dataTransfer.files);
 });
 
-const indList = document.getElementById('indDocList');
-indList.addEventListener('dragover', e=>{ if(dragPayload && dragPayload.fromSection!=='ind'){ e.preventDefault(); indList.classList.add('drag-over'); } });
-indList.addEventListener('dragleave', ()=> indList.classList.remove('drag-over'));
-indList.addEventListener('drop', e=>{
-  e.preventDefault(); indList.classList.remove('drag-over');
-  if(dragPayload && dragPayload.fromSection!=='ind') transferItem(dragPayload.itemId, 'individual', null, null);
-});
-
-/* ── Individual Documents ── */
-async function handleIndUpload(files){
+/* ── Entries (flat docs + dividers) ── */
+async function handleEntriesUpload(files){
   const fd = new FormData();
   let count = 0;
   for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
   if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
   toast('Uploading…','info');
   try {
-    const r = await fetch('/api/upload',{method:'POST',body:fd});
+    const r = await fetch('/api/entries/upload',{method:'POST',body:fd});
     if(!r.ok){ const t = await r.text(); toast('Upload failed: '+t,'error'); return; }
     const added = await r.json();
-    items.push(...added);
-    renderInd();
+    entries.push(...added);
+    renderEntries();
     updateCount();
     toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
   } catch(e){ toast('Upload error: '+e.message,'error'); }
 }
 
-function renderInd(){
-  const list    = document.getElementById('indDocList');
-  const empty   = document.getElementById('indEmpty');
-  const docType = document.getElementById('docType').value;
-  empty.style.display = items.length ? 'none' : 'block';
+// Legacy shim — delegates to new handler
+async function handleIndUpload(files){ await handleEntriesUpload(files); }
+
+function renderEntries(){
+  const list  = document.getElementById('entriesList');
+  const empty = document.getElementById('entriesEmpty');
+  empty.style.display = entries.length ? 'none' : 'block';
   list.innerHTML = '';
-  items.forEach((item, i)=>{
-    const name  = item.custom_name || item.filename;
-    const isImg = item.file_type === 'image';
-    const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-    const row   = document.createElement('div');
-    row.className  = 'doc-item';
-    row.dataset.id = item.id;
+  let num = 1;
+  entries.forEach((entry)=>{
+    const row = document.createElement('div');
+    row.dataset.id = entry.id;
     row.draggable  = true;
-    row.innerHTML  = `
-      <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <span class="num-badge">${i + 1}</span>
-      <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
-      <span class="doc-name">
-        <input type="text" value="${escHtml(name)}" placeholder="Document name"
-          onblur="renameInd('${item.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
-      </span>
-      <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Add column (e.g. date)"
-        onblur="saveDateInd('${item.id}',this.value)"
-        onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
-      <span class="doc-pages">${item.page_count} pg</span>
-      <button class="btn btn-remove" onclick="deleteInd('${item.id}')" title="Remove">✕</button>`;
+
+    if(entry.type === 'divider'){
+      row.className = 'divider-entry';
+      row.innerHTML = `
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+          <input class="divider-title-input" type="text" value="${escHtml(entry.title||'')}" placeholder="Tab / Chapter / Annex Title (e.g. TAB A, Chapter 1)"
+            onblur="updateDivider('${entry.id}','title',this.value)"
+            oninput="updateDividerLocal('${entry.id}','title',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()"/>
+          <input class="divider-desc-input" type="text" value="${escHtml(entry.desc||'')}" placeholder="+ Add description (optional — appears below title in smaller text)"
+            onblur="updateDivider('${entry.id}','desc',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()"/>
+        </div>
+        <label class="restart-label"><input type="checkbox" ${entry.restart_num?'checked':''} onchange="updateDivider('${entry.id}','restart_num',this.checked)"/> Restart #</label>
+        <button class="btn btn-remove" onclick="deleteEntry('${entry.id}')" title="Remove">✕</button>`;
+    } else {
+      // doc entry
+      if(entry.restart_num) num = 1; // shouldn't happen on doc but guard
+      const name  = entry.custom_name || entry.filename;
+      const isImg = entry.file_type === 'image';
+      const ext   = (entry.original_ext||'.pdf').replace('.','').toUpperCase();
+      const myNum = num;
+      num++;
+      row.className = 'doc-item';
+      row.innerHTML = `
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        <span class="num-badge">${myNum}</span>
+        <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
+        <span class="doc-name">
+          <input type="text" value="${escHtml(name)}" placeholder="Document name"
+            onblur="updateEntryDoc('${entry.id}','custom_name',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
+        </span>
+        <input class="doc-date-input" type="text" value="${escHtml(entry.doc_date||'')}" placeholder="Add column (e.g. date)"
+          onblur="updateEntryDoc('${entry.id}','doc_date',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
+        <span class="doc-pages">${entry.page_count} pg</span>
+        <button class="btn btn-remove" onclick="deleteEntry('${entry.id}')" title="Remove">✕</button>`;
+    }
+
+    // Drag-and-drop
     row.addEventListener('dragstart', e=>{
-      indDragId = item.id;
-      dragPayload = {itemId: item.id, fromSection:'ind', fromTabId:null};
+      dragPayload = {entryId: entry.id};
       row.classList.add('dragging');
       e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain', item.id);
+      e.dataTransfer.setData('text/plain', entry.id);
     });
     row.addEventListener('dragend', ()=>{
       row.classList.remove('dragging');
-      dragPayload = null; indDragId = null;
-      document.querySelectorAll('.doc-item,.tab-drop-zone,#indDocList').forEach(d=>d.classList.remove('drag-over','over'));
+      dragPayload = null;
+      document.querySelectorAll('.doc-item,.divider-entry').forEach(d=>d.classList.remove('drag-over'));
     });
     row.addEventListener('dragover', e=>{
       e.preventDefault();
-      if(dragPayload && dragPayload.itemId!==item.id) row.classList.add('drag-over');
+      if(dragPayload && dragPayload.entryId !== entry.id) row.classList.add('drag-over');
     });
     row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
     row.addEventListener('drop', e=>{
       e.preventDefault(); row.classList.remove('drag-over');
-      if(!dragPayload || dragPayload.itemId===item.id) return;
-      if(dragPayload.fromSection==='ind') reorderInd(dragPayload.itemId, item.id);
-      else transferItem(dragPayload.itemId, 'individual', null, item.id);
+      if(!dragPayload || dragPayload.entryId === entry.id) return;
+      reorderEntries(dragPayload.entryId, entry.id);
     });
+
     list.appendChild(row);
   });
   updateCount();
 }
 
-async function renameInd(id, name){
-  const item = items.find(i=>i.id===id);
-  if(item) item.custom_name = name;
-  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
+async function addDivider(){
+  const r = await fetch('/api/entries/divider',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'',desc:'',restart_num:false})});
+  const entry = await r.json();
+  entries.push(entry);
+  renderEntries();
+  // Focus the title input of the new divider
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('.divider-entry');
+    if(rows.length){ const inp = rows[rows.length-1].querySelector('.divider-title-input'); if(inp) inp.focus(); }
+  }, 30);
 }
 
-async function saveDateInd(id, date){
-  const item = items.find(i=>i.id===id);
-  if(item) item.doc_date = date;
-  await fetch(`/api/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_date:date})});
+function updateDividerLocal(id, field, value){
+  // Update local state immediately for numbering re-render on restart_num change
+  const e = entries.find(e=>e.id===id);
+  if(e) e[field] = value;
 }
 
+async function updateDivider(id, field, value){
+  const e = entries.find(e=>e.id===id);
+  if(e) e[field] = value;
+  if(field === 'restart_num') renderEntries(); // re-number
+  else renderTocPreview();
+  await fetch(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
+}
+
+async function updateEntryDoc(id, field, value){
+  const e = entries.find(e=>e.id===id);
+  if(e) e[field] = value;
+  renderTocPreview();
+  await fetch(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
+}
+
+async function deleteEntry(id){
+  entries = entries.filter(e=>e.id!==id);
+  renderEntries();
+  await fetch(`/api/entries/${id}`,{method:'DELETE'});
+}
+
+async function reorderEntries(srcId, tgtId){
+  const si = entries.findIndex(e=>e.id===srcId);
+  const ti = entries.findIndex(e=>e.id===tgtId);
+  if(si<0||ti<0) return;
+  const [m] = entries.splice(si,1); entries.splice(ti,0,m);
+  renderEntries();
+  await fetch('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
+}
+
+// Legacy stubs kept for any residual calls
 async function saveDateGrpItem(tabId, itemId, date){
   const tab = tabs.find(t=>t.id===tabId);
   if(tab){ const item = tab.items.find(i=>i.id===itemId); if(item) item.doc_date = date; }
   await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_date:date})});
 }
 
-async function deleteInd(id){
-  items = items.filter(i=>i.id!==id);
-  renderInd();
-  await fetch(`/api/items/${id}`,{method:'DELETE'});
-}
-
-async function reorderInd(srcId, tgtId){
-  const si = items.findIndex(i=>i.id===srcId);
-  const ti = items.findIndex(i=>i.id===tgtId);
-  const [m] = items.splice(si,1); items.splice(ti,0,m);
-  renderInd();
-  await fetch('/api/items/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:items.map(i=>i.id)})});
-}
-
 async function transferItem(itemId, toSection, toTabId, beforeId){
-  const r = await fetch('/api/items/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({item_id:itemId, to_section:toSection, to_tab_id:toTabId, before_id:beforeId})});
-  const d = await r.json();
-  if(!d.ok){ toast('Move failed','error'); return; }
-  const it = d.item;
-  // Remove from local state wherever it lives
-  items = items.filter(i=>i.id!==itemId);
-  tabs.forEach(t=>{ t.items = t.items.filter(i=>i.id!==itemId); });
-  // Insert into destination
-  if(toSection==='individual'){
-    const idx = beforeId ? items.findIndex(i=>i.id===beforeId) : -1;
-    idx>=0 ? items.splice(idx,0,it) : items.push(it);
-  } else {
-    const tab = tabs.find(t=>t.id===toTabId);
-    if(tab){
-      const idx = beforeId ? tab.items.findIndex(i=>i.id===beforeId) : -1;
-      idx>=0 ? tab.items.splice(idx,0,it) : tab.items.push(it);
-    }
-  }
-  dragPayload = null;
-  renderInd(); renderGrps(); updateCount();
+  // Legacy — no-op in new model
 }
 
-/* ── Document Groups ── */
-function renderGrps(){
-  const container = document.getElementById('groupsList');
-  const empty     = document.getElementById('groupsEmpty');
-  const docType   = document.getElementById('docType').value;
-  empty.style.display = tabs.length ? 'none' : 'block';
-  container.innerHTML = '';
-  tabs.forEach((tab, ti)=>{
-    const wrapper = document.createElement('div');
-    wrapper.className  = 'tab-group';
-    wrapper.dataset.id = tab.id;
-    wrapper.draggable  = true;
-
-    const hasTitle = !!(tab.label || '').trim();
-    const hasDesc  = !!(tab.name  || '').trim();
-
-    // Top bar: drag handle + delete only
-    const topBar = document.createElement('div');
-    topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px 0';
-    topBar.innerHTML = `
-      <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-      <button class="btn btn-remove" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>`;
-
-    // Optional title field (shown when title has been set)
-    const titleRow = document.createElement('div');
-    titleRow.style.cssText = 'padding:0 12px;' + (hasTitle ? '' : 'display:none');
-    titleRow.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px">
-        <input type="text" value="${escHtml(tab.label||'')}"
-          placeholder="e.g. TAB A, Chapter 1, Annex A"
-          class="grp-label-input"
-          style="flex:1;padding:6px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit;min-width:0"
-          onblur="saveLabelGrp('${tab.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"/>
-        <button onclick="removeGrpTitle('${tab.id}')" title="Remove title" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
-      </div>`;
-
-    // Optional description field (shown when both title + desc set)
-    const descRow = document.createElement('div');
-    descRow.style.cssText = 'padding:0 12px;' + (hasTitle && hasDesc ? '' : 'display:none');
-    descRow.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px">
-        <input type="text" value="${escHtml(tab.name||'')}"
-          placeholder="Description — appears 1 line below title in smaller text"
-          style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;min-width:0;color:#555"
-          onblur="renameGrp('${tab.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"/>
-        <button onclick="removeGrpDesc('${tab.id}')" title="Remove description" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
-      </div>`;
-
-    const itemsList = document.createElement('div');
-    itemsList.className = 'doc-list';
-    tab.items.forEach((item, ii)=>{
-      const name  = item.custom_name || item.filename;
-      const isImg = item.file_type === 'image';
-      const ext   = (item.original_ext||'.pdf').replace('.','').toUpperCase();
-      const row   = document.createElement('div');
-      row.className  = 'doc-item';
-      row.dataset.id = item.id;
-      row.draggable  = true;
-      // Continuous number across individual items + all tab items
-      let globalNum = items.length;
-      for(let t=0; t<ti; t++) globalNum += tabs[t].items.length;
-      globalNum += ii + 1;
-      row.innerHTML  = `
-        <span class="drag-handle" title="Drag to reorder">⠿</span>
-        <span class="num-badge">${globalNum}</span>
-        <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
-        <span class="doc-name">
-          <input type="text" value="${escHtml(name)}" placeholder="Document name"
-            onblur="renameGrpItem('${tab.id}','${item.id}',this.value)"
-            onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename"/>
-        </span>
-        <input class="doc-date-input" type="text" value="${escHtml(item.doc_date||'')}" placeholder="Add column (e.g. date)"
-          onblur="saveDateGrpItem('${tab.id}','${item.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()" title="Document date for TOC"/>
-        <span class="doc-pages">${item.page_count} pg</span>
-        <button class="btn btn-remove" onclick="deleteGrpItem('${tab.id}','${item.id}')" title="Remove">✕</button>`;
-      row.addEventListener('dragstart', e=>{
-        itemDragId = item.id;
-        dragPayload = {itemId: item.id, fromSection:'tab', fromTabId: tab.id};
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed='move';
-        e.dataTransfer.setData('text/plain', item.id);
-        e.stopPropagation();
-      });
-      row.addEventListener('dragend', ()=>{
-        row.classList.remove('dragging');
-        dragPayload = null; itemDragId = null;
-        document.querySelectorAll('.doc-item,.tab-drop-zone,#indDocList').forEach(d=>d.classList.remove('drag-over','over'));
-      });
-      row.addEventListener('dragover', e=>{
-        e.preventDefault(); e.stopPropagation();
-        if(dragPayload && dragPayload.itemId!==item.id) row.classList.add('drag-over');
-      });
-      row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
-      row.addEventListener('drop', e=>{
-        e.preventDefault(); e.stopPropagation();
-        row.classList.remove('drag-over');
-        if(!dragPayload || dragPayload.itemId===item.id) return;
-        const sameTab = dragPayload.fromSection==='tab' && dragPayload.fromTabId===tab.id;
-        if(sameTab) reorderGrpItem(tab.id, dragPayload.itemId, item.id);
-        else transferItem(dragPayload.itemId, 'tab', tab.id, item.id);
-      });
-      itemsList.appendChild(row);
-    });
-
-    const dz = document.createElement('div');
-    dz.className = 'tab-drop-zone';
-    dz.innerHTML = `<div class="dz-icon">⬆</div><div class="dz-label">Drop files here or <u>click to browse</u></div><div class="dz-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>`;
-    dz.addEventListener('click', ()=>{ activeGrpId=tab.id; const fi=document.getElementById('grpFileInput'); fi.value=''; fi.click(); });
-    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
-    dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
-    dz.addEventListener('drop', e=>{
-      e.preventDefault(); dz.classList.remove('over');
-      if(dragPayload) transferItem(dragPayload.itemId, 'tab', tab.id, null);
-      else if(e.dataTransfer.files.length) uploadToGrp(tab.id, e.dataTransfer.files);
-    });
-
-    // Two action buttons below the drop zone
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:8px;padding:0 12px 12px';
-    btnRow.innerHTML = `
-      <button class="grp-add-btn" style="flex:1" onclick="showGrpTitle('${tab.id}')">+ Add Tab / Chapter Title</button>
-      <button class="grp-add-btn" style="flex:1" onclick="showGrpDesc('${tab.id}')" ${hasTitle ? '' : 'disabled style="flex:1;opacity:0.4;cursor:not-allowed"'}>+ Add Description</button>`;
-
-    wrapper.appendChild(topBar);
-    wrapper.appendChild(titleRow);
-    wrapper.appendChild(descRow);
-    wrapper.appendChild(itemsList);
-    wrapper.appendChild(dz);
-    wrapper.appendChild(btnRow);
-
-    // Group drag-to-reorder
-    wrapper.addEventListener('dragstart', e=>{
-      if(e.target.closest('.doc-item')) return;
-      grpDragId = tab.id; wrapper.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain', tab.id);
-    });
-    wrapper.addEventListener('dragend', ()=>{
-      wrapper.classList.remove('dragging');
-      container.querySelectorAll('.tab-group').forEach(g=>g.classList.remove('drag-over'));
-    });
-    wrapper.addEventListener('dragover', e=>{
-      e.preventDefault();
-      if(grpDragId && grpDragId!==tab.id) wrapper.classList.add('drag-over');
-    });
-    wrapper.addEventListener('dragleave', ()=> wrapper.classList.remove('drag-over'));
-    wrapper.addEventListener('drop', e=>{
-      e.preventDefault(); wrapper.classList.remove('drag-over');
-      if(grpDragId && grpDragId!==tab.id) reorderGrp(grpDragId, tab.id);
-    });
-
-    container.appendChild(wrapper);
-  });
-  updateCount();
-}
-
-async function addGroup(){
-  const r   = await fetch('/api/tabs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:''})});
-  const tab = await r.json();
-  tabs.push(tab);
-  renderGrps();
-  setTimeout(()=>{
-    const inputs = document.querySelectorAll('.tab-name-input');
-    if(inputs.length) inputs[inputs.length-1].focus();
-  }, 50);
-}
-
-async function renameGrp(id, name){
-  const tab = tabs.find(t=>t.id===id);
-  if(tab) tab.name = name;
-  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  renderGrps();
-}
-
-async function saveLabelGrp(id, val){
-  const tab = tabs.find(t=>t.id===id);
-  if(!tab) return;
-  tab.label = val.trim();
-  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:val.trim()})});
-  renderTocPreview();
-}
-
-function showGrpTitle(id){
-  const grp = document.querySelector(`.tab-group[data-id="${id}"]`);
-  if(!grp) return;
-  const titleRow = grp.children[1]; // topBar=0, titleRow=1
-  titleRow.style.display = '';
-  const inp = titleRow.querySelector('input');
-  if(inp){ inp.value = ''; inp.focus(); }
-  // Enable the description button
-  const descBtn = grp.querySelector('.grp-add-btn:last-child');
-  if(descBtn){ descBtn.disabled = false; descBtn.style.opacity = ''; descBtn.style.cursor = ''; }
-}
-
-async function removeGrpTitle(id){
-  const tab = tabs.find(t=>t.id===id);
-  if(!tab) return;
-  tab.label = ''; tab.name = '';
-  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:'', name:''})});
-  renderGrps(); renderTocPreview();
-}
-
-function showGrpDesc(id){
-  const tab = tabs.find(t=>t.id===id);
-  if(!tab || !(tab.label||'').trim()) return; // need title first
-  const grp = document.querySelector(`.tab-group[data-id="${id}"]`);
-  if(!grp) return;
-  const descRow = grp.children[2]; // topBar=0, titleRow=1, descRow=2
-  descRow.style.display = '';
-  const inp = descRow.querySelector('input');
-  if(inp){ inp.value = ''; inp.focus(); }
-}
-
-async function removeGrpDesc(id){
-  const tab = tabs.find(t=>t.id===id);
-  if(!tab) return;
-  tab.name = '';
-  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:''})});
-  renderGrps(); renderTocPreview();
-}
-
-async function deleteGrp(id){
-  if(!confirm('Remove this group and all its documents?')) return;
-  tabs = tabs.filter(t=>t.id!==id);
-  renderGrps();
-  await fetch(`/api/tabs/${id}`,{method:'DELETE'});
-}
-
-async function reorderGrp(srcId, tgtId){
-  const si = tabs.findIndex(t=>t.id===srcId);
-  const ti = tabs.findIndex(t=>t.id===tgtId);
-  const [m] = tabs.splice(si,1); tabs.splice(ti,0,m);
-  renderGrps();
-  await fetch('/api/tabs/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tabs.map(t=>t.id)})});
-}
-
-async function handleGrpUpload(files){
-  if(activeGrpId) await uploadToGrp(activeGrpId, files);
-}
-
-async function uploadToGrp(tabId, files){
-  const fd = new FormData();
-  let count = 0;
-  for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
-  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
-  toast('Uploading…','info');
-  try {
-    const r = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
-    if(!r.ok){ const t = await r.text(); toast('Upload failed: '+t,'error'); return; }
-    const added = await r.json();
-    const tab = tabs.find(t=>t.id===tabId);
-    if(tab) tab.items.push(...added);
-    renderGrps();
-    updateCount();
-    toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
-  } catch(e){ toast('Upload error: '+e.message,'error'); }
-}
-
-async function renameGrpItem(tabId, itemId, name){
-  const tab = tabs.find(t=>t.id===tabId);
-  if(tab){ const it=tab.items.find(i=>i.id===itemId); if(it) it.custom_name=name; }
-  await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_name:name})});
-}
-
-async function deleteGrpItem(tabId, itemId){
-  const tab = tabs.find(t=>t.id===tabId);
-  if(tab) tab.items = tab.items.filter(i=>i.id!==itemId);
-  renderGrps();
-  await fetch(`/api/tabs/${tabId}/items/${itemId}`,{method:'DELETE'});
-}
-
-async function reorderGrpItem(tabId, srcId, tgtId){
-  const tab = tabs.find(t=>t.id===tabId);
-  if(!tab) return;
-  const si = tab.items.findIndex(i=>i.id===srcId);
-  const ti = tab.items.findIndex(i=>i.id===tgtId);
-  const [m] = tab.items.splice(si,1); tab.items.splice(ti,0,m);
-  renderGrps();
-  await fetch(`/api/tabs/${tabId}/items/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:tab.items.map(i=>i.id)})});
-}
+// Legacy group stubs (kept for hidden grpFileInput compatibility)
+function renderGrps(){ /* no-op — replaced by renderEntries */ }
+async function handleGrpUpload(files){ /* no-op */ }
 
 /* ── Count pill ── */
 function updateCount(){
-  const total = items.length + tabs.reduce((s,t)=>s+t.items.length,0);
+  const total = entries.filter(e=>e.type==='doc').length;
   const el = document.getElementById('docCount');
   el.style.display = total ? 'inline' : 'none';
   el.textContent   = `${total} document${total!==1?'s':''}`;
@@ -1344,7 +1109,7 @@ function updateCount(){
 
 /* ── Generate / Reset ── */
 async function generate(){
-  const total = items.length + tabs.reduce((s,t)=>s+t.items.length,0);
+  const total = entries.filter(e=>e.type==='doc').length;
   if(!total){ toast('Add at least one document first.','error'); return; }
   toast('Generating court bundle…','info');
   const r = await fetch('/api/generate',{method:'POST'});
@@ -1464,7 +1229,7 @@ function addParty(data) {
 async function resetSession(){
   if(!confirm('Clear all documents and start a new bundle?')) return;
   await fetch('/api/reset',{method:'POST'});
-  items = []; tabs = [];
+  items = []; tabs = []; entries = [];
   document.getElementById('docTitle').value  = '';
   document.getElementById('country').value     = '';
   document.getElementById('region').value      = '';
@@ -1473,8 +1238,7 @@ async function resetSession(){
   document.getElementById('courtFile').value = '';
   renderParties([]);
   document.getElementById('recitals').value  = '';
-  clearSectionTitle();
-  renderInd(); renderGrps();
+  renderEntries();
   toast('Bundle cleared. Ready for new documents.','info');
 }
 
@@ -1485,60 +1249,7 @@ function toast(msg, type='info'){
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-/* ── Section title / description ── */
-function toggleSectionTitle(){
-  const row = document.getElementById('sectionTitleRow');
-  const shown = row.style.display !== 'none';
-  if(shown){ clearSectionTitle(); return; }
-  row.style.display = '';
-  document.getElementById('sectionTitle').focus();
-}
-
-function toggleSectionDesc(){
-  const row = document.getElementById('sectionDescRow');
-  const shown = row.style.display !== 'none';
-  if(shown){ clearSectionDesc(); return; }
-  row.style.display = '';
-  document.getElementById('sectionDesc').focus();
-}
-
-function onSectionTitleChange(){
-  const hasTitle = !!document.getElementById('sectionTitle').value.trim();
-  const descBtn = document.getElementById('btnAddDesc');
-  descBtn.disabled = !hasTitle;
-  if(!hasTitle){
-    clearSectionDesc();
-  }
-}
-
-async function saveSectionTitle(){
-  const val = document.getElementById('sectionTitle').value.trim();
-  await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({section_title: val})});
-  renderTocPreview();
-}
-
-async function saveSectionDesc(){
-  const val = document.getElementById('sectionDesc').value.trim();
-  await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({section_desc: val})});
-}
-
-function clearSectionTitle(){
-  document.getElementById('sectionTitle').value = '';
-  document.getElementById('sectionTitleRow').style.display = 'none';
-  clearSectionDesc();
-  document.getElementById('btnAddDesc').disabled = true;
-  saveSectionTitle();
-}
-
-function clearSectionDesc(){
-  document.getElementById('sectionDesc').value = '';
-  document.getElementById('sectionDescRow').style.display = 'none';
-  saveSectionDesc();
-}
-
-document.getElementById('docType').addEventListener('input', ()=>{ saveSettings(); renderInd(); renderGrps(); });
+document.getElementById('docType').addEventListener('input', ()=>{ saveSettings(); renderEntries(); });
 
 loadSession();
 </script>

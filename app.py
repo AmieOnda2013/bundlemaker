@@ -216,6 +216,7 @@ def _default_session():
     return {
         "items": [],           # flat individual documents
         "tabs": [],            # grouped tabs [{id, name, items:[...]}]
+        "entries": [],         # flat entries list (docs + dividers interleaved)
         "use_dividers": True,
         "doc_type": "application_record",
         "title": "", "court_file": "", "place": "", "region": "", "parties": "", "recitals": "",
@@ -244,6 +245,8 @@ def get_session(sid):
             data["items"] = []
         if "tabs" not in data:
             data["tabs"] = []
+        if "entries" not in data:
+            data["entries"] = []
         if "use_dividers" not in data:
             data["use_dividers"] = True
         if "col_header" not in data:
@@ -416,7 +419,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        custom_court="", custom_rules="", recitals="",
                        use_dividers=True, col_header="", tab_prefix="Tab",
                        col_item_header="", col_doc_header="", col_page_header="",
-                       place="", page_offset=0):
+                       place="", page_offset=0, entries=None):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -612,55 +615,87 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     current_page = 1 + page_offset  # absolute PDF page number of first body page
     item_num = 1      # global item counter — continues across individual items and tab sub-items
 
-    # Individual items — numbered 1, 2, 3… — no tab dividers for individual items
-    for item in items:
-        name     = item.get("custom_name") or item.get("filename", "Document")
-        pc       = item.get("page_count", 1)
-        page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
-        toc_data.append(make_row(
-            Paragraph(str(item_num), row_st),
-            Paragraph(name, row_st),
-            item.get("doc_date", ""),
-            Paragraph(page_str, row_rt),
-        ))
-        current_page += pc  # individual items never have divider pages
-        item_num += 1
-
     # Grouped tabs — Tab A, Tab B… sub-items continue global numbering
     tab_shade = colors.Color(0.93, 0.91, 0.87)
     shaded_rows = []  # row indices for shading
 
-    for grp_idx, tab in enumerate(tabs):
-        alpha_lbl      = alpha_label(grp_idx)
-        tab_full_label = tab.get("label") or f"{tab_prefix} {alpha_lbl}"
-        tab_name       = tab.get("name") or tab_full_label
-        tab_items      = tab.get("items", [])
-        total_pc       = sum(i.get("page_count", 1) for i in tab_items) or 1
-        tab_pg_str     = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
-
-        shaded_rows.append(len(toc_data))
-        toc_data.append(make_row(
-            Paragraph(f"<b>{tab_full_label}</b>", grp_st),
-            Paragraph(f"<b>{tab_name}</b>",  grp_st),
-            "",
-            Paragraph(tab_pg_str, grp_rt),
-        ))
-
-        doc_page = current_page
-        for item in tab_items:
-            pc   = item.get("page_count", 1)
-            name = item.get("custom_name") or item.get("filename", "Document")
-            ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
+    if entries:
+        # New flat entries model: docs and dividers interleaved
+        for entry in entries:
+            if entry.get("type") == "divider":
+                title_d = entry.get("title", "").strip()
+                restart = entry.get("restart_num", False)
+                if restart:
+                    item_num = 1
+                if title_d and use_dividers:
+                    current_page += 1  # divider page takes 1 page
+                if title_d:
+                    shaded_rows.append(len(toc_data))
+                    toc_data.append(make_row(
+                        Paragraph(f"<b>{title_d.upper()}</b>", grp_st),
+                        Paragraph(f"<b>{entry.get('desc','')}</b>", grp_st) if entry.get('desc') else Paragraph("", grp_st),
+                        "",
+                        Paragraph("", grp_rt),
+                    ))
+            else:
+                name     = entry.get("custom_name") or entry.get("filename", "Document")
+                pc       = entry.get("page_count", 1)
+                page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
+                toc_data.append(make_row(
+                    Paragraph(str(item_num), row_st),
+                    Paragraph(name, row_st),
+                    entry.get("doc_date", ""),
+                    Paragraph(page_str, row_rt),
+                ))
+                current_page += pc
+                item_num += 1
+    else:
+        # Legacy: individual items + grouped tabs
+        # Individual items — numbered 1, 2, 3… — no tab dividers for individual items
+        for item in items:
+            name     = item.get("custom_name") or item.get("filename", "Document")
+            pc       = item.get("page_count", 1)
+            page_str = str(current_page) if pc == 1 else f"{current_page}–{current_page+pc-1}"
             toc_data.append(make_row(
-                Paragraph(str(item_num), sub_st),
-                Paragraph(f"  {name}", sub_st),
+                Paragraph(str(item_num), row_st),
+                Paragraph(name, row_st),
                 item.get("doc_date", ""),
-                Paragraph(ps, sub_rt),
+                Paragraph(page_str, row_rt),
             ))
-            doc_page += pc
+            current_page += pc  # individual items never have divider pages
             item_num += 1
 
-        current_page += total_pc + (1 if use_dividers else 0)
+        for grp_idx, tab in enumerate(tabs):
+            alpha_lbl      = alpha_label(grp_idx)
+            tab_full_label = tab.get("label") or f"{tab_prefix} {alpha_lbl}"
+            tab_name       = tab.get("name") or tab_full_label
+            tab_items      = tab.get("items", [])
+            total_pc       = sum(i.get("page_count", 1) for i in tab_items) or 1
+            tab_pg_str     = str(current_page) if total_pc == 1 else f"{current_page}–{current_page+total_pc-1}"
+
+            shaded_rows.append(len(toc_data))
+            toc_data.append(make_row(
+                Paragraph(f"<b>{tab_full_label}</b>", grp_st),
+                Paragraph(f"<b>{tab_name}</b>",  grp_st),
+                "",
+                Paragraph(tab_pg_str, grp_rt),
+            ))
+
+            doc_page = current_page
+            for item in tab_items:
+                pc   = item.get("page_count", 1)
+                name = item.get("custom_name") or item.get("filename", "Document")
+                ps   = str(doc_page) if pc == 1 else f"{doc_page}–{doc_page+pc-1}"
+                toc_data.append(make_row(
+                    Paragraph(str(item_num), sub_st),
+                    Paragraph(f"  {name}", sub_st),
+                    item.get("doc_date", ""),
+                    Paragraph(ps, sub_rt),
+                ))
+                doc_page += pc
+                item_num += 1
+
+            current_page += total_pc + (1 if use_dividers else 0)
 
     # Build table style
     ts = [
@@ -781,6 +816,7 @@ def merge_pdfs(session_data, output_path):
     doc_type     = session_data["doc_type"]
     items        = session_data.get("items", [])
     tabs         = session_data.get("tabs", [])
+    entries      = session_data.get("entries", [])
     use_dividers = session_data.get("use_dividers", True)
     tmpl         = TEMPLATES.get(doc_type, {"header": doc_type.upper(), "tab_style": "alpha"})
     tab_fn       = alpha_label
@@ -810,13 +846,13 @@ def merge_pdfs(session_data, output_path):
                 session_data.get("parties", ""))
 
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
-    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=0)
+    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=0, entries=entries)
     cover_count = len(PdfReader(toc_path).pages)
     os.remove(toc_path)
 
     # Pass 2: correct page numbers
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
-    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count)
+    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count, entries=entries)
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
     for pg in rdr.pages:
@@ -826,43 +862,66 @@ def merge_pdfs(session_data, output_path):
     toc_page_index = cover_count - 1
     first_page_idx = cover_count
 
-    # 2. Optional section divider before individual documents
-    section_title = session_data.get("section_title", "").strip()
-    section_desc  = session_data.get("section_desc",  "").strip()
-    if section_title:
-        div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-        generate_divider_page(section_title, section_desc, div_path)
-        for pg in PdfReader(div_path).pages:
-            writer.add_page(pg)
-        os.remove(div_path)
-        first_page_idx += 1  # divider page shifts body start
-
-    # 3. Individual items — no divider pages, just the document pages
-    for item in items:
-        doc_path = item.get("filepath")
-        if doc_path and os.path.exists(doc_path):
-            for pg in PdfReader(doc_path).pages:
-                writer.add_page(pg)
-
-    # 3. Grouped tabs — Tab A, Tab B… (independent alpha sequence)
-    for grp_idx, tab in enumerate(tabs):
-        alpha_lbl      = alpha_label(grp_idx)
-        global_prefix  = session_data.get("tab_prefix", "Tab")
-        tab_full_label = tab.get("label") or f"{global_prefix} {alpha_lbl}"
-        tab_name       = tab.get("name") or tab_full_label
-
-        if use_dividers:
+    if entries:
+        # New flat entries model: docs and dividers interleaved
+        item_num = 1
+        for entry in entries:
+            if entry.get("type") == "divider":
+                title_d = entry.get("title", "").strip()
+                desc_d  = entry.get("desc", "").strip()
+                restart = entry.get("restart_num", False)
+                if restart:
+                    item_num = 1
+                if title_d and use_dividers:
+                    div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+                    generate_divider_page(title_d, desc_d, div_path)
+                    for pg in PdfReader(div_path).pages:
+                        writer.add_page(pg)
+                    os.remove(div_path)
+            else:
+                doc_path = entry.get("filepath")
+                if doc_path and os.path.exists(doc_path):
+                    for pg in PdfReader(doc_path).pages:
+                        writer.add_page(pg)
+                item_num += 1
+    else:
+        # 2. Optional section divider before individual documents
+        section_title = session_data.get("section_title", "").strip()
+        section_desc  = session_data.get("section_desc",  "").strip()
+        if section_title:
             div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
-            generate_divider_page(tab_full_label, tab_name, div_path)
+            generate_divider_page(section_title, section_desc, div_path)
             for pg in PdfReader(div_path).pages:
                 writer.add_page(pg)
             os.remove(div_path)
+            first_page_idx += 1  # divider page shifts body start
 
-        for item in tab.get("items", []):
+        # 3. Individual items — no divider pages, just the document pages
+        for item in items:
             doc_path = item.get("filepath")
             if doc_path and os.path.exists(doc_path):
                 for pg in PdfReader(doc_path).pages:
                     writer.add_page(pg)
+
+        # 3. Grouped tabs — Tab A, Tab B… (independent alpha sequence)
+        for grp_idx, tab in enumerate(tabs):
+            alpha_lbl      = alpha_label(grp_idx)
+            global_prefix  = session_data.get("tab_prefix", "Tab")
+            tab_full_label = tab.get("label") or f"{global_prefix} {alpha_lbl}"
+            tab_name       = tab.get("name") or tab_full_label
+
+            if use_dividers:
+                div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+                generate_divider_page(tab_full_label, tab_name, div_path)
+                for pg in PdfReader(div_path).pages:
+                    writer.add_page(pg)
+                os.remove(div_path)
+
+            for item in tab.get("items", []):
+                doc_path = item.get("filepath")
+                if doc_path and os.path.exists(doc_path):
+                    for pg in PdfReader(doc_path).pages:
+                        writer.add_page(pg)
 
     # 4. Stamp TOC links
     add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers)
@@ -1326,7 +1385,7 @@ def update_session():
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
-                "col_item_header","col_doc_header","col_page_header","section_title","section_desc"):
+                "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
@@ -1589,6 +1648,90 @@ def delete_tab_item(tab_id, item_id):
     return jsonify({"ok": True})
 
 
+# ── Entries routes (flat docs + dividers) ────────────────────────────────────
+
+@app.route("/api/entries/upload", methods=["POST"])
+@login_required
+def upload_entries():
+    sid = _get_sid()
+    sess = get_session(sid)
+    added = []
+    try:
+        for f in request.files.getlist("files"):
+            ext = os.path.splitext(f.filename.lower())[1]
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            item = _make_file_item(f, ext)
+            item["type"] = "doc"
+            item["doc_date"] = ""
+            sess["entries"].append(item)
+            added.append(item)
+        save_session(sid, sess)
+    except Exception as e:
+        app.logger.error(f"Entries upload error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+    return jsonify(added)
+
+
+@app.route("/api/entries/divider", methods=["POST"])
+@login_required
+def add_divider_entry():
+    sid = _get_sid()
+    sess = get_session(sid)
+    data = request.json or {}
+    entry = {"type": "divider", "id": uuid.uuid4().hex,
+             "title": data.get("title", ""), "desc": data.get("desc", ""),
+             "restart_num": bool(data.get("restart_num", False))}
+    sess["entries"].append(entry)
+    save_session(sid, sess)
+    return jsonify(entry)
+
+
+@app.route("/api/entries/<entry_id>", methods=["PATCH"])
+@login_required
+def update_entry(entry_id):
+    sid = _get_sid()
+    sess = get_session(sid)
+    data = request.json or {}
+    for e in sess["entries"]:
+        if e["id"] == entry_id:
+            for key in ("title", "desc", "restart_num", "custom_name", "doc_date"):
+                if key in data:
+                    e[key] = data[key]
+            break
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/entries/<entry_id>", methods=["DELETE"])
+@login_required
+def delete_entry(entry_id):
+    sid = _get_sid()
+    sess = get_session(sid)
+    for e in sess["entries"]:
+        if e["id"] == entry_id and e.get("type") == "doc":
+            fp = e.get("filepath")
+            if fp and os.path.exists(fp):
+                try: os.remove(fp)
+                except: pass
+            break
+    sess["entries"] = [e for e in sess["entries"] if e["id"] != entry_id]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/entries/reorder", methods=["POST"])
+@login_required
+def reorder_entries():
+    sid = _get_sid()
+    sess = get_session(sid)
+    order = request.json.get("order", [])
+    id_map = {e["id"]: e for e in sess["entries"]}
+    sess["entries"] = [id_map[x] for x in order if x in id_map]
+    save_session(sid, sess)
+    return jsonify({"ok": True})
+
+
 # ── Generate / Download / Reset ──────────────────────────────────────────────
 
 @app.route("/api/generate", methods=["POST"])
@@ -1614,7 +1757,8 @@ def generate():
 
     sid  = _get_sid()
     sess = get_session(sid)
-    total = len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", []))
+    entries_docs = [e for e in sess.get("entries", []) if e.get("type") == "doc"]
+    total = len(entries_docs) if entries_docs else (len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", [])))
     if total == 0:
         return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
@@ -1628,6 +1772,7 @@ def generate():
         all_items = list(sess.get("items", []))
         for t in sess.get("tabs", []):
             all_items.extend(t.get("items", []))
+        all_items.extend(entries_docs)
         for item in all_items:
             fp = item.get("filepath")
             if fp and os.path.exists(fp):
