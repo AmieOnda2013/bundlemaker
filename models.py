@@ -34,6 +34,8 @@ class User(UserMixin, db.Model):
     bundles_reset_date   = db.Column(db.DateTime, nullable=True)  # when monthly counter resets
     stripe_customer_id      = db.Column(db.String(255), nullable=True)
     stripe_subscription_id  = db.Column(db.String(255), nullable=True)
+    password_reset_token    = db.Column(db.String(128), nullable=True)
+    password_reset_expires  = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password, method="pbkdf2:sha256:600000")
@@ -44,6 +46,12 @@ class User(UserMixin, db.Model):
     def generate_verify_token(self):
         self.email_verify_token = secrets.token_urlsafe(32)
         return self.email_verify_token
+
+    def generate_reset_token(self):
+        import datetime
+        self.password_reset_token   = secrets.token_urlsafe(32)
+        self.password_reset_expires = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        return self.password_reset_token
 
     def reset_monthly_bundles_if_due(self):
         """Reset monthly bundle counter if a new billing month has started."""

@@ -103,6 +103,8 @@ def _migrate_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS bundles_reset_date TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(128)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP",
     ]
     for sql in migrations:
         try:
@@ -852,6 +854,73 @@ def resend_verification():
     flash("Verification email resent. Please check your inbox.", "info")
     return redirect(url_for("home"))
 
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+    sent = False
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user  = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
+        if user:
+            token = user.generate_reset_token()
+            db.session.commit()
+            reset_url = request.host_url.rstrip("/") + f"/reset-password/{token}"
+            html = f"""
+            <p>You requested a password reset for your BundleMaker account.</p>
+            <p><a href="{reset_url}" style="background:#c9a84c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a></p>
+            <p>Or copy this link: {reset_url}</p>
+            <p>This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>
+            """
+            def _send(app_):
+                with app_.app_context():
+                    try:
+                        http_requests.post(
+                            "https://api.brevo.com/v3/smtp/email",
+                            headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                            json={
+                                "sender": {"name": MAIL_FROM_NAME, "email": MAIL_FROM_EMAIL},
+                                "to": [{"email": email}],
+                                "subject": "Reset your BundleMaker password",
+                                "htmlContent": html,
+                            },
+                            timeout=15,
+                        )
+                    except Exception as e:
+                        app_.logger.error(f"Failed to send reset email: {e}")
+            import threading
+            threading.Thread(target=_send, args=(app,), daemon=True).start()
+        # Always show the same message so we don't reveal whether the email exists
+        sent = True
+    return render_template("forgot_password.html", sent=sent)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    import datetime
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+    user = db.session.execute(db.select(User).filter_by(password_reset_token=token)).scalar_one_or_none()
+    if not user or not user.password_reset_expires or user.password_reset_expires < datetime.datetime.utcnow():
+        return render_template("reset_password.html", invalid=True)
+    error = None
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm  = request.form.get("confirm", "")
+        if len(password) < 8:
+            error = "Password must be at least 8 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        else:
+            user.set_password(password)
+            user.password_reset_token   = None
+            user.password_reset_expires = None
+            db.session.commit()
+            flash("Password reset successfully. You can now log in.", "success")
+            return redirect(url_for("login"))
+    return render_template("reset_password.html", invalid=False, error=error, token=token)
 
 
 @app.route("/login", methods=["GET", "POST"])
