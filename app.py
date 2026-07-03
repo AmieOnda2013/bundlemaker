@@ -1314,14 +1314,19 @@ def upload():
     sid  = _get_sid()
     sess = get_session(sid)
     added = []
-    for f in request.files.getlist("files"):
-        ext = os.path.splitext(f.filename.lower())[1]
-        if ext not in ALLOWED_EXTENSIONS:
-            continue
-        item = _make_file_item(f, ext)
-        sess["items"].append(item)
-        added.append(item)
-    save_session(sid, sess)
+    try:
+        for f in request.files.getlist("files"):
+            ext = os.path.splitext(f.filename.lower())[1]
+            if ext not in ALLOWED_EXTENSIONS:
+                app.logger.info(f"Skipping disallowed extension: {ext}")
+                continue
+            item = _make_file_item(f, ext)
+            sess["items"].append(item)
+            added.append(item)
+        save_session(sid, sess)
+    except Exception as e:
+        app.logger.error(f"Upload error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
     return jsonify(added)
 
 
