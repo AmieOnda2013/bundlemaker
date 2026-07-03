@@ -226,6 +226,8 @@ def _default_session():
         "col_item_header": "",   # TOC column: item/number header (default "#" / "Item")
         "col_doc_header": "",    # TOC column: document name header (default "Document")
         "col_page_header": "",   # TOC column: page(s) header (default "Page(s)")
+        "section_title": "",     # optional divider title before individual documents
+        "section_desc": "",      # optional description below section title
     }
 
 def get_session(sid):
@@ -823,7 +825,19 @@ def merge_pdfs(session_data, output_path):
 
     toc_page_index = cover_count - 1
     first_page_idx = cover_count
-    # 2. Individual items — no divider pages, just the document pages
+
+    # 2. Optional section divider before individual documents
+    section_title = session_data.get("section_title", "").strip()
+    section_desc  = session_data.get("section_desc",  "").strip()
+    if section_title:
+        div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
+        generate_divider_page(section_title, section_desc, div_path)
+        for pg in PdfReader(div_path).pages:
+            writer.add_page(pg)
+        os.remove(div_path)
+        first_page_idx += 1  # divider page shifts body start
+
+    # 3. Individual items — no divider pages, just the document pages
     for item in items:
         doc_path = item.get("filepath")
         if doc_path and os.path.exists(doc_path):
@@ -1312,7 +1326,7 @@ def update_session():
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
-                "col_item_header","col_doc_header","col_page_header"):
+                "col_item_header","col_doc_header","col_page_header","section_title","section_desc"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)

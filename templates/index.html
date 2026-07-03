@@ -622,30 +622,50 @@ footer span{color:var(--gold)}
     </div>
     <div class="panel-body">
 
-      <!-- Section 1: Individual Documents -->
-      <div class="section-label">Individual Documents</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Each file is numbered in order (1, 2, 3…)</div>
+      <!-- Documents upload area -->
       <div class="drop-zone" id="indDropZone" onclick="document.getElementById('indFileInput').click()">
         <input type="file" id="indFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleIndUpload(this.files)"/>
         <div class="drop-zone-icon">⬆</div>
         <div class="drop-zone-label">Drop files here or click to browse</div>
         <div class="drop-zone-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>
       </div>
-      <div class="doc-list" id="indDocList"></div>
-      <div id="indEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No individual documents added yet.</div>
 
-      <hr class="divider" style="margin:20px 0"/>
+      <!-- Two optional buttons below the drop zone -->
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="grp-add-btn" style="flex:1" id="btnAddTitle" onclick="toggleSectionTitle()">+ Add Tab / Chapter Title</button>
+        <button class="grp-add-btn" style="flex:1" id="btnAddDesc"  onclick="toggleSectionDesc()"  disabled>+ Add Description</button>
+      </div>
 
-      <!-- Section 2: Document Groups -->
-      <div class="section-label">Document Groups</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px">Group multiple documents under one named tab</div>
-      <div id="groupsList"></div>
-      <div id="groupsEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No groups yet. Click Add Group below.</div>
-      <button class="btn" style="margin-top:10px;width:100%;background:var(--navy3);color:#fff;border:none;padding:10px 0;font-size:0.88rem;letter-spacing:0.05em;cursor:pointer;border-radius:var(--radius)" onclick="addGroup()">
-        + Add Group
-      </button>
+      <!-- Section title input (hidden until activated) -->
+      <div id="sectionTitleRow" style="display:none;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="text" id="sectionTitle"
+            placeholder="e.g. TAB A, Chapter 1, Annex A"
+            style="flex:1;padding:6px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit"
+            oninput="onSectionTitleChange()"
+            onblur="saveSectionTitle()"
+            onkeydown="if(event.key==='Enter')this.blur()"/>
+          <button onclick="clearSectionTitle()" title="Remove" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
+        </div>
+      </div>
 
-      <!-- Hidden file input for group uploads -->
+      <!-- Section description input (hidden until activated) -->
+      <div id="sectionDescRow" style="display:none;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="text" id="sectionDesc"
+            placeholder="Description — appears below title in smaller text"
+            style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;color:#555"
+            onblur="saveSectionDesc()"
+            onkeydown="if(event.key==='Enter')this.blur()"/>
+          <button onclick="clearSectionDesc()" title="Remove" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
+        </div>
+      </div>
+
+      <div class="doc-list" id="indDocList" style="margin-top:8px"></div>
+      <div id="indEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No documents added yet.</div>
+
+      <!-- Hidden inputs & groups (kept for backend compatibility) -->
+      <div id="groupsList" style="display:none"></div>
       <input type="file" id="grpFileInput" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp" style="display:none" onchange="handleGrpUpload(this.files)"/>
 
       <hr class="divider" style="margin:20px 0"/>
@@ -740,6 +760,18 @@ async function loadSession(){
   document.getElementById('colPageHeader').value = s.col_page_header || '';
   items = s.items || [];
   tabs  = s.tabs  || [];
+  // Restore section title/desc
+  const st = s.section_title || '';
+  const sd = s.section_desc  || '';
+  if(st){
+    document.getElementById('sectionTitle').value = st;
+    document.getElementById('sectionTitleRow').style.display = '';
+    document.getElementById('btnAddDesc').disabled = false;
+  }
+  if(sd && st){
+    document.getElementById('sectionDesc').value = sd;
+    document.getElementById('sectionDescRow').style.display = '';
+  }
   renderInd();
   renderGrps();
   renderTocPreview();
@@ -1441,6 +1473,7 @@ async function resetSession(){
   document.getElementById('courtFile').value = '';
   renderParties([]);
   document.getElementById('recitals').value  = '';
+  clearSectionTitle();
   renderInd(); renderGrps();
   toast('Bundle cleared. Ready for new documents.','info');
 }
@@ -1450,6 +1483,59 @@ function toast(msg, type='info'){
   t.textContent = msg; t.className = type; t.style.display = 'block';
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
+}
+
+/* ── Section title / description ── */
+function toggleSectionTitle(){
+  const row = document.getElementById('sectionTitleRow');
+  const shown = row.style.display !== 'none';
+  if(shown){ clearSectionTitle(); return; }
+  row.style.display = '';
+  document.getElementById('sectionTitle').focus();
+}
+
+function toggleSectionDesc(){
+  const row = document.getElementById('sectionDescRow');
+  const shown = row.style.display !== 'none';
+  if(shown){ clearSectionDesc(); return; }
+  row.style.display = '';
+  document.getElementById('sectionDesc').focus();
+}
+
+function onSectionTitleChange(){
+  const hasTitle = !!document.getElementById('sectionTitle').value.trim();
+  const descBtn = document.getElementById('btnAddDesc');
+  descBtn.disabled = !hasTitle;
+  if(!hasTitle){
+    clearSectionDesc();
+  }
+}
+
+async function saveSectionTitle(){
+  const val = document.getElementById('sectionTitle').value.trim();
+  await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({section_title: val})});
+  renderTocPreview();
+}
+
+async function saveSectionDesc(){
+  const val = document.getElementById('sectionDesc').value.trim();
+  await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({section_desc: val})});
+}
+
+function clearSectionTitle(){
+  document.getElementById('sectionTitle').value = '';
+  document.getElementById('sectionTitleRow').style.display = 'none';
+  clearSectionDesc();
+  document.getElementById('btnAddDesc').disabled = true;
+  saveSectionTitle();
+}
+
+function clearSectionDesc(){
+  document.getElementById('sectionDesc').value = '';
+  document.getElementById('sectionDescRow').style.display = 'none';
+  saveSectionDesc();
 }
 
 document.getElementById('docType').addEventListener('input', ()=>{ saveSettings(); renderInd(); renderGrps(); });
