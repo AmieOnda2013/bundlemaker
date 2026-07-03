@@ -627,15 +627,16 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 restart = entry.get("restart_num", False)
                 if restart:
                     item_num = 1
-                if title_d and use_dividers:
-                    current_page += 1  # divider page takes 1 page
                 if title_d:
+                    div_page = current_page  # page the divider occupies
+                    if use_dividers:
+                        current_page += 1  # divider page takes 1 page
                     shaded_rows.append(len(toc_data))
                     toc_data.append(make_row(
                         Paragraph(f"<b>{title_d.upper()}</b>", grp_st),
                         Paragraph(f"<b>{entry.get('desc','')}</b>", grp_st) if entry.get('desc') else Paragraph("", grp_st),
                         "",
-                        Paragraph("", grp_rt),
+                        Paragraph(str(div_page), grp_rt),
                     ))
             else:
                 name     = entry.get("custom_name") or entry.get("filename", "Document")
@@ -755,9 +756,11 @@ def generate_divider_page(tab_full_label, name, output_path):
     story = [
         Spacer(1, 1.5*inch),
         Paragraph(tab_full_label.upper(), ParagraphStyle("big", parent=normal,
-            fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=16)),
+            fontName="Times-Bold", fontSize=36, leading=48,
+            alignment=TA_CENTER, spaceAfter=0)),
     ]
     if name:
+        story.append(Spacer(1, 0.25*inch))
         story.append(Paragraph(name, ParagraphStyle("nm", parent=normal,
             fontName="Times-Roman", fontSize=13, alignment=TA_CENTER, leading=18, spaceAfter=0)))
     story.append(PageBreak())
