@@ -280,6 +280,9 @@ def numeric_label(n):
 # ── Image → PDF ──────────────────────────────────────────────────────────────
 
 def image_to_pdf(image_path, pdf_path):
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.utils import ImageReader
+
     img = Image.open(image_path)
     if img.mode in ("RGBA", "P", "LA"):
         bg = Image.new("RGB", img.size, (255, 255, 255))
@@ -294,21 +297,20 @@ def image_to_pdf(image_path, pdf_path):
     max_h = page_h - 2 * margin
     iw, ih = img.size
     scale = min(max_w / iw, max_h / ih, 1.0)
-    new_w, new_h = int(iw * scale), int(ih * scale)
+    draw_w = iw * scale
+    draw_h = ih * scale
+    x = (page_w - draw_w) / 2
+    y = (page_h - draw_h) / 2
+
+    img_buf = io.BytesIO()
+    img.save(img_buf, "JPEG", quality=92)
+    img_buf.seek(0)
 
     buf = io.BytesIO()
-    img_resized = img.resize((new_w, new_h), Image.LANCZOS)
-    c_doc = SimpleDocTemplate(buf, pagesize=letter,
-                              rightMargin=margin, leftMargin=margin,
-                              topMargin=margin, bottomMargin=margin)
-    from reportlab.platypus import Image as RLImage
-    import tempfile, os as _os
-    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-    img_resized.save(tmp.name, "JPEG", quality=92)
-    tmp.close()
-    story = [RLImage(tmp.name, width=new_w, height=new_h)]
-    c_doc.build(story)
-    _os.unlink(tmp.name)
+    c = rl_canvas.Canvas(buf, pagesize=letter)
+    c.drawImage(ImageReader(img_buf), x, y, width=draw_w, height=draw_h)
+    c.showPage()
+    c.save()
 
     with open(pdf_path, "wb") as f:
         f.write(buf.getvalue())

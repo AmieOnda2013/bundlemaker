@@ -1241,12 +1241,16 @@ async function uploadToGrp(tabId, files){
   for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
   if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
   toast('Uploading…','info');
-  const r   = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
-  const added = await r.json();
-  const tab = tabs.find(t=>t.id===tabId);
-  if(tab) tab.items.push(...added);
-  renderGrps();
-  toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
+  try {
+    const r = await fetch(`/api/tabs/${tabId}/upload`,{method:'POST',body:fd});
+    if(!r.ok){ const t = await r.text(); toast('Upload failed: '+t,'error'); return; }
+    const added = await r.json();
+    const tab = tabs.find(t=>t.id===tabId);
+    if(tab) tab.items.push(...added);
+    renderGrps();
+    updateCount();
+    toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
+  } catch(e){ toast('Upload error: '+e.message,'error'); }
 }
 
 async function renameGrpItem(tabId, itemId, name){
