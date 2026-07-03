@@ -997,6 +997,64 @@ def stripe_webhook():
     return "OK", 200
 
 
+# ── Owner admin ───────────────────────────────────────────────────────────────
+
+@app.route("/admin/set-plan", methods=["GET", "POST"])
+@login_required
+def admin_set_plan():
+    if not is_owner():
+        return "Forbidden", 403
+    import datetime
+    message = None
+    users = db.session.execute(db.select(User).order_by(User.id)).scalars().all()
+    if request.method == "POST":
+        target_email = request.form.get("email", "").strip().lower()
+        new_plan     = request.form.get("plan", "free")
+        period       = request.form.get("period", "monthly")
+        target = db.session.execute(db.select(User).filter_by(email=target_email)).scalar_one_or_none()
+        if not target:
+            message = f"No user found with email: {target_email}"
+        else:
+            target.plan        = new_plan
+            target.plan_period = period
+            target.email_verified = True
+            if new_plan != "free":
+                target.bundles_used = 0
+                target.bundles_reset_date = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+            db.session.commit()
+            message = f"Updated {target_email} → {new_plan} ({period})"
+    html = f"""<!DOCTYPE html><html><head><title>Admin — Set Plan</title>
+    <style>body{{font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px}}
+    input,select{{width:100%;padding:8px;margin:6px 0 14px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px}}
+    button{{background:#0d1b2a;color:#c9a84c;padding:10px 24px;border:none;border-radius:4px;cursor:pointer;font-weight:700}}
+    .msg{{background:#e8f5e9;padding:10px;border-radius:4px;margin-bottom:16px;color:#2e7d32}}
+    table{{width:100%;border-collapse:collapse;margin-top:24px;font-size:0.85rem}}
+    td,th{{padding:6px 8px;border:1px solid #ddd;text-align:left}}</style></head><body>
+    <h2>Admin — Set User Plan</h2>
+    {'<div class="msg">'+message+'</div>' if message else ''}
+    <form method="POST">
+      <label>User email</label>
+      <input name="email" type="email" required placeholder="user@example.com"/>
+      <label>Plan</label>
+      <select name="plan">
+        <option value="free">Free</option>
+        <option value="solo" selected>Solo</option>
+        <option value="professional">Professional</option>
+        <option value="firm">Firm</option>
+      </select>
+      <label>Period</label>
+      <select name="period">
+        <option value="monthly" selected>Monthly</option>
+        <option value="annual">Annual</option>
+      </select>
+      <button type="submit">Update Plan</button>
+    </form>
+    <table><tr><th>Email</th><th>Plan</th><th>Bundles used</th><th>Verified</th></tr>
+    {''.join(f"<tr><td>{u.email}</td><td>{u.plan}</td><td>{u.bundles_used}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
+    </table></body></html>"""
+    return html
+
+
 # ── Public pages ─────────────────────────────────────────────────────────────
 
 @app.route("/")
