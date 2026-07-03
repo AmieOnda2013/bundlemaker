@@ -740,10 +740,16 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         max_label_len = max((len(t.get("label") or f"{tab_prefix} A") for t in tabs), default=len(tab_prefix) + 2)
     max_label_len = max(max_label_len, 18)  # always fit at least 18 characters
     prefix_w = max(0.9, 0.55 + max_label_len * 0.065) * inch
+    TEXT_W = 6.25 * inch  # 8.5 - 1.25 left - 1.0 right
     if has_col:
-        col_widths = [prefix_w, 3.3*inch - (prefix_w - 0.9*inch), 1.4*inch, 0.8*inch]
+        # Cap prefix_w so remaining cols (date 1.4 + page 0.8) always fit
+        prefix_w = min(prefix_w, TEXT_W - 1.4*inch - 0.8*inch - 0.5*inch)
+        col2 = max(0.5*inch, TEXT_W - prefix_w - 1.4*inch - 0.8*inch)
+        col_widths = [prefix_w, col2, 1.4*inch, 0.8*inch]
     else:
-        col_widths = [prefix_w, 4.5*inch - (prefix_w - 0.9*inch), 0.8*inch]
+        prefix_w = min(prefix_w, TEXT_W - 0.8*inch - 0.5*inch)
+        col2 = max(0.5*inch, TEXT_W - prefix_w - 0.8*inch)
+        col_widths = [prefix_w, col2, 0.8*inch]
     toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
@@ -1814,8 +1820,12 @@ def generate():
                 except OSError:
                     pass
     except Exception as e:
-        app.logger.error(f"Generate error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to generate bundle. Please try again."}), 500
+        import traceback as _tb
+        app.logger.error(_tb.format_exc())
+        return jsonify({
+            "error": "Failed to generate bundle. Please try again.",
+            "_exc": f"{type(e).__name__}: {e}",
+        }), 500
     session["last_bundle"] = out_name
     return jsonify({
         "filename": out_name,
