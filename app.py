@@ -263,10 +263,24 @@ def get_session(sid):
 
 def save_session(sid, data):
     path = session_path(sid)
+    # Re-ensure directory exists (Railway ephemeral FS can lose subdirs)
+    dir_path = os.path.dirname(path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f)
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        # Fallback: write directly if rename fails (cross-device or missing dir)
+        os.makedirs(dir_path, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(data, f)
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 # ── Label helpers ────────────────────────────────────────────────────────────
