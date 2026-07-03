@@ -508,17 +508,26 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 name = party.get("name", "").strip().upper()
                 role = party.get("role", "").strip()
 
-                # Name (center col) + Role (right col) on same row
-                row_tbl = Table(
-                    [[Paragraph(name, name_st), Paragraph(role, role_st)]],
-                    colWidths=[4.0*inch, 2.0*inch],
+                # Name on its own line (centered bold), role on next line (right-aligned)
+                name_tbl = Table(
+                    [[Paragraph(name, name_st)]],
+                    colWidths=[6.0*inch],
                     style=[
-                        ("VALIGN",  (0,0), (-1,-1), "MIDDLE"),
                         ("TOPPADDING",    (0,0), (-1,-1), 2),
-                        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+                        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
                     ],
                 )
-                story.append(row_tbl)
+                story.append(name_tbl)
+                if role:
+                    role_tbl = Table(
+                        [[Paragraph(role, role_st)]],
+                        colWidths=[6.0*inch],
+                        style=[
+                            ("TOPPADDING",    (0,0), (-1,-1), 0),
+                            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+                        ],
+                    )
+                    story.append(role_tbl)
 
                 # "- and -" separator between parties (not after last)
                 if i < len(structured) - 1:
