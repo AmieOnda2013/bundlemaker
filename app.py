@@ -458,19 +458,19 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     name_st = ParagraphStyle("name_st", parent=normal,
         alignment=TA_CENTER, fontName="Times-Bold", fontSize=12, spaceAfter=0, leading=18)
     role_st = ParagraphStyle("role_st", parent=normal,
-        alignment=TA_RIGHT, fontSize=12, spaceAfter=0, leading=18)
+        alignment=TA_RIGHT, fontName="Times-Italic", fontSize=12, spaceAfter=0, leading=18)
     and_st  = ParagraphStyle("and_st",  parent=normal,
         alignment=TA_CENTER, fontSize=11, spaceAfter=0, leading=20)
 
     # ── Cover Page ──────────────────────────────────────────────────────────
     story.append(Spacer(1, 0.75*inch))
 
-    # Place (province / state / country label) — shown in italics above court name
+    # Country/place label above court name — plain (not italic)
     if place:
-        story.append(Paragraph(f"<i>{place.upper()}</i>", center_bold))
+        story.append(Paragraph(place.upper(), center_bold))
         story.append(Spacer(1, 0.15*inch))
     elif country and country != "Other / Custom":
-        story.append(Paragraph(f"<i>{country.upper()}</i>", center_bold))
+        story.append(Paragraph(country.upper(), center_bold))
         story.append(Spacer(1, 0.15*inch))
 
     if court_name:
@@ -710,11 +710,12 @@ def generate_divider_page(tab_full_label, name, output_path):
     story = [
         Spacer(1, 1.5*inch),
         Paragraph(tab_full_label.upper(), ParagraphStyle("big", parent=normal,
-            fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=24)),
-        Paragraph(name, ParagraphStyle("nm", parent=normal,
-            fontName="Times-Roman", fontSize=14, alignment=TA_CENTER, leading=20)),
-        PageBreak(),
+            fontName="Times-Bold", fontSize=36, alignment=TA_CENTER, spaceAfter=16)),
     ]
+    if name:
+        story.append(Paragraph(name, ParagraphStyle("nm", parent=normal,
+            fontName="Times-Roman", fontSize=13, alignment=TA_CENTER, leading=18, spaceAfter=0)))
+    story.append(PageBreak())
     doc.build(story)
 
 

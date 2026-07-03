@@ -276,14 +276,12 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   line-height:1;
 }
 .drag-handle:hover{color:var(--muted)}
-.type-pills{display:flex;gap:3px;flex-shrink:0;}
-.type-pill{
-  font-size:0.62rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
-  font-family:'Inter',sans-serif;padding:4px 9px;border-radius:4px;cursor:pointer;
-  border:1.5px solid #c9a84c;color:#c9a84c;background:transparent;transition:.15s;
+.grp-add-btn{
+  background:none;border:1.5px dashed #c9a84c;color:#c9a84c;border-radius:6px;
+  padding:5px 12px;font-size:0.78rem;font-weight:600;font-family:'Inter',sans-serif;
+  cursor:pointer;letter-spacing:0.03em;transition:.15s;text-align:left;
 }
-.type-pill.active{background:var(--navy);color:var(--gold);border-color:var(--navy);}
-.type-pill:hover:not(.active){background:#f5f0e4;}
+.grp-add-btn:hover{background:#fffdf5;}
 .num-badge{
   background:var(--cream);
   color:var(--navy);
@@ -1032,33 +1030,38 @@ function renderGrps(){
     wrapper.dataset.id = tab.id;
     wrapper.draggable  = true;
 
-    const grpType = tab.tab_type || 'tab';
-    const typePlaceholders = {tab:'e.g. TAB A, TAB 1, ANNEX A', chapter:'e.g. Chapter 1, Chapter A', group:'e.g. Part 1, Group A'};
+    const hasTitle = !!(tab.label || '').trim();
+    const hasDesc  = !!(tab.name  || '').trim();
     const header = document.createElement('div');
     header.className = 'tab-group-header';
-    header.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px';
+    header.style.cssText = 'flex-direction:column;align-items:stretch;gap:6px';
     header.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-        <div class="type-pills">
-          <button class="type-pill${grpType==='tab'?' active':''}" onclick="setGrpType('${tab.id}','tab',this)">TAB</button>
-          <button class="type-pill${grpType==='chapter'?' active':''}" onclick="setGrpType('${tab.id}','chapter',this)">Chapter</button>
-          <button class="type-pill${grpType==='group'?' active':''}" onclick="setGrpType('${tab.id}','group',this)">Group</button>
-        </div>
-        <input type="text" value="${escHtml(tab.label||'')}"
-          placeholder="${typePlaceholders[grpType]}"
-          data-tabid="${tab.id}"
-          class="grp-label-input"
-          style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-weight:600;font-family:inherit;min-width:0"
-          onblur="saveLabelGrp('${tab.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"/>
+        <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#aaa;flex:1">Group</span>
         <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
       </div>
-      <input class="tab-name-input" type="text" value="${escHtml(tab.name||'')}"
-        placeholder="Description (optional)"
-        onblur="renameGrp('${tab.id}',this.value)"
-        onkeydown="if(event.key==='Enter')this.blur()"
-        style="margin-left:28px"/>`;
+      ${hasTitle ? `
+      <div style="display:flex;align-items:center;gap:6px;margin-left:22px">
+        <input type="text" value="${escHtml(tab.label||'')}"
+          placeholder="Chapter / Tab title (e.g. TAB A, Chapter 1)"
+          class="grp-label-input"
+          style="flex:1;padding:5px 10px;border:1.5px solid #c9a84c;border-radius:6px;font-size:0.88rem;font-weight:600;font-family:inherit;min-width:0"
+          onblur="saveLabelGrp('${tab.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
+        <button onclick="removeGrpTitle('${tab.id}')" title="Remove title" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px">✕</button>
+      </div>` : `
+      <button class="grp-add-btn" onclick="showGrpTitle('${tab.id}',this)">+ Add Chapter / Tab Title</button>`}
+      ${hasTitle && hasDesc ? `
+      <div style="display:flex;align-items:center;gap:6px;margin-left:22px">
+        <input type="text" value="${escHtml(tab.name||'')}"
+          placeholder="Description (appears below title in smaller text)"
+          style="flex:1;padding:4px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.82rem;font-family:inherit;min-width:0;color:#555"
+          onblur="renameGrp('${tab.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
+        <button onclick="removeGrpDesc('${tab.id}')" title="Remove description" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px">✕</button>
+      </div>` : hasTitle ? `
+      <button class="grp-add-btn" style="margin-left:22px" onclick="showGrpDesc('${tab.id}',this)">+ Add description</button>` : ''}`;
 
     const itemsList = document.createElement('div');
     itemsList.className = 'doc-list';
@@ -1185,18 +1188,43 @@ async function saveLabelGrp(id, val){
   renderTocPreview();
 }
 
-async function setGrpType(id, type, btn){
+function showGrpTitle(id, btn){
   const tab = tabs.find(t=>t.id===id);
   if(!tab) return;
-  tab.tab_type = type;
-  // Update pill active states
-  btn.closest('.type-pills').querySelectorAll('.type-pill').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active');
-  // Update placeholder on the label input
-  const placeholders = {tab:'e.g. TAB A, TAB 1, ANNEX A', chapter:'e.g. Chapter 1, Chapter A', group:'e.g. Part 1, Group A'};
-  const inp = btn.closest('.tab-group-header').querySelector('.grp-label-input');
-  if(inp) inp.placeholder = placeholders[type];
-  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({tab_type:type})});
+  tab.label = '';
+  renderGrps();
+  // Focus the newly revealed input
+  setTimeout(()=>{
+    const grp = document.querySelector(`.tab-group[data-id="${id}"] .grp-label-input`);
+    if(grp) grp.focus();
+  }, 30);
+}
+
+async function removeGrpTitle(id){
+  const tab = tabs.find(t=>t.id===id);
+  if(!tab) return;
+  tab.label = ''; tab.name = '';
+  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:'', name:''})});
+  renderGrps(); renderTocPreview();
+}
+
+function showGrpDesc(id, btn){
+  const tab = tabs.find(t=>t.id===id);
+  if(!tab) return;
+  tab.name = '';
+  renderGrps();
+  setTimeout(()=>{
+    const grp = document.querySelector(`.tab-group[data-id="${id}"] .tab-group-header input[placeholder*="Description"]`);
+    if(grp) grp.focus();
+  }, 30);
+}
+
+async function removeGrpDesc(id){
+  const tab = tabs.find(t=>t.id===id);
+  if(!tab) return;
+  tab.name = '';
+  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:''})});
+  renderGrps(); renderTocPreview();
 }
 
 async function deleteGrp(id){
