@@ -841,7 +841,10 @@ function renderTocPreview(){
   html += `<th style="${thStyle};width:60px;text-align:right">${escHtml(hPage)}</th>`;
   html += '</tr></thead><tbody>';
 
-  let pageNum = 1;
+  // Cover page (1) + TOC page (1) = 2 pages before body starts
+  const COVER_PAGES = 2;
+  const useDividers = document.getElementById('useDividers').checked;
+  let pageNum = 1 + COVER_PAGES;
   let itemNum = 1;
 
   for(const item of items){
@@ -861,6 +864,8 @@ function renderTocPreview(){
     const tabName = tab.name || '';
     const tabItems = tab.items || [];
     const totalPc = tabItems.reduce((s,i)=>s+(i.page_count||1),0)||1;
+    // If dividers are on, each group starts 1 page later (divider page)
+    if(useDividers) pageNum += 1;
     const tabPageStr = totalPc===1 ? String(pageNum) : `${pageNum}–${pageNum+totalPc-1}`;
     const colspan = hasCol ? 2 : 1;
     html += `<tr style="${trShade}"><td style="${tdStyle};white-space:nowrap"><b>${escHtml(grpLabel)}</b></td>`;
@@ -1056,18 +1061,21 @@ function renderGrps(){
     wrapper.dataset.id = tab.id;
     wrapper.draggable  = true;
 
-    const grpLabel = tab.label || '';
     const header = document.createElement('div');
     header.className = 'tab-group-header';
     header.style.cssText = 'flex-direction:column;align-items:stretch;gap:6px';
     header.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
-        <span class="tab-badge" style="font-size:0.85rem;padding:5px 14px;flex:1;text-align:left" title="Click to set group label (e.g. TAB A, ANNEX A, SCHEDULE 1)" onclick="editTabLabel('${tab.id}',this)">${escHtml(grpLabel) || '<span style="opacity:0.5;font-weight:400">Click to set label (e.g. TAB A, ANNEX A)</span>'}</span>
+        <input type="text" value="${escHtml(tab.label||'')}"
+          placeholder="Tab label — e.g. TAB A, ANNEX A (optional)"
+          style="flex:1;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-weight:700;font-family:inherit;background:#f5f2eb;letter-spacing:0.03em"
+          onblur="saveLabelGrp('${tab.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
         <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
       </div>
-      <input class="tab-name-input" type="text" value="${escHtml(tab.name)}"
-        placeholder="Group description (optional)"
+      <input class="tab-name-input" type="text" value="${escHtml(tab.name||'')}"
+        placeholder="Group title / description (optional)"
         onblur="renameGrp('${tab.id}',this.value)"
         onkeydown="if(event.key==='Enter')this.blur()"
         style="margin-left:24px"/>`;
@@ -1189,26 +1197,12 @@ async function renameGrp(id, name){
   renderGrps();
 }
 
-function editTabLabel(id, badgeEl){
+async function saveLabelGrp(id, val){
   const tab = tabs.find(t=>t.id===id);
   if(!tab) return;
-  const current = tab.label || '';
-  const inp = document.createElement('input');
-  inp.className = 'tab-prefix-input';
-  inp.style.cssText = 'flex:1;width:100%;text-align:left;padding:4px 10px;font-size:0.85rem';
-  inp.value = current;
-  inp.placeholder = 'e.g. TAB A, ANNEX A';
-  badgeEl.replaceWith(inp);
-  inp.focus(); inp.select();
-  async function commit(){
-    const val = inp.value.trim();
-    tab.label = val;
-    await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:val})});
-    renderGrps();
-    renderTocPreview();
-  }
-  inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=current; inp.blur(); } });
+  tab.label = val.trim();
+  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:val.trim()})});
+  renderTocPreview();
 }
 
 async function deleteGrp(id){
