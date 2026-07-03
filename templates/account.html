@@ -98,14 +98,37 @@
   <div class="card">
     <div class="card-title">Usage</div>
     <div class="row" style="flex-direction:column;align-items:flex-start;gap:0">
+      {% if current_user.plan == 'firm' %}
+      <div style="display:flex;justify-content:space-between;width:100%">
+        <span class="row-label">Bundles generated</span>
+        <span class="row-value">{{ current_user.bundles_used }} &mdash; Unlimited</span>
+      </div>
+      {% elif current_user.plan in ['solo', 'professional'] %}
+        {% set limit = 20 if current_user.plan == 'solo' else 60 %}
+        {% set remaining = [limit - current_user.bundles_used, 0] | max %}
+        {% set pct = [(current_user.bundles_used / limit * 100), 100] | min | round %}
+      <div style="display:flex;justify-content:space-between;width:100%">
+        <span class="row-label">Bundles this month</span>
+        <span class="row-value">{{ current_user.bundles_used }} of {{ limit }} used</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:{{ pct }}%{% if pct >= 90 %};background:#c0392b{% endif %}"></div>
+        </div>
+        <p class="progress-label">
+          {{ remaining }} bundle{{ 's' if remaining != 1 }} remaining this month
+          {% if current_user.bundles_reset_date %}
+            &middot; resets {{ current_user.bundles_reset_date.strftime('%b %d') }}
+          {% endif %}
+        </p>
+      </div>
+      {% else %}
       <div style="display:flex;justify-content:space-between;width:100%">
         <span class="row-label">Bundles generated</span>
         <span class="row-value">
-          {% if current_user.plan == 'free' %}{{ current_user.bundles_used }} / 3
-          {% else %}{{ current_user.bundles_used }} (unlimited){% endif %}
+          {{ current_user.bundles_used }} / 3
         </span>
       </div>
-      {% if current_user.plan == 'free' %}
       <div class="progress-wrap">
         <div class="progress-bar">
           <div class="progress-fill" style="width:{{ [current_user.bundles_used * 33.33, 100] | min | round }}%"></div>
