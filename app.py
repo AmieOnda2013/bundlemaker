@@ -442,7 +442,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     center_normal = ParagraphStyle("center_normal", parent=normal,
         alignment=TA_CENTER, fontSize=12, spaceAfter=6, leading=18)
     small_center = ParagraphStyle("small_center", parent=normal,
-        alignment=TA_CENTER, fontSize=10, spaceAfter=6, leading=15)
+        alignment=TA_CENTER, fontName="Times-Italic", fontSize=10, spaceAfter=6, leading=15)
     toc_header_st = ParagraphStyle("toc_header", parent=normal,
         alignment=TA_CENTER, fontName="Times-Bold",
         fontSize=14, spaceAfter=16, spaceBefore=16)
@@ -765,8 +765,8 @@ def generate_divider_page(tab_full_label, name, output_path):
 
 
 def add_toc_links(writer, toc_page_index, items, tabs,
-                  first_page_index, use_dividers=True):
-    """Stamp clickable links on TOC rows for items and tab groups."""
+                  first_page_index, use_dividers=True, entries=None):
+    """Stamp clickable links on TOC rows for items, tab groups, or flat entries."""
     page        = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
     page_width  = float(page.mediabox.width)
@@ -779,33 +779,50 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     _TOC_HDG_H  = 49   # spaceBefore(16) + leading(~17) + spaceAfter(16)
     _HDR_ROW_H  = 28   # table header row fixed height
     first_row_top = page_height - _TOP_MARGIN - _TOC_HDG_H - _HDR_ROW_H
-    ROW_H = 30   # individual item rows and group summary rows (matches rowHeights above)
-    SUB_H = 25   # sub-document rows within a group (matches rowHeights above)
+    ROW_H = 30   # data rows (matches rowHeights above)
+    SUB_H = 25   # sub-document rows within a tab group
 
     link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
     y = 0
     current_pdf = first_page_index
 
-    # Individual items — no divider pages, link directly to document
-    for item in items:
-        link_rows.append((y, ROW_H, current_pdf))
-        y += ROW_H
-        pc = item.get("page_count", 1)
-        current_pdf += pc  # individual items never have divider pages
+    if entries:
+        # Flat entries model: docs and dividers interleaved
+        for entry in entries:
+            if entry.get("type") == "divider":
+                title_d = entry.get("title", "").strip()
+                if title_d:
+                    # Divider row links to the divider page itself (if rendered) or next doc
+                    target = current_pdf if use_dividers else current_pdf
+                    link_rows.append((y, ROW_H, target))
+                    y += ROW_H
+                    if use_dividers:
+                        current_pdf += 1  # divider page
+            else:
+                link_rows.append((y, ROW_H, current_pdf))
+                y += ROW_H
+                pc = entry.get("page_count", 1)
+                current_pdf += pc
+    else:
+        # Legacy: individual items + grouped tabs
+        for item in items:
+            link_rows.append((y, ROW_H, current_pdf))
+            y += ROW_H
+            pc = item.get("page_count", 1)
+            current_pdf += pc
 
-    # Grouped tabs — summary row + sub-rows
-    for tab in tabs:
-        target = current_pdf  # link to tab divider (or first doc)
-        link_rows.append((y, ROW_H, target))
-        y += ROW_H
-        doc_pdf = current_pdf + (1 if use_dividers else 0)
-        for item in tab.get("items", []):
-            link_rows.append((y, SUB_H, doc_pdf))
-            y      += SUB_H
-            pc      = item.get("page_count", 1)
-            doc_pdf += pc
-        total = sum(i.get("page_count", 1) for i in tab.get("items", []))
-        current_pdf += (1 + total) if use_dividers else total
+        for tab in tabs:
+            target = current_pdf  # link to tab divider (or first doc)
+            link_rows.append((y, ROW_H, target))
+            y += ROW_H
+            doc_pdf = current_pdf + (1 if use_dividers else 0)
+            for item in tab.get("items", []):
+                link_rows.append((y, SUB_H, doc_pdf))
+                y      += SUB_H
+                pc      = item.get("page_count", 1)
+                doc_pdf += pc
+            total = sum(i.get("page_count", 1) for i in tab.get("items", []))
+            current_pdf += (1 + total) if use_dividers else total
 
     for (y_off, h, target) in link_rows:
         row_top    = first_row_top - y_off
@@ -932,7 +949,7 @@ def merge_pdfs(session_data, output_path):
                         writer.add_page(pg)
 
     # 4. Stamp TOC links
-    add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers)
+    add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers, entries=entries)
 
     with open(output_path, "wb") as f:
         writer.write(f)
