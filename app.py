@@ -1457,7 +1457,7 @@ def create_tab():
     sid  = _get_sid()
     sess = get_session(sid)
     data = request.json or {}
-    tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "label": "", "items": []}
+    tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "label": "", "tab_type": "tab", "items": []}
     sess["tabs"].append(tab)
     save_session(sid, sess)
     return jsonify(tab)
@@ -1487,6 +1487,8 @@ def update_tab(tab_id):
                 tab["name"] = data["name"]
             if "label" in data:
                 tab["label"] = data["label"]
+            if "tab_type" in data:
+                tab["tab_type"] = data["tab_type"]
             break
     save_session(sid, sess)
     return jsonify({"ok": True})

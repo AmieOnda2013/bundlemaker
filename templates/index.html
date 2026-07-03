@@ -276,43 +276,14 @@ textarea{resize:vertical;min-height:80px;line-height:1.5}
   line-height:1;
 }
 .drag-handle:hover{color:var(--muted)}
-.tab-badge{
-  background:var(--navy);
-  color:var(--gold);
-  font-size:0.68rem;
-  font-weight:700;
-  border-radius:3px;
-  padding:3px 8px;
-  min-width:52px;
-  text-align:center;
-  flex-shrink:0;
-  letter-spacing:0.06em;
-  font-family:'Inter',sans-serif;
-  cursor:pointer;
-  user-select:none;
-  position:relative;
+.type-pills{display:flex;gap:3px;flex-shrink:0;}
+.type-pill{
+  font-size:0.62rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
+  font-family:'Inter',sans-serif;padding:4px 9px;border-radius:4px;cursor:pointer;
+  border:1.5px solid #c9a84c;color:#c9a84c;background:transparent;transition:.15s;
 }
-.tab-badge:hover::after{
-  content:'✎';
-  font-size:0.6rem;
-  margin-left:4px;
-  opacity:0.7;
-}
-.tab-prefix-input{
-  background:var(--navy);
-  color:var(--gold);
-  font-size:0.68rem;
-  font-weight:700;
-  border:1.5px solid var(--gold);
-  border-radius:3px;
-  padding:2px 6px;
-  width:70px;
-  text-align:center;
-  letter-spacing:0.06em;
-  font-family:'Inter',sans-serif;
-  outline:none;
-  flex-shrink:0;
-}
+.type-pill.active{background:var(--navy);color:var(--gold);border-color:var(--navy);}
+.type-pill:hover:not(.active){background:#f5f0e4;}
 .num-badge{
   background:var(--cream);
   color:var(--navy);
@@ -1061,24 +1032,33 @@ function renderGrps(){
     wrapper.dataset.id = tab.id;
     wrapper.draggable  = true;
 
+    const grpType = tab.tab_type || 'tab';
+    const typePlaceholders = {tab:'e.g. TAB A, TAB 1, ANNEX A', chapter:'e.g. Chapter 1, Chapter A', group:'e.g. Part 1, Group A'};
     const header = document.createElement('div');
     header.className = 'tab-group-header';
-    header.style.cssText = 'flex-direction:column;align-items:stretch;gap:6px';
+    header.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px';
     header.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
         <span class="tab-drag-handle" title="Drag to reorder group">⠿</span>
+        <div class="type-pills">
+          <button class="type-pill${grpType==='tab'?' active':''}" onclick="setGrpType('${tab.id}','tab',this)">TAB</button>
+          <button class="type-pill${grpType==='chapter'?' active':''}" onclick="setGrpType('${tab.id}','chapter',this)">Chapter</button>
+          <button class="type-pill${grpType==='group'?' active':''}" onclick="setGrpType('${tab.id}','group',this)">Group</button>
+        </div>
         <input type="text" value="${escHtml(tab.label||'')}"
-          placeholder="Tab label — e.g. TAB A, ANNEX A (optional)"
-          style="flex:1;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-weight:700;font-family:inherit;background:#f5f2eb;letter-spacing:0.03em"
+          placeholder="${typePlaceholders[grpType]}"
+          data-tabid="${tab.id}"
+          class="grp-label-input"
+          style="flex:1;padding:5px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:0.85rem;font-weight:600;font-family:inherit;min-width:0"
           onblur="saveLabelGrp('${tab.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()"/>
         <button class="btn btn-remove" style="flex-shrink:0" onclick="deleteGrp('${tab.id}')" title="Delete group">✕</button>
       </div>
       <input class="tab-name-input" type="text" value="${escHtml(tab.name||'')}"
-        placeholder="Group title / description (optional)"
+        placeholder="Description (optional)"
         onblur="renameGrp('${tab.id}',this.value)"
         onkeydown="if(event.key==='Enter')this.blur()"
-        style="margin-left:24px"/>`;
+        style="margin-left:28px"/>`;
 
     const itemsList = document.createElement('div');
     itemsList.className = 'doc-list';
@@ -1203,6 +1183,20 @@ async function saveLabelGrp(id, val){
   tab.label = val.trim();
   await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:val.trim()})});
   renderTocPreview();
+}
+
+async function setGrpType(id, type, btn){
+  const tab = tabs.find(t=>t.id===id);
+  if(!tab) return;
+  tab.tab_type = type;
+  // Update pill active states
+  btn.closest('.type-pills').querySelectorAll('.type-pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  // Update placeholder on the label input
+  const placeholders = {tab:'e.g. TAB A, TAB 1, ANNEX A', chapter:'e.g. Chapter 1, Chapter A', group:'e.g. Part 1, Group A'};
+  const inp = btn.closest('.tab-group-header').querySelector('.grp-label-input');
+  if(inp) inp.placeholder = placeholders[type];
+  await fetch(`/api/tabs/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({tab_type:type})});
 }
 
 async function deleteGrp(id){
