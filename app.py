@@ -461,8 +461,67 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         story.append(Paragraph(f"Court File No.: {court_file}", right_st))
         story.append(Spacer(1, 0.25*inch))
     if parties:
-        for line in parties.strip().split("\n"):
-            story.append(Paragraph(line, center_normal))
+        # Accept both new structured list and legacy plain string
+        if isinstance(parties, list):
+            structured = [p for p in parties if p.get("name") or p.get("role")]
+        else:
+            # Legacy: plain text — render as-is
+            structured = None
+
+        if structured:
+            # Group into left (first role) vs right (second role) columns.
+            # Left column = first unique role group, right = second.
+            # Separate groups by the order roles first appear.
+            seen_roles, groups = [], {}
+            for p in structured:
+                role = p.get("role", "").strip() or "Party"
+                if role not in seen_roles:
+                    seen_roles.append(role)
+                groups.setdefault(role, []).append(p.get("name", "").strip().upper())
+
+            if len(seen_roles) == 1:
+                # Only one role — center them
+                role = seen_roles[0]
+                for name in groups[role]:
+                    story.append(Paragraph(name, center_bold))
+                story.append(Paragraph(role.upper(), center_normal))
+            else:
+                # Two or more roles — classic two-column legal style
+                left_role  = seen_roles[0]
+                right_role = seen_roles[1]
+                left_names  = groups[left_role]
+                right_names = groups[right_role]
+
+                left_cell  = "<br/>".join(f"<b>{n}</b>" for n in left_names) + f"<br/><i>{left_role}</i>"
+                right_cell = "<br/>".join(f"<b>{n}</b>" for n in right_names) + f"<br/><i>{right_role}</i>"
+
+                # Additional parties beyond first two roles, centered below
+                extra_rows = []
+                for role in seen_roles[2:]:
+                    extra_rows.append(Paragraph("— and —", center_normal))
+                    for name in groups[role]:
+                        extra_rows.append(Paragraph(f"<b>{name}</b>", center_normal))
+                    extra_rows.append(Paragraph(role.upper(), center_normal))
+
+                cell_st = ParagraphStyle("pcell", parent=normal,
+                    fontName="Times-Roman", fontSize=11, leading=16, alignment=TA_CENTER)
+                tbl = Table(
+                    [[Paragraph(left_cell, cell_st), Paragraph("— and —", cell_st), Paragraph(right_cell, cell_st)]],
+                    colWidths=[2.5*inch, 1.0*inch, 2.5*inch],
+                )
+                tbl.setStyle(TableStyle([
+                    ("VALIGN", (0,0), (-1,-1), "TOP"),
+                    ("ALIGN",  (0,0), (-1,-1), "CENTER"),
+                    ("TOPPADDING",    (0,0), (-1,-1), 4),
+                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+                ]))
+                story.append(tbl)
+                for r in extra_rows:
+                    story.append(r)
+        else:
+            # Legacy plain text
+            for line in str(parties).strip().split("\n"):
+                story.append(Paragraph(line, center_normal))
         story.append(Spacer(1, 0.4*inch))
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph(tmpl["header"], center_bold))

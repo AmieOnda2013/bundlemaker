@@ -587,8 +587,9 @@ footer span{color:var(--gold)}
           <input type="text" id="courtFile" placeholder="e.g. CV-24-00123456-0000" oninput="saveSettings()"/>
         </div>
         <div class="field">
-          <label>Parties <span style="font-weight:400;text-transform:none;font-size:0.7rem">(one line each)</span></label>
-          <textarea id="parties" placeholder="JOHN DOE&#10;— and —&#10;JANE DOE" oninput="saveSettings()"></textarea>
+          <label>Parties</label>
+          <div id="partiesContainer" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button type="button" onclick="addParty()" style="margin-top:6px;background:none;border:1.5px dashed #c9a84c;color:#c9a84c;border-radius:6px;padding:7px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;letter-spacing:0.04em;width:100%">+ Add Party</button>
         </div>
 
         <hr class="divider"/>
@@ -789,7 +790,15 @@ async function loadSession(){
   document.getElementById('docType').value = oldKeys.includes(rawDocType) ? '' : rawDocType;
   document.getElementById('docTitle').value = s.title || '';
   document.getElementById('courtFile').value = s.court_file || '';
-  document.getElementById('parties').value = s.parties || '';
+  // Parties: support old string format and new array format
+  let partiesData = [];
+  if (Array.isArray(s.parties)) {
+    partiesData = s.parties;
+  } else if (typeof s.parties === 'string' && s.parties.trim()) {
+    // Migrate legacy plain-text parties into a single "and between" block
+    partiesData = [{name: s.parties.trim(), role: ''}];
+  }
+  renderParties(partiesData);
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('useDividers').checked = s.use_dividers !== false;
@@ -814,7 +823,7 @@ async function saveSettings(){
       doc_type: document.getElementById('docType').value,
       title: document.getElementById('docTitle').value,
       court_file: document.getElementById('courtFile').value,
-      parties: document.getElementById('parties').value,
+      parties: getPartiesData(),
       recitals: document.getElementById('recitals').value,
       use_dividers: document.getElementById('useDividers').checked,
       col_header: document.getElementById('colHeader').value,
@@ -1346,13 +1355,88 @@ function showUpgradeModal(){
   modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
 }
 
+// ── Parties ───────────────────────────────────────────────────────────────────
+const ROLE_SUGGESTIONS = [
+  'Plaintiff','Defendant','Applicant','Respondent',
+  'Moving Party','Responding Party','Appellant','Respondent (Appeal)',
+  'Petitioner','Claimant','Third Party','Intervenor',
+  'Moving Parties','Responding Parties','Plaintiffs','Defendants',
+  'Applicants','Respondents'
+];
+
+function getPartiesData() {
+  const rows = document.querySelectorAll('#partiesContainer .party-row');
+  return Array.from(rows).map(r => ({
+    name: r.querySelector('.party-name').value.trim(),
+    role: r.querySelector('.party-role').value.trim(),
+  })).filter(p => p.name || p.role);
+}
+
+function renderParties(data) {
+  const c = document.getElementById('partiesContainer');
+  c.innerHTML = '';
+  (data.length ? data : []).forEach(p => addParty(p));
+}
+
+function addParty(data) {
+  const c = document.getElementById('partiesContainer');
+  const row = document.createElement('div');
+  row.className = 'party-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:start';
+
+  const nameIn = document.createElement('input');
+  nameIn.className = 'party-name';
+  nameIn.type = 'text';
+  nameIn.placeholder = 'e.g. JOHN DOE';
+  nameIn.value = data?.name || '';
+  nameIn.style.cssText = 'text-transform:uppercase;font-size:0.85rem';
+  nameIn.addEventListener('input', saveSettings);
+
+  // Role field with datalist for suggestions
+  const roleWrap = document.createElement('div');
+  roleWrap.style.cssText = 'position:relative';
+  const roleIn = document.createElement('input');
+  roleIn.className = 'party-role';
+  roleIn.type = 'text';
+  roleIn.placeholder = 'Role (e.g. Plaintiff)';
+  roleIn.value = data?.role || '';
+  roleIn.setAttribute('list', 'role-suggestions');
+  roleIn.style.cssText = 'font-size:0.85rem';
+  roleIn.addEventListener('input', saveSettings);
+  roleWrap.appendChild(roleIn);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '×';
+  removeBtn.title = 'Remove party';
+  removeBtn.style.cssText = 'background:none;border:none;color:#aaa;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-top:6px';
+  removeBtn.addEventListener('click', () => { row.remove(); saveSettings(); });
+
+  row.appendChild(nameIn);
+  row.appendChild(roleWrap);
+  row.appendChild(removeBtn);
+  c.appendChild(row);
+
+  // Ensure datalist exists
+  if (!document.getElementById('role-suggestions')) {
+    const dl = document.createElement('datalist');
+    dl.id = 'role-suggestions';
+    ROLE_SUGGESTIONS.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r;
+      dl.appendChild(opt);
+    });
+    document.body.appendChild(dl);
+  }
+}
+
 async function resetSession(){
   if(!confirm('Clear all documents and start a new bundle?')) return;
   await fetch('/api/reset',{method:'POST'});
   items = []; tabs = [];
   document.getElementById('docTitle').value  = '';
   document.getElementById('courtFile').value = '';
-  document.getElementById('parties').value   = '';
+  renderParties([]);
   document.getElementById('recitals').value  = '';
   renderInd(); renderGrps();
   toast('Bundle cleared. Ready for new documents.','info');
