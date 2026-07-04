@@ -227,6 +227,8 @@ def _default_session():
         "col_item_header": "",   # TOC column: item/number header (default "#" / "Item")
         "col_doc_header": "",    # TOC column: document name header (default "Document")
         "col_page_header": "",   # TOC column: page(s) header (default "Page(s)")
+        "counsel": "",           # your counsel block (right side of cover)
+        "opp_counsel": "",       # opposing counsel block (left side / TO:)
         "section_title": "",     # optional divider title before individual documents
         "section_desc": "",      # optional description below section title
     }
@@ -435,7 +437,8 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        custom_court="", custom_rules="", recitals="",
                        use_dividers=True, col_header="", tab_prefix="Tab",
                        col_item_header="", col_doc_header="", col_page_header="",
-                       place="", page_offset=0, entries=None):
+                       place="", page_offset=0, entries=None,
+                       counsel="", opp_counsel=""):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -583,6 +586,53 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
                 story.append(Spacer(1, 0.1*inch))
+        story.append(PageBreak())
+
+    # ── Counsel block (two-column: opp on left with TO:, yours on right) ────
+    if counsel.strip() or opp_counsel.strip():
+        def _counsel_paras(text, bold_first=False):
+            """Convert newline-separated text into a list of Paragraphs."""
+            paras = []
+            lines = text.strip().split("\n")
+            first_content = True
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    paras.append(Spacer(1, 6))
+                    continue
+                if first_content and bold_first:
+                    st = ParagraphStyle("cb", parent=normal,
+                        fontName="Times-Bold", fontSize=10, leading=15, spaceAfter=2)
+                    first_content = False
+                else:
+                    st = ParagraphStyle("cn", parent=normal,
+                        fontSize=10, leading=15, spaceAfter=2)
+                    first_content = False
+                paras.append(Paragraph(stripped, st))
+            return paras
+
+        opp_cell = []
+        if opp_counsel.strip():
+            to_st = ParagraphStyle("to_lbl", parent=normal,
+                fontName="Times-Bold", fontSize=10, leading=15, spaceAfter=4)
+            opp_cell.append(Paragraph("TO:", to_st))
+            opp_cell.extend(_counsel_paras(opp_counsel, bold_first=True))
+
+        your_cell = _counsel_paras(counsel, bold_first=True)
+
+        counsel_tbl = Table(
+            [[opp_cell, your_cell]],
+            colWidths=[3.0*inch, 3.25*inch],
+            style=[
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("LEFTPADDING",  (0,0), (-1,-1), 0),
+                ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                ("TOPPADDING",   (0,0), (-1,-1), 0),
+                ("BOTTOMPADDING",(0,0), (-1,-1), 0),
+            ],
+        )
+        story.append(Spacer(1, 0.5*inch))
+        story.append(counsel_tbl)
         story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
@@ -894,6 +944,8 @@ def merge_pdfs(session_data, output_path):
         col_doc_header=session_data.get("col_doc_header", ""),
         col_page_header=session_data.get("col_page_header", ""),
         place=session_data.get("place", ""),
+        counsel=session_data.get("counsel", ""),
+        opp_counsel=session_data.get("opp_counsel", ""),
     )
     toc_args = (doc_type, items, tabs,
                 session_data.get("title", ""),
@@ -1440,7 +1492,8 @@ def update_session():
     sess = get_session(sid)
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
-                "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries"):
+                "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
+                "counsel","opp_counsel"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
