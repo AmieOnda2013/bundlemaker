@@ -680,15 +680,6 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
-        <div class="field" style="flex-direction:row;align-items:center;gap:10px;padding:4px 0">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;font-size:0.82rem;font-weight:400;letter-spacing:0">
-            <span class="toggle-switch">
-              <input type="checkbox" id="pageBreakAfterRecital" onchange="saveSettings()"/>
-              <span class="toggle-slider"></span>
-            </span>
-            Insert Page Break after Recital
-          </label>
-        </div>
 
         <hr class="divider"/>
 
@@ -821,7 +812,6 @@ async function loadSession(){
   document.getElementById('oppCounsel').value = s.opp_counsel || '';
   document.getElementById('yourCounsel').value = s.counsel || '';
   document.getElementById('customRules').value = s.custom_rules || '';
-  document.getElementById('pageBreakAfterRecital').checked = s.page_break_after_recital === true;
   document.getElementById('colHeader').value = s.col_header || '';
   document.getElementById('colItemHeader').value = s.col_item_header || '';
   document.getElementById('colDocHeader').value  = s.col_doc_header  || '';
@@ -861,7 +851,6 @@ async function saveSettings(){
       recitals: document.getElementById('recitals').value,
       opp_counsel: document.getElementById('oppCounsel').value,
       counsel: document.getElementById('yourCounsel').value,
-      page_break_after_recital: document.getElementById('pageBreakAfterRecital').checked,
       col_header: document.getElementById('colHeader').value,
     })
   });
