@@ -1479,10 +1479,15 @@ def stripe_webhook():
             user = db.session.get(User, int(user_id))
             if user:
                 added = int(meta.get("bundles", TOPUP_BUNDLES))
-                user.topup_bundles = (user.topup_bundles or 0) + added
-                user.email_verified = True
-                db.session.commit()
-                app.logger.info(f"Top-up: gave {user.email} {added} bundles (bundles_used now {user.bundles_used})")
+                try:
+                    user.topup_bundles = (user.topup_bundles or 0) + added
+                    user.email_verified = True
+                    db.session.commit()
+                    app.logger.info(f"Top-up: gave {user.email} {added} bundles (topup_bundles now {user.topup_bundles})")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Top-up DB commit failed for user {user_id}: {e}")
+                    return "DB error", 500
             else:
                 app.logger.error(f"checkout.session.completed: no user found for top-up id={user_id}")
         elif user_id and plan:
@@ -1544,12 +1549,19 @@ def admin_set_plan():
     users = db.session.execute(db.select(User).order_by(User.id)).scalars().all()
     if request.method == "POST":
         target_email = request.form.get("email", "").strip().lower()
-        new_plan     = request.form.get("plan", "free")
-        period       = request.form.get("period", "monthly")
+        action       = request.form.get("action", "set_plan")
         target = db.session.execute(db.select(User).filter_by(email=target_email)).scalar_one_or_none()
         if not target:
             message = f"No user found with email: {target_email}"
+        elif action == "grant_topup":
+            added = int(request.form.get("bundles", TOPUP_BUNDLES))
+            target.topup_bundles   = (target.topup_bundles or 0) + added
+            target.email_verified  = True
+            db.session.commit()
+            message = f"Granted {added} top-up bundles to {target_email} (total topup: {target.topup_bundles})"
         else:
+            new_plan = request.form.get("plan", "free")
+            period   = request.form.get("period", "monthly")
             target.plan        = new_plan
             target.plan_period = period
             target.email_verified = True
@@ -1559,15 +1571,19 @@ def admin_set_plan():
             db.session.commit()
             message = f"Updated {target_email} → {new_plan} ({period})"
     html = f"""<!DOCTYPE html><html><head><title>Admin — Set Plan</title>
-    <style>body{{font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px}}
+    <style>body{{font-family:sans-serif;max-width:620px;margin:40px auto;padding:0 20px}}
     input,select{{width:100%;padding:8px;margin:6px 0 14px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px}}
     button{{background:#0d1b2a;color:#c9a84c;padding:10px 24px;border:none;border-radius:4px;cursor:pointer;font-weight:700}}
     .msg{{background:#e8f5e9;padding:10px;border-radius:4px;margin-bottom:16px;color:#2e7d32}}
+    .err{{background:#fdecea;padding:10px;border-radius:4px;margin-bottom:16px;color:#c0392b}}
     table{{width:100%;border-collapse:collapse;margin-top:24px;font-size:0.85rem}}
-    td,th{{padding:6px 8px;border:1px solid #ddd;text-align:left}}</style></head><body>
-    <h2>Admin — Set User Plan</h2>
+    td,th{{padding:6px 8px;border:1px solid #ddd;text-align:left}}
+    h3{{margin:32px 0 8px;border-top:1px solid #eee;padding-top:24px}}</style></head><body>
+    <h2>Admin — BundleMaker Users</h2>
     {'<div class="msg">'+message+'</div>' if message else ''}
+    <h3>Set / Change Plan</h3>
     <form method="POST">
+      <input type="hidden" name="action" value="set_plan"/>
       <label>User email</label>
       <input name="email" type="email" required placeholder="user@example.com"/>
       <label>Plan</label>
@@ -1584,8 +1600,17 @@ def admin_set_plan():
       </select>
       <button type="submit">Update Plan</button>
     </form>
-    <table><tr><th>Email</th><th>Plan</th><th>Bundles used</th><th>Verified</th></tr>
-    {''.join(f"<tr><td>{escape(u.email)}</td><td>{escape(u.plan)}</td><td>{u.bundles_used}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
+    <h3>Grant Top-Up Bundles</h3>
+    <form method="POST">
+      <input type="hidden" name="action" value="grant_topup"/>
+      <label>User email</label>
+      <input name="email" type="email" required placeholder="user@example.com"/>
+      <label>Bundles to add</label>
+      <input name="bundles" type="number" value="20" min="1" max="500"/>
+      <button type="submit">Grant Top-Up</button>
+    </form>
+    <table><tr><th>Email</th><th>Plan</th><th>Used</th><th>Top-up</th><th>Verified</th></tr>
+    {''.join(f"<tr><td>{escape(u.email)}</td><td>{escape(u.plan)}</td><td>{u.bundles_used}</td><td>{u.topup_bundles or 0}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
     </table></body></html>"""
     return html
 
