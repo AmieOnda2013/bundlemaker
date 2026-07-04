@@ -1737,6 +1737,22 @@ def admin_set_plan():
             target.email_verified  = True
             db.session.commit()
             message = f"Granted {added} top-up bundles to {target_email} (total topup: {target.topup_bundles})"
+        elif action == "revoke_topup":
+            prev = target.topup_bundles or 0
+            target.topup_bundles    = 0
+            target.last_topup_session = None
+            db.session.commit()
+            message = f"Revoked top-up bundles from {target_email} ({prev} bundles removed)"
+        elif action == "revert_free":
+            target.plan                   = "free"
+            target.plan_period            = "monthly"
+            target.stripe_subscription_id = None
+            target.bundles_used           = 0
+            target.bundles_reset_date     = None
+            target.topup_bundles          = 0
+            target.last_topup_session     = None
+            db.session.commit()
+            message = f"Reverted {target_email} to Free plan (all bundles cleared)"
         else:
             new_plan = request.form.get("plan", "free")
             period   = request.form.get("period", "monthly")
@@ -1786,6 +1802,20 @@ def admin_set_plan():
       <label>Bundles to add</label>
       <input name="bundles" type="number" value="20" min="1" max="500"/>
       <button type="submit">Grant Top-Up</button>
+    </form>
+    <h3 style="color:#c0392b">Refund Actions</h3>
+    <p style="font-size:0.82rem;color:#888;margin-bottom:12px">Issue the money refund in Stripe first, then use these to revoke the bundles.</p>
+    <form method="POST" onsubmit="return confirm('Revoke ALL top-up bundles for this user?')">
+      <input type="hidden" name="action" value="revoke_topup"/>
+      <label>Revoke Top-Up — User email</label>
+      <input name="email" type="email" required placeholder="user@example.com"/>
+      <button type="submit" style="background:#c0392b">Revoke Top-Up Bundles</button>
+    </form>
+    <form method="POST" style="margin-top:16px" onsubmit="return confirm('Revert this user to Free plan and clear all bundles?')">
+      <input type="hidden" name="action" value="revert_free"/>
+      <label>Revert to Free — User email</label>
+      <input name="email" type="email" required placeholder="user@example.com"/>
+      <button type="submit" style="background:#c0392b">Revert to Free Plan</button>
     </form>
     <table><tr><th>Email</th><th>Plan</th><th>Used</th><th>Top-up</th><th>Verified</th></tr>
     {''.join(f"<tr><td>{escape(u.email)}</td><td>{escape(u.plan)}</td><td>{u.bundles_used}</td><td>{u.topup_bundles or 0}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
