@@ -575,8 +575,12 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         story.append(Spacer(1, 0.2*inch))
         story.append(Paragraph(title, center_normal))
 
-    # ── Counsel block — directly below title/subtitle ────────────────────────
-    # Plaintiff/Applicant: right half; Defendant/Respondent: left half below
+    # ── Applicable Rules — 1 line space below title/subtitle ─────────────────
+    if rule_body:
+        story.append(Spacer(1, 0.25*inch))
+        story.append(Paragraph(rule_body, small_center))
+
+    # ── Counsel block — below rules ───────────────────────────────────────────
     if counsel.strip() or opp_counsel.strip():
         TEXT_W  = 6.25 * inch
         HALF_W  = TEXT_W / 2
@@ -600,10 +604,9 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 paras.append(Paragraph(stripped, st))
             return paras
 
-        story.append(Spacer(1, 0.35 * inch))   # 2 line spaces below title
+        story.append(Spacer(1, 0.35*inch))
 
         if counsel.strip():
-            # Right block: spacer takes 62% of text width, content gets 38%
             R_SPACER = TEXT_W * 0.62
             R_CONTENT = TEXT_W - R_SPACER
             story.append(Table(
@@ -615,7 +618,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             ))
 
         if counsel.strip() and opp_counsel.strip():
-            story.append(Spacer(1, 0.25 * inch))
+            story.append(Spacer(1, 0.25*inch))
 
         if opp_counsel.strip():
             story.append(Table(
@@ -626,16 +629,11 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
             ))
 
-    if rule_body:
-        story.append(Spacer(1, 0.4*inch))
-        story.append(Paragraph(rule_body, small_center))
-    story.append(PageBreak())
-
-    # ── Written Recitals ────────────────────────────────────────────────────
+    # ── Written Recitals — 2 line spaces below counsel (or rules/title) ───────
     if recitals and recitals.strip():
         recital_st = ParagraphStyle("recital", parent=normal,
             alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
-        story.append(Spacer(1, 0.6*inch))
+        story.append(Spacer(1, 0.5*inch))   # 2 line spaces below counsel
         for para in recitals.strip().split("\n"):
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
@@ -643,7 +641,9 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         if page_break_after_recital:
             story.append(PageBreak())
         else:
-            story.append(Spacer(1, 0.35 * inch))   # ~2 line spaces before TOC
+            story.append(Spacer(1, 0.4*inch))   # 2 line spaces before TOC
+    else:
+        story.append(Spacer(1, 0.4*inch))   # 2 line spaces before TOC when no recitals
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
