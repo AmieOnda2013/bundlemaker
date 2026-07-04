@@ -1895,11 +1895,13 @@ def generate():
 
     if not current_user.can_generate() and not is_owner():
         limit = PLAN_LIMITS.get(current_user.plan, 0)
+        plan_data = PLANS.get(current_user.plan, {})
+        plan_name = plan_data.get("name", current_user.plan.capitalize())
         if current_user.plan == "free":
-            msg = "You have used all 3 free bundles. Upgrade to continue."
+            msg = f"You've used all {limit} free bundles."
         else:
-            msg = f"You have reached your {limit} bundle limit for this month. Upgrade for more."
-        return jsonify({"error": msg, "upgrade": True}), 403
+            msg = f"You've used all {limit} bundles included in your {plan_name} plan for this month."
+        return jsonify({"error": msg, "upgrade": True, "plan_name": plan_name, "limit": limit, "plan": current_user.plan}), 403
 
     sid  = _get_sid()
     sess = get_session(sid)

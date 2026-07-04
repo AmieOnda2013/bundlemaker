@@ -1181,7 +1181,7 @@ async function generate(){
   const d = await r.json();
   if(d.error){
     if(d.upgrade){
-      showUpgradeModal();
+      showUpgradeModal(d);
     } else {
       toast(d.error,'error');
     }
@@ -1191,7 +1191,14 @@ async function generate(){
   window.location.href = `/api/download/${d.filename}`;
 }
 
-function showUpgradeModal(){
+function showUpgradeModal(d){
+  d = d || {};
+  const isFree = !d.plan || d.plan === 'free';
+  const title  = isFree ? 'Free bundles used' : `${d.plan_name || 'Plan'} limit reached`;
+  const body   = d.error || (isFree ? 'You\'ve used all your free bundles.' : 'You\'ve reached your plan\'s monthly bundle limit.');
+  const sub    = isFree
+    ? 'Upgrade to Solo or Professional for more bundles.'
+    : 'Upgrade your plan to generate more bundles this month.';
   const existing = document.getElementById('upgradeModal');
   if(existing) existing.remove();
   const modal = document.createElement('div');
@@ -1200,10 +1207,9 @@ function showUpgradeModal(){
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:40px 36px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
       <div style="font-size:2.5rem;margin-bottom:16px">📋</div>
-      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:#0d1b2a;margin-bottom:10px">Free bundles used</h2>
-      <p style="color:#666;font-size:0.9rem;line-height:1.6;margin-bottom:28px">
-        You've used all 3 free bundles. Upgrade to Solo or Firm for unlimited bundle generation.
-      </p>
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:#0d1b2a;margin-bottom:10px">${title}</h2>
+      <p style="color:#666;font-size:0.9rem;line-height:1.6;margin-bottom:6px">${body}</p>
+      <p style="color:#999;font-size:0.85rem;line-height:1.6;margin-bottom:28px">${sub}</p>
       <a href="/pricing" style="display:block;padding:13px;background:#0d1b2a;color:#c9a84c;border-radius:7px;font-weight:700;font-size:0.95rem;text-decoration:none;letter-spacing:0.04em;margin-bottom:12px">
         View Plans & Upgrade
       </a>
