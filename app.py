@@ -588,51 +588,69 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 story.append(Spacer(1, 0.1*inch))
         story.append(PageBreak())
 
-    # ── Counsel block (two-column: opp on left with TO:, yours on right) ────
+    # ── Counsel block ─────────────────────────────────────────────────────────
+    # Plaintiff/Applicant counsel: right half of page (starting at centre + 1 in)
+    # Defendant/Respondent counsel: left half of page, one line-space below
     if counsel.strip() or opp_counsel.strip():
-        def _counsel_paras(text, bold_first=False):
+        TEXT_W  = 6.25 * inch
+        HALF_W  = TEXT_W / 2          # 3.125 in — mid-point of text area
+        BLOCK_W = HALF_W - 0.1 * inch # slight inset so text doesn't crowd margin
+
+        def _counsel_paras(text):
             """Convert newline-separated text into a list of Paragraphs."""
             paras = []
-            lines = text.strip().split("\n")
             first_content = True
-            for line in lines:
+            for line in text.strip().split("\n"):
                 stripped = line.strip()
                 if not stripped:
-                    paras.append(Spacer(1, 6))
+                    paras.append(Spacer(1, 5))
                     continue
-                if first_content and bold_first:
+                if first_content:
                     st = ParagraphStyle("cb", parent=normal,
-                        fontName="Times-Bold", fontSize=10, leading=15, spaceAfter=2)
+                        fontName="Times-Bold", fontSize=10, leading=15, spaceAfter=1)
                     first_content = False
                 else:
                     st = ParagraphStyle("cn", parent=normal,
-                        fontSize=10, leading=15, spaceAfter=2)
-                    first_content = False
+                        fontSize=10, leading=15, spaceAfter=1)
                 paras.append(Paragraph(stripped, st))
             return paras
 
-        opp_cell = []
+        story.append(Spacer(1, 0.5 * inch))
+
+        # Plaintiff/Applicant counsel — RIGHT block
+        if counsel.strip():
+            plt_tbl = Table(
+                [[" ", _counsel_paras(counsel)]],
+                colWidths=[HALF_W + 0.1*inch, BLOCK_W],
+                style=[
+                    ("VALIGN",        (0,0), (-1,-1), "TOP"),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+                    ("TOPPADDING",    (0,0), (-1,-1), 0),
+                    ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+                ],
+            )
+            story.append(plt_tbl)
+
+        # One blank line between the two blocks
+        if counsel.strip() and opp_counsel.strip():
+            story.append(Spacer(1, 0.25 * inch))
+
+        # Defendant/Respondent counsel — LEFT block
         if opp_counsel.strip():
-            to_st = ParagraphStyle("to_lbl", parent=normal,
-                fontName="Times-Bold", fontSize=10, leading=15, spaceAfter=4)
-            opp_cell.append(Paragraph("TO:", to_st))
-            opp_cell.extend(_counsel_paras(opp_counsel, bold_first=True))
+            def_tbl = Table(
+                [[_counsel_paras(opp_counsel), " "]],
+                colWidths=[BLOCK_W, HALF_W + 0.1*inch],
+                style=[
+                    ("VALIGN",        (0,0), (-1,-1), "TOP"),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+                    ("TOPPADDING",    (0,0), (-1,-1), 0),
+                    ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+                ],
+            )
+            story.append(def_tbl)
 
-        your_cell = _counsel_paras(counsel, bold_first=True)
-
-        counsel_tbl = Table(
-            [[opp_cell, your_cell]],
-            colWidths=[3.0*inch, 3.25*inch],
-            style=[
-                ("VALIGN", (0,0), (-1,-1), "TOP"),
-                ("LEFTPADDING",  (0,0), (-1,-1), 0),
-                ("RIGHTPADDING", (0,0), (-1,-1), 0),
-                ("TOPPADDING",   (0,0), (-1,-1), 0),
-                ("BOTTOMPADDING",(0,0), (-1,-1), 0),
-            ],
-        )
-        story.append(Spacer(1, 0.5*inch))
-        story.append(counsel_tbl)
         story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────

@@ -658,15 +658,15 @@ footer span{color:var(--gold)}
 
         <!-- Counsel block -->
         <div class="field">
-          <label>Counsel <span style="font-weight:400;text-transform:none;font-size:0.7rem">(appears on cover page — Your Counsel on right, Opposing on left)</span></label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <label>Counsel Information</label>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
             <div>
-              <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#888;margin-bottom:4px">Opposing Counsel (TO:)</div>
-              <textarea id="oppCounsel" oninput="saveSettings()" placeholder="DEPARTMENT OF JUSTICE&#10;The Exchange Tower&#10;130 King St. W., Suite 3400&#10;Toronto, ON M5X 1K6&#10;&#10;Kristina Dragaitis&#10;Tel: 416-952-6992&#10;Fax: 416-954-8982&#10;&#10;Counsel for the Respondent" style="width:100%;box-sizing:border-box;min-height:160px;font-size:0.8rem;line-height:1.6;resize:vertical"></textarea>
+              <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#888;margin-bottom:4px">Counsel for the Plaintiff / Petitioner / Applicant</div>
+              <textarea id="yourCounsel" oninput="saveSettings()" placeholder="PETER ROSENTHAL, Barrister&#10;C/O PIETERS LAW OFFICE&#10;181 University Avenue, Suite 2200&#10;Toronto, ON M5H 3M7&#10;&#10;Telephone: (416) 787-5928&#10;Fax: (416) 787-6145&#10;E-mail: counsel@lawfirm.com&#10;&#10;Solicitors for the Applicants" style="width:100%;box-sizing:border-box;min-height:150px;font-size:0.8rem;line-height:1.6;resize:vertical"></textarea>
             </div>
             <div>
-              <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#888;margin-bottom:4px">Your Counsel</div>
-              <textarea id="yourCounsel" oninput="saveSettings()" placeholder="PETER ROSENTHAL, Barrister&#10;C/O PIETERS LAW OFFICE&#10;181 University Avenue, Suite 2200&#10;Toronto, ON M5H 3M7&#10;&#10;Telephone: (416) 787-5928&#10;Fax: (416) 787-6145&#10;E-mail: counsel@lawfirm.com&#10;&#10;Solicitors for the Applicants" style="width:100%;box-sizing:border-box;min-height:160px;font-size:0.8rem;line-height:1.6;resize:vertical"></textarea>
+              <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#888;margin-bottom:4px">Counsel for the Defendant / Respondent</div>
+              <textarea id="oppCounsel" oninput="saveSettings()" placeholder="DEPARTMENT OF JUSTICE&#10;The Exchange Tower&#10;130 King St. W., Suite 3400&#10;Toronto, ON M5X 1K6&#10;&#10;Kristina Dragaitis&#10;Tel: 416-952-6992&#10;Fax: 416-954-8982&#10;&#10;Counsel for the Respondent" style="width:100%;box-sizing:border-box;min-height:150px;font-size:0.8rem;line-height:1.6;resize:vertical"></textarea>
             </div>
           </div>
         </div>
