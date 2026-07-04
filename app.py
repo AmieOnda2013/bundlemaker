@@ -832,12 +832,16 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         prefix_w = min(prefix_w, TEXT_W - PAGE_COL - 0.5*inch)
         col2 = max(0.5*inch, TEXT_W - prefix_w - PAGE_COL)
         col_widths = [prefix_w, col2, PAGE_COL]
-    toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
+    toc_table = Table(toc_data, colWidths=col_widths)
     toc_table.setStyle(TableStyle(ts))
+    # Force layout so we can read the actual computed row heights (including wrapped rows)
+    toc_table.wrap(TEXT_W, 10000)
+    actual_row_heights = list(toc_table._rowHeights)  # index 0 = header, 1..n = data rows
     story.append(toc_table)
     story.append(PageBreak())
 
     doc.build(story)
+    return actual_row_heights
 
 
 def generate_divider_page(tab_full_label, name, output_path):
@@ -862,7 +866,7 @@ def generate_divider_page(tab_full_label, name, output_path):
 
 def add_toc_links(writer, toc_page_index, items, tabs,
                   first_page_index, use_dividers=True, entries=None,
-                  entry_page_map=None):
+                  entry_page_map=None, actual_row_heights=None):
     """Stamp clickable links on TOC rows for items, tab groups, or flat entries."""
     page        = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
@@ -870,22 +874,31 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(44) minus header-row(28)
-    # TOC heading: spaceBefore(16) + leading(12, from normal style) + spaceAfter(16) = 44pt
+    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(44) minus header-row
     _TOP_MARGIN = 90
     _TOC_HDG_H  = 44   # spaceBefore(16) + leading(12) + spaceAfter(16)
-    _HDR_ROW_H  = 28   # table header row fixed height
+    # Header row height comes from actual_row_heights[0] if available, else fallback
+    _HDR_ROW_H  = float(actual_row_heights[0]) if actual_row_heights else 28
     first_row_top = page_height - _TOP_MARGIN - _TOC_HDG_H - _HDR_ROW_H
-    ROW_H = 30   # data rows (matches rowHeights above)
-    SUB_H = 25   # sub-document rows within a tab group
 
-    # Max rows that fit on the first TOC page (guard against multi-page TOC overflow)
-    available_height = first_row_top - 72  # bottom margin ~1 inch
-    _max_rows_first_page = int(available_height / ROW_H)
+    # Data row heights: actual_row_heights[1:] if available, else fixed fallbacks
+    ROW_H = 30   # fallback for divider/doc rows
+    SUB_H = 25   # fallback for sub-rows
+    data_heights = [float(h) for h in actual_row_heights[1:]] if actual_row_heights and len(actual_row_heights) > 1 else []
+
+    # Bottom of usable area on this page
+    available_height = first_row_top - 72   # bottom margin ~1 inch
 
     link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
     y = 0
+    row_idx = 0         # index into data_heights
     current_pdf = first_page_index
+
+    def next_h(fallback):
+        """Return actual height for the current data row, or fallback."""
+        if row_idx < len(data_heights):
+            return data_heights[row_idx]
+        return fallback
 
     if entries:
         # Flat entries model: docs and dividers interleaved
@@ -893,47 +906,52 @@ def add_toc_links(writer, toc_page_index, items, tabs,
             if entry.get("type") == "divider":
                 title_d = entry.get("title", "").strip()
                 if title_d:
+                    h = next_h(ROW_H); row_idx += 1
                     if entry_page_map and entry.get("id") in entry_page_map:
                         target = entry_page_map[entry["id"]]
                     else:
                         target = current_pdf
-                    link_rows.append((y, ROW_H, target))
-                    y += ROW_H
+                    link_rows.append((y, h, target))
+                    y += h
                     if use_dividers:
-                        current_pdf += 1  # divider page
+                        current_pdf += 1
             else:
+                h = next_h(ROW_H); row_idx += 1
                 if entry_page_map and entry.get("id") in entry_page_map:
                     target = entry_page_map[entry["id"]]
                 else:
                     target = current_pdf
-                link_rows.append((y, ROW_H, target))
-                y += ROW_H
+                link_rows.append((y, h, target))
+                y += h
                 pc = entry.get("page_count", 1)
                 current_pdf += pc
     else:
         # Legacy: individual items + grouped tabs
         for item in items:
-            link_rows.append((y, ROW_H, current_pdf))
-            y += ROW_H
+            h = next_h(ROW_H); row_idx += 1
+            link_rows.append((y, h, current_pdf))
+            y += h
             pc = item.get("page_count", 1)
             current_pdf += pc
 
         for tab in tabs:
-            target = current_pdf  # link to tab divider (or first doc)
-            link_rows.append((y, ROW_H, target))
-            y += ROW_H
+            target = current_pdf
+            h = next_h(ROW_H); row_idx += 1
+            link_rows.append((y, h, target))
+            y += h
             doc_pdf = current_pdf + (1 if use_dividers else 0)
             for item in tab.get("items", []):
-                link_rows.append((y, SUB_H, doc_pdf))
-                y      += SUB_H
+                h = next_h(SUB_H); row_idx += 1
+                link_rows.append((y, h, doc_pdf))
+                y += h
                 pc      = item.get("page_count", 1)
                 doc_pdf += pc
             total = sum(i.get("page_count", 1) for i in tab.get("items", []))
             current_pdf += (1 + total) if use_dividers else total
 
     for (y_off, h, target) in link_rows:
-        # Skip rows that overflow beyond the first TOC page
-        if y_off >= _max_rows_first_page * ROW_H:
+        # Skip rows that have scrolled below the bottom margin of the TOC page
+        if y_off >= available_height:
             break
         row_top    = first_row_top - y_off
         row_bottom = row_top - h
@@ -988,9 +1006,9 @@ def merge_pdfs(session_data, output_path):
     cover_count = len(PdfReader(toc_path).pages)
     os.remove(toc_path)
 
-    # Pass 2: correct page numbers
+    # Pass 2: correct page numbers — capture actual row heights for link stamping
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
-    generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count, entries=entries)
+    actual_row_heights = generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count, entries=entries)
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
     for pg in rdr.pages:
@@ -1073,7 +1091,8 @@ def merge_pdfs(session_data, output_path):
 
     # 4. Stamp TOC links
     add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers,
-                  entries=entries, entry_page_map=entry_page_map)
+                  entries=entries, entry_page_map=entry_page_map,
+                  actual_row_heights=actual_row_heights)
 
     with open(output_path, "wb") as f:
         writer.write(f)
