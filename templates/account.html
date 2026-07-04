@@ -159,7 +159,38 @@
     </div>
   </div>
 
-  <!-- Top-up banner — shown only when a paid plan hits its limit -->
+  <!-- Active top-up card — shown whenever topup_bundles > 0 -->
+  {% set topup_active = (current_user.topup_bundles or 0) > 0 %}
+  {% if topup_active %}
+  {% set topup = current_user.topup_bundles or 0 %}
+  {% if current_user.plan in ['solo', 'professional'] %}
+    {% set base_limit = plan_limits[current_user.plan] %}
+  {% else %}
+    {% set base_limit = 3 %}
+  {% endif %}
+  {% set used_over_base = [current_user.bundles_used - base_limit, 0] | max %}
+  {% set topup_remaining = [topup - used_over_base, 0] | max %}
+  <div class="card" style="border-left:4px solid #c9a84c">
+    <div class="card-title" style="color:#c9a84c">Top-Up Active</div>
+    <div class="row">
+      <span class="row-label">Purchase type</span>
+      <span class="row-value" style="color:#c9a84c">One-time · Non-recurring</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Bundles purchased</span>
+      <span class="row-value">{{ topup }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Top-up bundles remaining</span>
+      <span class="row-value">{{ topup_remaining }}</span>
+    </div>
+    <div class="row" style="border-bottom:none">
+      <span class="row-label" style="font-size:0.78rem;color:#aaa">Top-up bundles carry over — they do not reset monthly</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Top-up banner — shown only when at limit -->
   {% if user_at_limit %}
   <div class="card" style="border:2px solid #c9a84c;padding:20px 24px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
