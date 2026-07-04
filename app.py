@@ -111,6 +111,7 @@ def _migrate_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(128)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS topup_bundles INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
@@ -1478,7 +1479,7 @@ def stripe_webhook():
             user = db.session.get(User, int(user_id))
             if user:
                 added = int(meta.get("bundles", TOPUP_BUNDLES))
-                user.bundles_used = max(0, user.bundles_used - added)
+                user.topup_bundles = (user.topup_bundles or 0) + added
                 user.email_verified = True
                 db.session.commit()
                 app.logger.info(f"Top-up: gave {user.email} {added} bundles (bundles_used now {user.bundles_used})")
@@ -2028,7 +2029,7 @@ def generate():
         }), 403
 
     if not current_user.can_generate() and not is_owner():
-        limit = PLAN_LIMITS.get(current_user.plan, 0)
+        limit     = current_user._effective_limit()
         plan_data = PLANS.get(current_user.plan, {})
         plan_name = plan_data.get("name", current_user.plan.capitalize())
         if current_user.plan == "free":

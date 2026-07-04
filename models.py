@@ -31,6 +31,7 @@ class User(UserMixin, db.Model):
     plan                 = db.Column(db.String(50), default="free")  # free | solo | professional | firm
     plan_period          = db.Column(db.String(20), default="monthly")  # monthly | annual
     bundles_used         = db.Column(db.Integer, default=0)   # lifetime (free) or current month (paid)
+    topup_bundles        = db.Column(db.Integer, default=0)   # extra bundles from one-time top-up purchases
     bundles_reset_date   = db.Column(db.DateTime, nullable=True)  # when monthly counter resets
     stripe_customer_id      = db.Column(db.String(255), nullable=True)
     stripe_subscription_id  = db.Column(db.String(255), nullable=True)
@@ -62,23 +63,26 @@ class User(UserMixin, db.Model):
             self.bundles_used = 0
             self.bundles_reset_date = now + datetime.timedelta(days=30)
 
+    def _effective_limit(self):
+        """Plan limit plus any purchased top-up bundles."""
+        if self.plan == "firm":
+            return None  # unlimited
+        base = PLAN_LIMITS.get(self.plan, 0) or 0
+        return base + (self.topup_bundles or 0)
+
     def can_generate(self):
         """Check if user is allowed to generate a bundle."""
         if not self.email_verified:
             return False
-        if self.plan == "free":
-            return self.bundles_used < 3
         if self.plan == "firm":
             return True
-        limit = PLAN_LIMITS.get(self.plan, 0)
+        limit = self._effective_limit()
         return self.bundles_used < limit
 
     def bundles_remaining(self):
         if self.plan == "firm":
             return None  # unlimited
-        if self.plan == "free":
-            return max(0, 3 - self.bundles_used)
-        limit = PLAN_LIMITS.get(self.plan, 0)
+        limit = self._effective_limit()
         return max(0, limit - self.bundles_used)
 
     def __repr__(self):

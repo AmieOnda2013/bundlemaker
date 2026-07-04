@@ -116,47 +116,45 @@
   <!-- Usage -->
   <div class="card">
     <div class="card-title">Usage</div>
+    {% set topup = current_user.topup_bundles or 0 %}
     <div class="row" style="flex-direction:column;align-items:flex-start;gap:0">
       {% if current_user.plan == 'firm' %}
       <div style="display:flex;justify-content:space-between;width:100%">
         <span class="row-label">Bundles generated</span>
         <span class="row-value">{{ current_user.bundles_used }} &mdash; Unlimited</span>
       </div>
-      {% elif current_user.plan in ['solo', 'professional'] %}
-        {% set limit = plan_limits[current_user.plan] %}
-        {% set remaining = [limit - current_user.bundles_used, 0] | max %}
-        {% set pct = [(current_user.bundles_used / limit * 100), 100] | min | round %}
+      {% else %}
+        {% if current_user.plan in ['solo', 'professional'] %}
+          {% set base_limit = plan_limits[current_user.plan] %}
+          {% set label = 'Bundles this month' %}
+        {% else %}
+          {% set base_limit = 3 %}
+          {% set label = 'Bundles generated' %}
+        {% endif %}
+        {% set effective_limit = base_limit + topup %}
+        {% set remaining = [effective_limit - current_user.bundles_used, 0] | max %}
+        {% set pct = [(current_user.bundles_used / effective_limit * 100), 100] | min | round %}
       <div style="display:flex;justify-content:space-between;width:100%">
-        <span class="row-label">Bundles this month</span>
-        <span class="row-value">{{ current_user.bundles_used }} of {{ limit }} used</span>
+        <span class="row-label">{{ label }}</span>
+        <span class="row-value">{{ current_user.bundles_used }} of {{ effective_limit }} used</span>
       </div>
       <div class="progress-wrap">
         <div class="progress-bar">
           <div class="progress-fill" style="width:{{ pct }}%{% if pct >= 90 %};background:#c0392b{% endif %}"></div>
         </div>
         <p class="progress-label">
-          {{ remaining }} bundle{{ 's' if remaining != 1 }} remaining this month
-          {% if current_user.bundles_reset_date %}
+          {{ remaining }} bundle{{ 's' if remaining != 1 }} remaining
+          {% if current_user.plan in ['solo', 'professional'] and current_user.bundles_reset_date %}
             &middot; resets {{ current_user.bundles_reset_date.strftime('%b %d') }}
           {% endif %}
         </p>
       </div>
-      {% else %}
-      <div style="display:flex;justify-content:space-between;width:100%">
-        <span class="row-label">Bundles generated</span>
-        <span class="row-value">
-          {{ current_user.bundles_used }} / 3
-        </span>
+      {% if topup > 0 %}
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#c9a84c;font-weight:600">
+        <span>✦</span>
+        <span>Includes {{ topup }} top-up bundle{{ 's' if topup != 1 }} ({{ base_limit }} plan + {{ topup }} purchased)</span>
       </div>
-      <div class="progress-wrap">
-        <div class="progress-bar">
-          <div class="progress-fill" style="width:{{ [current_user.bundles_used * 33.33, 100] | min | round }}%"></div>
-        </div>
-        <p class="progress-label">
-          {% set remaining = 3 - current_user.bundles_used %}
-          {{ remaining }} free bundle{{ 's' if remaining != 1 }} remaining
-        </p>
-      </div>
+      {% endif %}
       {% endif %}
     </div>
   </div>
