@@ -3,34 +3,59 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BundleMaker — Upgrade Successful</title>
+  <title>BundleMaker — Subscription Active</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
     .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); padding: 56px 48px; max-width: 460px; width: 100%; text-align: center; }
-    .check { font-size: 3.5rem; margin-bottom: 20px; }
-    h1 { font-family: 'Playfair Display', serif; font-size: 1.9rem; color: #0d1b2a; margin-bottom: 12px; }
-    p { color: #666; font-size: 0.95rem; line-height: 1.7; margin-bottom: 32px; }
-    .btn { display: inline-block; padding: 13px 32px; background: #0d1b2a; color: #c9a84c; border-radius: 7px; font-size: 0.95rem; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; transition: background 0.2s; }
+    .icon { font-size: 3.2rem; margin-bottom: 20px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 1.9rem; color: #0d1b2a; margin-bottom: 14px; }
+    .summary { background: #fffdf5; border: 1.5px solid #e8d99a; border-radius: 10px; padding: 20px 24px; margin-bottom: 28px; text-align: left; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f5f0e0; font-size: 0.9rem; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .label { color: #666; }
+    .summary-row .value { font-weight: 700; color: #0d1b2a; }
+    .summary-row .value.gold { color: #c9a84c; }
+    p.note { color: #888; font-size: 0.82rem; margin-bottom: 28px; line-height: 1.6; }
+    .btn { display: block; padding: 13px; background: #0d1b2a; color: #c9a84c; border-radius: 7px; font-weight: 700; font-size: 0.95rem; text-decoration: none; letter-spacing: 0.04em; margin-bottom: 12px; }
     .btn:hover { background: #1e3a5f; }
-    .sub-link { display: block; margin-top: 16px; font-size: 0.82rem; color: #999; text-decoration: none; }
-    .sub-link:hover { color: #0d1b2a; }
+    .btn-sec { display: block; font-size: 0.82rem; color: #999; text-decoration: none; }
+    .btn-sec:hover { color: #0d1b2a; }
+    .countdown { font-size: 0.78rem; color: #aaa; margin-top: 16px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="check">🎉</div>
+    <div class="icon">🎉</div>
     <h1>You're all set!</h1>
-    {% if bundles %}
-    <p>Your <strong>{{ plan_name }}</strong> subscription is active. You can now generate up to <strong>{{ bundles }} bundles per month</strong>.<br/>
-    A receipt has been sent to your email.</p>
-    {% else %}
-    <p>Your <strong>{{ plan_name }}</strong> subscription is active. You now have <strong>unlimited bundle generation</strong>.<br/>
-    A receipt has been sent to your email.</p>
-    {% endif %}
-    <a href="/" class="btn">Start Making Bundles</a>
-    <a href="/account" class="sub-link">Manage your account</a>
+    <div class="summary">
+      <div class="summary-row">
+        <span class="label">Plan</span>
+        <span class="value gold">{{ plan_name }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Billing</span>
+        <span class="value">{{ 'Annual' if period == 'annual' else 'Monthly' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Bundles per month</span>
+        <span class="value">{{ bundles if bundles else 'Unlimited' }}</span>
+      </div>
+    </div>
+    <p class="note">Your subscription is now active and your account has been updated. A receipt has been sent to your email.</p>
+    <a href="/account" class="btn">View My Account</a>
+    <a href="/" class="btn-sec">Start Making Bundles</a>
+    <div class="countdown">Redirecting to My Account in <strong id="secs">5</strong>s…</div>
   </div>
+  <script>
+    let s = 5;
+    const el = document.getElementById('secs');
+    const timer = setInterval(() => {
+      s--;
+      if(el) el.textContent = s;
+      if(s <= 0){ clearInterval(timer); window.location.href = '/account'; }
+    }, 1000);
+  </script>
 </body>
 </html>

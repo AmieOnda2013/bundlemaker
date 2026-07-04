@@ -32,6 +32,7 @@ class User(UserMixin, db.Model):
     plan_period          = db.Column(db.String(20), default="monthly")  # monthly | annual
     bundles_used         = db.Column(db.Integer, default=0)   # lifetime (free) or current month (paid)
     topup_bundles        = db.Column(db.Integer, default=0)   # extra bundles from one-time top-up purchases
+    last_topup_session   = db.Column(db.String(255), nullable=True)  # Stripe session id — prevents double-credit
     bundles_reset_date   = db.Column(db.DateTime, nullable=True)  # when monthly counter resets
     stripe_customer_id      = db.Column(db.String(255), nullable=True)
     stripe_subscription_id  = db.Column(db.String(255), nullable=True)

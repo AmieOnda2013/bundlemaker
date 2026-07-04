@@ -112,6 +112,7 @@ def _migrate_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(128)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS topup_bundles INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_topup_session VARCHAR(255)",
     ]
     for sql in migrations:
         try:
@@ -1413,22 +1414,79 @@ def topup():
     return redirect(checkout.url, code=303)
 
 
+def _fulfill_topup(user, session_id, added):
+    """Apply top-up bundles idempotently. Returns True if applied, False if already done."""
+    if user.last_topup_session == session_id:
+        return False  # already fulfilled by webhook or a previous page load
+    user.topup_bundles     = (user.topup_bundles or 0) + added
+    user.last_topup_session = session_id
+    user.email_verified    = True
+    db.session.commit()
+    app.logger.info(f"Top-up fulfilled: {user.email} +{added} bundles (session {session_id})")
+    return True
+
+
+def _fulfill_subscription(user, plan, period, sub_id):
+    """Apply subscription plan. Idempotent — safe to call multiple times."""
+    import datetime
+    user.plan                   = plan
+    user.plan_period            = period
+    user.stripe_subscription_id = sub_id or user.stripe_subscription_id
+    user.email_verified         = True
+    user.bundles_used           = 0
+    user.bundles_reset_date     = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+    db.session.commit()
+    app.logger.info(f"Subscription fulfilled: {user.email} → {plan} ({period})")
+
+
 @app.route("/topup/success")
 @login_required
 def topup_success():
-    return render_template("topup_success.html", bundles=TOPUP_BUNDLES)
+    session_id = request.args.get("session_id", "")
+    added = TOPUP_BUNDLES
+    error = None
+    if session_id and stripe.api_key:
+        try:
+            cs = stripe.checkout.Session.retrieve(session_id)
+            meta = cs.get("metadata", {})
+            if str(current_user.id) == meta.get("user_id") and cs.payment_status == "paid":
+                added = int(meta.get("bundles", TOPUP_BUNDLES))
+                _fulfill_topup(current_user, session_id, added)
+        except Exception as e:
+            app.logger.error(f"topup_success fulfillment error: {e}")
+            error = True
+    return render_template("topup_success.html",
+        bundles=added,
+        topup_total=current_user.topup_bundles or 0,
+        remaining=current_user.bundles_remaining(),
+        error=error,
+    )
 
 
 @app.route("/upgrade/success")
 @login_required
 def upgrade_success():
-    plan = current_user.plan
-    plan_data = PLANS.get(plan, {})
-    bundles = plan_data.get("bundles")  # None = unlimited
-    plan_name = plan_data.get("name", plan.capitalize())
+    session_id = request.args.get("session_id", "")
+    plan_key  = current_user.plan
+    period    = current_user.plan_period or "monthly"
+    if session_id and stripe.api_key:
+        try:
+            cs = stripe.checkout.Session.retrieve(session_id)
+            meta = cs.get("metadata", {})
+            if str(current_user.id) == meta.get("user_id"):
+                plan_key = meta.get("plan", plan_key)
+                period   = meta.get("period", period)
+                sub_id   = cs.get("subscription")
+                _fulfill_subscription(current_user, plan_key, period, sub_id)
+        except Exception as e:
+            app.logger.error(f"upgrade_success fulfillment error: {e}")
+    plan_data = PLANS.get(plan_key, {})
+    plan_name = plan_data.get("name", plan_key.capitalize())
+    bundles   = plan_data.get("bundles")
     return render_template("upgrade_success.html",
         plan_name=plan_name,
         bundles=bundles,
+        period=period,
     )
 
 
@@ -1478,12 +1536,12 @@ def stripe_webhook():
         if user_id and is_topup:
             user = db.session.get(User, int(user_id))
             if user:
-                added = int(meta.get("bundles", TOPUP_BUNDLES))
+                added      = int(meta.get("bundles", TOPUP_BUNDLES))
+                session_id = obj.get("id", "")
                 try:
-                    user.topup_bundles = (user.topup_bundles or 0) + added
-                    user.email_verified = True
-                    db.session.commit()
-                    app.logger.info(f"Top-up: gave {user.email} {added} bundles (topup_bundles now {user.topup_bundles})")
+                    applied = _fulfill_topup(user, session_id, added)
+                    if not applied:
+                        app.logger.info(f"Top-up webhook: session {session_id} already fulfilled, skipping")
                 except Exception as e:
                     db.session.rollback()
                     app.logger.error(f"Top-up DB commit failed for user {user_id}: {e}")
@@ -1493,14 +1551,13 @@ def stripe_webhook():
         elif user_id and plan:
             user = db.session.get(User, int(user_id))
             if user:
-                user.plan                  = plan
-                user.plan_period           = period
-                user.stripe_subscription_id = sub_id
-                user.email_verified        = True   # paying users are always verified
-                user.bundles_used          = 0
-                user.bundles_reset_date    = datetime.datetime.utcnow() + datetime.timedelta(days=30)
-                db.session.commit()
-                app.logger.info(f"Updated user {user.email} to plan={plan}")
+                try:
+                    _fulfill_subscription(user, plan, period, sub_id)
+                    app.logger.info(f"Subscription webhook: updated {user.email} to plan={plan}")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Subscription DB commit failed for user {user_id}: {e}")
+                    return "DB error", 500
             else:
                 app.logger.error(f"checkout.session.completed: no user found for id={user_id}")
         else:
