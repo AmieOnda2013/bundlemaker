@@ -43,7 +43,7 @@
         <span class="value">{{ bundles if bundles else 'Unlimited' }}</span>
       </div>
     </div>
-    <p class="note">Your subscription is now active and your account has been updated. A receipt has been sent to your email.</p>
+    <p class="note">Your subscription is now active and your account has been updated. A receipt has been sent to <strong>{{ current_user.email }}</strong>.</p>
     <a href="/account" class="btn">View My Account</a>
     <a href="/" class="btn-sec">Start Making Bundles</a>
     <div class="countdown">Redirecting to My Account in <strong id="secs">5</strong>s…</div>

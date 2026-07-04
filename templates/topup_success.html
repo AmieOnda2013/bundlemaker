@@ -48,7 +48,7 @@
         <span class="value">{{ remaining }}</span>
       </div>
     </div>
-    <p class="note">Your account has been updated. A receipt has been sent to your email.</p>
+    <p class="note">Your account has been updated. A receipt has been sent to <strong>{{ current_user.email }}</strong>.</p>
     {% endif %}
     <a href="/account" class="btn" id="accountBtn">View My Account</a>
     <a href="/" class="btn-sec">Back to BundleMaker</a>

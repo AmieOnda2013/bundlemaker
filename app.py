@@ -1189,6 +1189,113 @@ def register():
     return render_template("register.html", error=error)
 
 
+def _send_receipt_email(recipient_email, subject, html):
+    """Send a transactional receipt email via Brevo in a background thread."""
+    def _send(app_):
+        with app_.app_context():
+            if not BREVO_API_KEY:
+                app_.logger.warning("BREVO_API_KEY not set — receipt email not sent")
+                return
+            try:
+                resp = http_requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": MAIL_FROM_NAME, "email": MAIL_FROM_EMAIL},
+                        "to": [{"email": recipient_email}],
+                        "subject": subject,
+                        "htmlContent": html,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code >= 300:
+                    app_.logger.error(f"Brevo receipt error: {resp.status_code} {resp.text}")
+                else:
+                    app_.logger.info(f"Receipt sent to {recipient_email}")
+            except Exception as e:
+                app_.logger.error(f"Failed to send receipt email to {recipient_email}: {e}")
+    import threading
+    threading.Thread(target=_send, args=(app,), daemon=True).start()
+
+
+def _topup_receipt_html(user_email, bundles, total_remaining):
+    return f"""
+    <div style="font-family:'Inter',Arial,sans-serif;max-width:540px;margin:0 auto;background:#f5f2eb;padding:32px 16px">
+      <div style="background:#fff;border-radius:12px;padding:40px 36px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
+        <div style="text-align:center;margin-bottom:28px">
+          <div style="font-size:2.4rem;margin-bottom:8px">✅</div>
+          <h1 style="font-family:'Georgia',serif;font-size:1.6rem;color:#0d1b2a;margin:0">Top-Up Confirmed</h1>
+        </div>
+        <p style="color:#444;font-size:0.92rem;line-height:1.7;margin-bottom:24px">
+          Hi {user_email},<br/><br/>
+          Your one-time top-up purchase was successful. Your BundleMaker account has been updated.
+        </p>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:0.9rem">
+          <tr style="border-bottom:1px solid #f0ece3">
+            <td style="padding:10px 0;color:#888">Purchase type</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#c9a84c">One-time · Non-recurring</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0ece3">
+            <td style="padding:10px 0;color:#888">Bundles added</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#0d1b2a">{bundles}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;color:#888">Bundles now available</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#0d1b2a">{total_remaining}</td>
+          </tr>
+        </table>
+        <p style="color:#888;font-size:0.8rem;line-height:1.6;margin-bottom:28px">
+          These bundles carry over and do not reset monthly. You will not be charged again unless you make another purchase.
+        </p>
+        <div style="text-align:center">
+          <a href="https://www.bundlemaker.app/account" style="display:inline-block;background:#0d1b2a;color:#c9a84c;padding:12px 32px;border-radius:7px;font-weight:700;font-size:0.9rem;text-decoration:none;letter-spacing:0.04em">View My Account</a>
+        </div>
+        <p style="text-align:center;margin-top:24px;font-size:0.75rem;color:#bbb">BundleMaker · support@bundlemaker.app</p>
+      </div>
+    </div>
+    """
+
+
+def _subscription_receipt_html(user_email, plan_name, bundles, period):
+    bundle_line = f"{bundles} bundles per month" if bundles else "Unlimited bundles per month"
+    billing_line = "Billed annually" if period == "annual" else "Billed monthly — cancel anytime"
+    return f"""
+    <div style="font-family:'Inter',Arial,sans-serif;max-width:540px;margin:0 auto;background:#f5f2eb;padding:32px 16px">
+      <div style="background:#fff;border-radius:12px;padding:40px 36px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">
+        <div style="text-align:center;margin-bottom:28px">
+          <div style="font-size:2.4rem;margin-bottom:8px">🎉</div>
+          <h1 style="font-family:'Georgia',serif;font-size:1.6rem;color:#0d1b2a;margin:0">Subscription Active</h1>
+        </div>
+        <p style="color:#444;font-size:0.92rem;line-height:1.7;margin-bottom:24px">
+          Hi {user_email},<br/><br/>
+          Your BundleMaker subscription is now active. Here's a summary of your plan.
+        </p>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:0.9rem">
+          <tr style="border-bottom:1px solid #f0ece3">
+            <td style="padding:10px 0;color:#888">Plan</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#c9a84c">{plan_name}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0ece3">
+            <td style="padding:10px 0;color:#888">Bundles</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#0d1b2a">{bundle_line}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;color:#888">Billing</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:#0d1b2a">{billing_line}</td>
+          </tr>
+        </table>
+        <p style="color:#888;font-size:0.8rem;line-height:1.6;margin-bottom:28px">
+          Your bundle counter resets every 30 days. You can manage or cancel your subscription at any time from My Account.
+        </p>
+        <div style="text-align:center">
+          <a href="https://www.bundlemaker.app/account" style="display:inline-block;background:#0d1b2a;color:#c9a84c;padding:12px 32px;border-radius:7px;font-weight:700;font-size:0.9rem;text-decoration:none;letter-spacing:0.04em">View My Account</a>
+        </div>
+        <p style="text-align:center;margin-top:24px;font-size:0.75rem;color:#bbb">BundleMaker · support@bundlemaker.app</p>
+      </div>
+    </div>
+    """
+
+
 def _send_verification_email(user, token):
     verify_url = url_for("verify_email", token=token, _external=True)
     recipient = user.email
@@ -1423,6 +1530,12 @@ def _fulfill_topup(user, session_id, added):
     user.email_verified    = True
     db.session.commit()
     app.logger.info(f"Top-up fulfilled: {user.email} +{added} bundles (session {session_id})")
+    total_remaining = user.bundles_remaining()
+    _send_receipt_email(
+        user.email,
+        f"Your BundleMaker top-up receipt — {added} bundles added",
+        _topup_receipt_html(user.email, added, total_remaining),
+    )
     return True
 
 
@@ -1437,6 +1550,14 @@ def _fulfill_subscription(user, plan, period, sub_id):
     user.bundles_reset_date     = datetime.datetime.utcnow() + datetime.timedelta(days=30)
     db.session.commit()
     app.logger.info(f"Subscription fulfilled: {user.email} → {plan} ({period})")
+    plan_data = PLANS.get(plan, {})
+    plan_name = plan_data.get("name", plan.capitalize())
+    bundles   = plan_data.get("bundles")
+    _send_receipt_email(
+        user.email,
+        f"Your BundleMaker {plan_name} subscription is active",
+        _subscription_receipt_html(user.email, plan_name, bundles, period),
+    )
 
 
 @app.route("/topup/success")
