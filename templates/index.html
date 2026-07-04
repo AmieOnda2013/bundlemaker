@@ -916,7 +916,7 @@ function renderTocPreview(){
 
   // Cover page (1) + TOC page (1) = 2 pages before body starts
   const COVER_PAGES = 2;
-  const useDividers = document.getElementById('useDividers').checked;
+  const useDividers = true; // divider pages are always included
   let pageNum = 1 + COVER_PAGES;
   let num = 1;
 

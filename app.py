@@ -638,12 +638,13 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
                 story.append(Spacer(1, 0.1*inch))
-        if page_break_after_recital:
-            story.append(PageBreak())
-        else:
-            story.append(Spacer(1, 0.4*inch))   # 2 line spaces before TOC
-    else:
-        story.append(Spacer(1, 0.4*inch))   # 2 line spaces before TOC when no recitals
+        if not page_break_after_recital:
+            story.append(Spacer(1, 0.35*inch))  # 2 line spaces before the page break
+
+    # TOC always starts at the top of its own page so hyperlink Y positions are correct.
+    # Toggle ON:  PageBreak right after recitals → TOC at top of new page.
+    # Toggle OFF: 2-line spacer above, then PageBreak → TOC at top of new page.
+    story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
