@@ -1265,7 +1265,9 @@ def logout():
 @app.route("/account")
 @login_required
 def account():
-    return render_template("account.html", plans=PLANS, plan_limits=PLAN_LIMITS)
+    user_at_limit = not current_user.can_generate() and not is_owner()
+    return render_template("account.html", plans=PLANS, plan_limits=PLAN_LIMITS,
+                           user_at_limit=user_at_limit, topup_price=TOPUP_PRICE, topup_bundles=TOPUP_BUNDLES)
 
 
 @app.route("/pricing")
