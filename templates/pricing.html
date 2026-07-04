@@ -25,7 +25,9 @@
     .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 36px 28px; position: relative; }
     .card.featured { border: 2px solid #c9a84c; }
+    .card.current-plan { border: 2px solid #0d1b2a; opacity: 0.7; }
     .featured-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #c9a84c; color: #fff; font-size: 0.72rem; font-weight: 700; padding: 4px 14px; border-radius: 20px; white-space: nowrap; }
+    .current-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #0d1b2a; color: #fff; font-size: 0.72rem; font-weight: 700; padding: 4px 14px; border-radius: 20px; white-space: nowrap; }
     .plan-name { font-size: 1.1rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
     .plan-bundles { font-size: 0.82rem; color: #888; margin-bottom: 4px; }
     .plan-bundles-desc { font-size: 0.78rem; color: #aaa; margin-bottom: 16px; font-style: italic; }
@@ -43,12 +45,20 @@
     .btn-dark:hover { background: #1a2f45; }
     .btn-gold { background: #c9a84c; color: #fff; }
     .btn-gold:hover { background: #b8963e; }
+    .btn-disabled { background: #e0ddd6; color: #999; cursor: default; pointer-events: none; }
     .free-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 28px; margin-bottom: 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
     .free-card .info h3 { font-size: 1rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
     .free-card .info p { font-size: 0.85rem; color: #666; }
     .btn-outline { padding: 10px 24px; border: 2px solid #0d1b2a; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0d1b2a; text-decoration: none; white-space: nowrap; }
     .btn-outline:hover { background: #0d1b2a; color: #fff; }
-    @media(max-width:700px){ .cards { grid-template-columns: 1fr; } .free-card { flex-direction: column; } }
+    .topup-banner { background: #fff; border: 2px solid #c9a84c; border-radius: 12px; padding: 24px 28px; margin-bottom: 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .topup-banner .info h3 { font-size: 1rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
+    .topup-banner .info p { font-size: 0.85rem; color: #666; line-height: 1.5; }
+    .topup-banner .price-tag { font-size: 1.6rem; font-weight: 700; color: #c9a84c; white-space: nowrap; }
+    .topup-banner .price-tag span { font-size: 0.82rem; font-weight: 400; color: #888; }
+    .btn-topup { padding: 11px 28px; background: #c9a84c; color: #fff; border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-decoration: none; white-space: nowrap; border: none; cursor: pointer; }
+    .btn-topup:hover { background: #b8963e; }
+    @media(max-width:700px){ .cards { grid-template-columns: 1fr; } .free-card, .topup-banner { flex-direction: column; } }
   </style>
 </head>
 <body>
@@ -56,6 +66,34 @@
   <a href="/" class="back">← Back to BundleMaker</a>
   <h1>Simple, Transparent Pricing</h1>
   <p class="subtitle">Built for legal professionals. Cancel anytime.</p>
+
+  {% set is_auth = current_user.is_authenticated %}
+  {% set at_limit = user_at_limit %}
+  {% set cur_plan = user_plan %}
+  {% set cur_rank = user_plan_rank %}
+
+  {% if not is_auth %}
+  <div class="free-card">
+    <div class="info">
+      <h3>Free Trial — $0</h3>
+      <p>3 bundles included — generate up to 3 court-ready PDFs, no credit card required. Verify your email to unlock.</p>
+    </div>
+    <a href="/register" class="btn-outline">Start Free</a>
+  </div>
+  {% endif %}
+
+  {% if is_auth and at_limit %}
+  <div class="topup-banner">
+    <div class="info">
+      <h3>Need more bundles this month?</h3>
+      <p>Top up your account with 20 additional bundles right now — no plan change needed.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div class="price-tag">$19 <span>/ 20 bundles</span></div>
+      <a href="/topup" class="btn-topup">Top Up Now</a>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="toggle-wrap">
     <span class="toggle-label active" id="lbl-monthly">Monthly</span>
@@ -66,18 +104,12 @@
     <span class="toggle-label" id="lbl-annual">Annual <span class="save-badge">Save 17%</span></span>
   </div>
 
-  {% if not current_user.is_authenticated %}
-  <div class="free-card">
-    <div class="info">
-      <h3>Free Trial — $0</h3>
-      <p>3 bundles included — generate up to 3 court-ready PDFs, no credit card required. Verify your email to unlock.</p>
-    </div>
-    <a href="/register" class="btn-outline">Start Free</a>
-  </div>
-  {% endif %}
-
   <div class="cards">
-    <div class="card">
+
+    <!-- Solo -->
+    {% set is_solo_current = (is_auth and cur_plan == 'solo') %}
+    <div class="card {% if is_solo_current %}current-plan{% endif %}">
+      {% if is_solo_current %}<div class="current-badge">Your Plan</div>{% endif %}
       <div class="plan-name">Solo</div>
       <div class="plan-bundles">20 bundles / month</div>
       <div class="plan-bundles-desc">Generate up to 20 court-ready PDFs per month</div>
@@ -96,11 +128,23 @@
         <li>Instant PDF download</li>
         <li>Email support</li>
       </ul>
-      <a href="/upgrade/solo?period=monthly" class="btn btn-dark" id="btn-solo">Get Started</a>
+      {% if is_solo_current %}
+        <span class="btn btn-disabled">Current Plan</span>
+      {% elif is_auth and cur_rank > 0 %}
+        <span class="btn btn-disabled">Included in your plan</span>
+      {% else %}
+        <a href="/upgrade/solo?period=monthly" class="btn btn-dark" id="btn-solo">Get Started</a>
+      {% endif %}
     </div>
 
-    <div class="card featured">
-      <div class="featured-badge">Most Popular</div>
+    <!-- Professional -->
+    {% set is_pro_current = (is_auth and cur_plan == 'professional') %}
+    <div class="card featured {% if is_pro_current %}current-plan{% endif %}">
+      {% if is_pro_current %}
+        <div class="current-badge">Your Plan</div>
+      {% else %}
+        <div class="featured-badge">Most Popular</div>
+      {% endif %}
       <div class="plan-name">Professional</div>
       <div class="plan-bundles">60 bundles / month</div>
       <div class="plan-bundles-desc">Generate up to 60 court-ready PDFs per month</div>
@@ -119,10 +163,21 @@
         <li>Instant PDF download</li>
         <li>Priority email support</li>
       </ul>
-      <a href="/upgrade/professional?period=monthly" class="btn btn-gold" id="btn-pro">Get Started</a>
+      {% if is_pro_current %}
+        <span class="btn btn-disabled">Current Plan</span>
+      {% elif is_auth and cur_rank > 1 %}
+        <span class="btn btn-disabled">Included in your plan</span>
+      {% elif is_auth and cur_plan == 'solo' %}
+        <a href="/upgrade/professional?period=monthly" class="btn btn-gold" id="btn-pro">Upgrade to Professional</a>
+      {% else %}
+        <a href="/upgrade/professional?period=monthly" class="btn btn-gold" id="btn-pro">Get Started</a>
+      {% endif %}
     </div>
 
-    <div class="card">
+    <!-- Firm -->
+    {% set is_firm_current = (is_auth and cur_plan == 'firm') %}
+    <div class="card {% if is_firm_current %}current-plan{% endif %}">
+      {% if is_firm_current %}<div class="current-badge">Your Plan</div>{% endif %}
       <div class="plan-name">Firm</div>
       <div class="plan-bundles">Unlimited bundles</div>
       <div class="plan-bundles-desc">Generate unlimited court-ready PDFs per month</div>
@@ -141,8 +196,15 @@
         <li>Instant PDF download</li>
         <li>Priority support</li>
       </ul>
-      <a href="/upgrade/firm?period=monthly" class="btn btn-dark" id="btn-firm">Get Started</a>
+      {% if is_firm_current %}
+        <span class="btn btn-disabled">Current Plan</span>
+      {% elif is_auth and (cur_plan == 'solo' or cur_plan == 'professional') %}
+        <a href="/upgrade/firm?period=monthly" class="btn btn-dark" id="btn-firm">Upgrade to Firm</a>
+      {% else %}
+        <a href="/upgrade/firm?period=monthly" class="btn btn-dark" id="btn-firm">Get Started</a>
+      {% endif %}
     </div>
+
   </div>
 </div>
 <script>
@@ -154,7 +216,8 @@ function toggleBilling(){
   [['solo','solo'],['pro','professional'],['firm','firm']].forEach(([key, plan]) => {
     document.getElementById(`price-${key}-monthly`).classList.toggle('show', !annual);
     document.getElementById(`price-${key}-annual`).classList.toggle('show', annual);
-    document.getElementById(`btn-${key}`).href = `/upgrade/${plan}?period=${period}`;
+    const btn = document.getElementById(`btn-${key}`);
+    if(btn) btn.href = `/upgrade/${plan}?period=${period}`;
   });
 }
 </script>

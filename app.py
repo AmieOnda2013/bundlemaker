@@ -76,6 +76,11 @@ PLANS = {
     },
 }
 
+# One-time top-up: 20 bundles for $19
+TOPUP_PRICE_ID = os.environ.get("STRIPE_TOPUP_PRICE_ID", "")
+TOPUP_BUNDLES  = 20
+TOPUP_PRICE    = "$19"
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -1265,7 +1270,16 @@ def account():
 
 @app.route("/pricing")
 def pricing():
-    return render_template("pricing.html", plans=PLANS)
+    user_plan     = current_user.plan if current_user.is_authenticated else "free"
+    user_at_limit = False
+    if current_user.is_authenticated and not is_owner():
+        user_at_limit = not current_user.can_generate()
+    plan_order = ["solo", "professional", "firm"]
+    user_plan_rank = plan_order.index(user_plan) if user_plan in plan_order else -1
+    return render_template("pricing.html", plans=PLANS,
+                           user_plan=user_plan, user_at_limit=user_at_limit,
+                           user_plan_rank=user_plan_rank, plan_order=plan_order,
+                           topup_bundles=TOPUP_BUNDLES, topup_price=TOPUP_PRICE)
 
 
 @app.route("/upgrade/<plan>")
@@ -1295,6 +1309,35 @@ def upgrade(plan):
         metadata={"user_id": str(current_user.id), "plan": plan, "period": period},
     )
     return redirect(checkout.url, code=303)
+
+
+@app.route("/topup")
+@login_required
+def topup():
+    if not TOPUP_PRICE_ID or not stripe.api_key:
+        flash("Top-up is not available yet. Please contact support.", "error")
+        return redirect(url_for("pricing"))
+    if not current_user.stripe_customer_id:
+        customer = stripe.Customer.create(email=current_user.email)
+        current_user.stripe_customer_id = customer.id
+        db.session.commit()
+    base_url = request.host_url.rstrip("/")
+    checkout = stripe.checkout.Session.create(
+        customer=current_user.stripe_customer_id,
+        payment_method_types=["card"],
+        line_items=[{"price": TOPUP_PRICE_ID, "quantity": 1}],
+        mode="payment",
+        success_url=f"{base_url}/topup/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{base_url}/pricing",
+        metadata={"user_id": str(current_user.id), "topup": "1", "bundles": str(TOPUP_BUNDLES)},
+    )
+    return redirect(checkout.url, code=303)
+
+
+@app.route("/topup/success")
+@login_required
+def topup_success():
+    return render_template("topup_success.html", bundles=TOPUP_BUNDLES)
 
 
 @app.route("/upgrade/success")
@@ -1346,12 +1389,24 @@ def stripe_webhook():
     obj = event["data"]["object"]
 
     if event["type"] == "checkout.session.completed":
-        user_id = obj.get("metadata", {}).get("user_id")
-        plan    = obj.get("metadata", {}).get("plan")
-        period  = obj.get("metadata", {}).get("period", "monthly")
+        meta    = obj.get("metadata", {})
+        user_id = meta.get("user_id")
+        plan    = meta.get("plan")
+        period  = meta.get("period", "monthly")
+        is_topup = meta.get("topup") == "1"
         sub_id  = obj.get("subscription")
-        app.logger.info(f"checkout.session.completed: user_id={user_id} plan={plan} period={period}")
-        if user_id and plan:
+        app.logger.info(f"checkout.session.completed: user_id={user_id} plan={plan} topup={is_topup}")
+        if user_id and is_topup:
+            user = db.session.get(User, int(user_id))
+            if user:
+                added = int(meta.get("bundles", TOPUP_BUNDLES))
+                user.bundles_used = max(0, user.bundles_used - added)
+                user.email_verified = True
+                db.session.commit()
+                app.logger.info(f"Top-up: gave {user.email} {added} bundles (bundles_used now {user.bundles_used})")
+            else:
+                app.logger.error(f"checkout.session.completed: no user found for top-up id={user_id}")
+        elif user_id and plan:
             user = db.session.get(User, int(user_id))
             if user:
                 user.plan                  = plan
@@ -1365,7 +1420,7 @@ def stripe_webhook():
             else:
                 app.logger.error(f"checkout.session.completed: no user found for id={user_id}")
         else:
-            app.logger.error(f"checkout.session.completed: missing metadata user_id or plan in {obj.get('metadata')}")
+            app.logger.error(f"checkout.session.completed: missing metadata in {meta}")
 
     elif event["type"] in ("customer.subscription.updated", "customer.subscription.deleted"):
         sub     = obj

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BundleMaker — Top-Up Successful</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f5f2eb; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); padding: 48px 40px; width: 100%; max-width: 420px; text-align: center; }
+    .icon { font-size: 3rem; margin-bottom: 20px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #0d1b2a; margin-bottom: 12px; }
+    p { color: #666; font-size: 0.92rem; line-height: 1.6; margin-bottom: 28px; }
+    .highlight { color: #c9a84c; font-weight: 700; }
+    .btn { display: block; padding: 13px; background: #0d1b2a; color: #c9a84c; border-radius: 7px; font-weight: 700; font-size: 0.95rem; text-decoration: none; letter-spacing: 0.04em; }
+    .btn:hover { background: #1a2f45; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Top-Up Successful</h1>
+    <p><span class="highlight">{{ bundles }} bundles</span> have been added to your account. You can continue generating bundles right away.</p>
+    <a href="/" class="btn">Back to BundleMaker</a>
+  </div>
+</body>
+</html>
