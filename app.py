@@ -397,6 +397,8 @@ def resolve_jurisdiction(country, jurisdiction_value):
 
 def _make_file_item(f, ext):
     """Save an uploaded file, convert images, return item dict."""
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # re-ensure dir on ephemeral FS
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     item_id  = uuid.uuid4().hex
     raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
     f.save(raw_dest)
@@ -1721,8 +1723,9 @@ def upload_entries():
             added.append(item)
         save_session(sid, sess)
     except Exception as e:
-        app.logger.error(f"Entries upload error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        import traceback as _tb
+        app.logger.error(_tb.format_exc())
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
     return jsonify(added)
 
 
