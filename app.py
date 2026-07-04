@@ -1149,7 +1149,7 @@ def merge_pdfs(session_data, output_path):
     if session_data.get("page_numbers"):
         position   = session_data.get("page_number_position", "bottom_right")
         skip_first = bool(session_data.get("page_number_skip_first", False))
-        stamp_page_numbers(writer, position, skip_first=not skip_first)
+        stamp_page_numbers(writer, position, skip_first=skip_first)
 
     with open(output_path, "wb") as f:
         writer.write(f)
