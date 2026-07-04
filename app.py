@@ -603,9 +603,12 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         story.append(Spacer(1, 0.35 * inch))   # 2 line spaces below title
 
         if counsel.strip():
+            # Right block: spacer takes 62% of text width, content gets 38%
+            R_SPACER = TEXT_W * 0.62
+            R_CONTENT = TEXT_W - R_SPACER
             story.append(Table(
                 [[" ", _counsel_paras(counsel)]],
-                colWidths=[HALF_W + 0.1*inch, BLOCK_W],
+                colWidths=[R_SPACER, R_CONTENT],
                 style=[("VALIGN",(0,0),(-1,-1),"TOP"),
                        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
                        ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
@@ -852,7 +855,8 @@ def generate_divider_page(tab_full_label, name, output_path):
 
 
 def add_toc_links(writer, toc_page_index, items, tabs,
-                  first_page_index, use_dividers=True, entries=None):
+                  first_page_index, use_dividers=True, entries=None,
+                  entry_page_map=None):
     """Stamp clickable links on TOC rows for items, tab groups, or flat entries."""
     page        = writer.pages[toc_page_index]
     page_height = float(page.mediabox.height)
@@ -860,14 +864,18 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(49) minus header-row(28)
-    # These constants must match the rowHeights and ParagraphStyle values in generate_cover_toc
+    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(44) minus header-row(28)
+    # TOC heading: spaceBefore(16) + leading(12, from normal style) + spaceAfter(16) = 44pt
     _TOP_MARGIN = 90
-    _TOC_HDG_H  = 49   # spaceBefore(16) + leading(~17) + spaceAfter(16)
+    _TOC_HDG_H  = 44   # spaceBefore(16) + leading(12) + spaceAfter(16)
     _HDR_ROW_H  = 28   # table header row fixed height
     first_row_top = page_height - _TOP_MARGIN - _TOC_HDG_H - _HDR_ROW_H
     ROW_H = 30   # data rows (matches rowHeights above)
     SUB_H = 25   # sub-document rows within a tab group
+
+    # Max rows that fit on the first TOC page (guard against multi-page TOC overflow)
+    available_height = first_row_top - 72  # bottom margin ~1 inch
+    _max_rows_first_page = int(available_height / ROW_H)
 
     link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
     y = 0
@@ -879,14 +887,20 @@ def add_toc_links(writer, toc_page_index, items, tabs,
             if entry.get("type") == "divider":
                 title_d = entry.get("title", "").strip()
                 if title_d:
-                    # Divider row links to the divider page itself (if rendered) or next doc
-                    target = current_pdf if use_dividers else current_pdf
+                    if entry_page_map and entry.get("id") in entry_page_map:
+                        target = entry_page_map[entry["id"]]
+                    else:
+                        target = current_pdf
                     link_rows.append((y, ROW_H, target))
                     y += ROW_H
                     if use_dividers:
                         current_pdf += 1  # divider page
             else:
-                link_rows.append((y, ROW_H, current_pdf))
+                if entry_page_map and entry.get("id") in entry_page_map:
+                    target = entry_page_map[entry["id"]]
+                else:
+                    target = current_pdf
+                link_rows.append((y, ROW_H, target))
                 y += ROW_H
                 pc = entry.get("page_count", 1)
                 current_pdf += pc
@@ -912,6 +926,9 @@ def add_toc_links(writer, toc_page_index, items, tabs,
             current_pdf += (1 + total) if use_dividers else total
 
     for (y_off, h, target) in link_rows:
+        # Skip rows that overflow beyond the first TOC page
+        if y_off >= _max_rows_first_page * ROW_H:
+            break
         row_top    = first_row_top - y_off
         row_bottom = row_top - h
         rect = RectangleObject([left, row_bottom, right, row_top])
@@ -977,9 +994,11 @@ def merge_pdfs(session_data, output_path):
     toc_page_index = cover_count - 1
     first_page_idx = cover_count
 
+    entry_page_map = {}  # entry id → 0-indexed page in final writer
     if entries:
         # New flat entries model: docs and dividers interleaved
         item_num = 1
+        current_actual = first_page_idx
         for entry in entries:
             if entry.get("type") == "divider":
                 title_d = entry.get("title", "").strip()
@@ -988,16 +1007,24 @@ def merge_pdfs(session_data, output_path):
                 if restart:
                     item_num = 1
                 if title_d and use_dividers:
+                    entry_page_map[entry["id"]] = current_actual
                     div_path = os.path.join(OUTPUT_FOLDER, f"_div_{uuid.uuid4().hex}.pdf")
                     generate_divider_page(title_d, desc_d, div_path)
-                    for pg in PdfReader(div_path).pages:
+                    div_rdr = PdfReader(div_path)
+                    for pg in div_rdr.pages:
                         writer.add_page(pg)
+                    current_actual += len(div_rdr.pages)
                     os.remove(div_path)
             else:
+                entry_page_map[entry["id"]] = current_actual
                 doc_path = entry.get("filepath")
                 if doc_path and os.path.exists(doc_path):
-                    for pg in PdfReader(doc_path).pages:
+                    doc_rdr = PdfReader(doc_path)
+                    for pg in doc_rdr.pages:
                         writer.add_page(pg)
+                    current_actual += len(doc_rdr.pages)
+                else:
+                    current_actual += entry.get("page_count", 1)
                 item_num += 1
     else:
         # 2. Optional section divider before individual documents
@@ -1039,7 +1066,8 @@ def merge_pdfs(session_data, output_path):
                         writer.add_page(pg)
 
     # 4. Stamp TOC links
-    add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers, entries=entries)
+    add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers,
+                  entries=entries, entry_page_map=entry_page_map)
 
     with open(output_path, "wb") as f:
         writer.write(f)
