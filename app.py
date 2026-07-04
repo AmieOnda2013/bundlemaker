@@ -471,7 +471,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         alignment=TA_CENTER, fontName="Times-Italic", fontSize=10, spaceAfter=6, leading=15)
     toc_header_st = ParagraphStyle("toc_header", parent=normal,
         alignment=TA_CENTER, fontName="Times-Bold",
-        fontSize=14, spaceAfter=16, spaceBefore=16)
+        fontSize=14, leading=18, spaceAfter=16, spaceBefore=16)
 
     court_name, rule_body = resolve_jurisdiction(country, jurisdiction)
     if not court_name:
@@ -874,9 +874,11 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     left  = 1.0 * 72
     right = page_width - 1.0 * 72
 
-    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(44) minus header-row
+    # Y of first data row: page_height minus top-margin(90) minus TOC-heading(34) minus header-row
+    # TOC always starts at top of its own page (forced PageBreak), so spaceBefore is suppressed
+    # by ReportLab. Actual heading height = leading(18) + spaceAfter(16) = 34.
     _TOP_MARGIN = 90
-    _TOC_HDG_H  = 44   # spaceBefore(16) + leading(12) + spaceAfter(16)
+    _TOC_HDG_H  = 34   # leading(18) + spaceAfter(16); spaceBefore suppressed at page top
     # Header row height comes from actual_row_heights[0] if available, else fallback
     _HDR_ROW_H  = float(actual_row_heights[0]) if actual_row_heights else 28
     first_row_top = page_height - _TOP_MARGIN - _TOC_HDG_H - _HDR_ROW_H
@@ -963,6 +965,55 @@ def add_toc_links(writer, toc_page_index, items, tabs,
             )
         except Exception:
             pass
+
+
+def stamp_page_numbers(writer, position, skip_first=False):
+    """Overlay page numbers on every page of the writer.
+
+    skip_first=True: page 1 is omitted from the cover; numbering still starts at 1
+    so the first document page shows its correct sequential number.
+    """
+    from reportlab.pdfgen import canvas as rl_canvas
+    from io import BytesIO
+
+    total = len(writer.pages)
+    if total == 0:
+        return
+
+    width  = float(writer.pages[0].mediabox.width)
+    height = float(writer.pages[0].mediabox.height)
+    margin = 36  # 0.5 inch
+
+    buf = BytesIO()
+    c   = rl_canvas.Canvas(buf, pagesize=(width, height))
+    c.setFont("Times-Roman", 10)
+
+    for i in range(total):
+        # Always advance the page number counter even when skipping page 1
+        page_num = i + 1
+        draw = not (skip_first and i == 0)
+        if draw:
+            text = str(page_num)
+            if position == "bottom_center":
+                c.drawCentredString(width / 2, margin, text)
+            elif position == "bottom_right":
+                c.drawRightString(width - margin, margin, text)
+            elif position == "bottom_left":
+                c.drawString(margin, margin, text)
+            elif position == "top_center":
+                c.drawCentredString(width / 2, height - margin, text)
+            elif position == "top_right":
+                c.drawRightString(width - margin, height - margin, text)
+            elif position == "top_left":
+                c.drawString(margin, height - margin, text)
+        c.showPage()
+
+    c.save()
+    buf.seek(0)
+
+    overlay = PdfReader(buf)
+    for i in range(total):
+        writer.pages[i].merge_page(overlay.pages[i])
 
 
 def merge_pdfs(session_data, output_path):
@@ -1093,6 +1144,12 @@ def merge_pdfs(session_data, output_path):
     add_toc_links(writer, toc_page_index, items, tabs, first_page_idx, use_dividers,
                   entries=entries, entry_page_map=entry_page_map,
                   actual_row_heights=actual_row_heights)
+
+    # 5. Optionally overlay page numbers on every page
+    if session_data.get("page_numbers"):
+        position   = session_data.get("page_number_position", "bottom_right")
+        skip_first = bool(session_data.get("page_number_skip_first", False))
+        stamp_page_numbers(writer, position, skip_first=not skip_first)
 
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -1606,7 +1663,8 @@ def update_session():
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
                 "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
-                "counsel","opp_counsel","page_break_after_recital"):
+                "counsel","opp_counsel","page_break_after_recital",
+                "page_numbers","page_number_position","page_number_skip_first"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)

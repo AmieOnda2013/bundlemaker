@@ -680,7 +680,6 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
-
         <hr class="divider"/>
 
         <button class="btn btn-generate" onclick="generate()">
@@ -752,6 +751,45 @@ footer span{color:var(--gold)}
 
       <hr class="divider" style="margin:20px 0"/>
 
+      <!-- Page numbering -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="section-label" style="margin-bottom:0">Page Numbers</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pageNumbersToggle" onchange="onPageNumbersToggle()"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="pageNumbersOptions" style="display:none;margin-top:10px">
+        <div style="font-size:0.68rem;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Position</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <label id="pnOpt_top_right" onclick="selectPageNumPos('top_right')" style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;font-size:0.82rem;color:#444;background:#fff;transition:border-color .15s,background .15s">
+            <span style="font-size:0.9rem">↗</span> Top Right
+          </label>
+          <label id="pnOpt_top_center" onclick="selectPageNumPos('top_center')" style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;font-size:0.82rem;color:#444;background:#fff;transition:border-color .15s,background .15s">
+            <span style="font-size:0.9rem">↑</span> Top Center
+          </label>
+          <label id="pnOpt_bottom_right" onclick="selectPageNumPos('bottom_right')" style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;font-size:0.82rem;color:#444;background:#fff;transition:border-color .15s,background .15s">
+            <span style="font-size:0.9rem">↘</span> Bottom Right
+          </label>
+          <label id="pnOpt_bottom_center" onclick="selectPageNumPos('bottom_center')" style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;font-size:0.82rem;color:#444;background:#fff;transition:border-color .15s,background .15s">
+            <span style="font-size:0.9rem">↓</span> Bottom Center
+          </label>
+        </div>
+        <input type="hidden" id="pageNumberPosition" value="bottom_right"/>
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #eee;border-radius:7px;background:#fafaf8">
+          <label class="toggle-switch" style="flex-shrink:0">
+            <input type="checkbox" id="pageNumberSkipFirst" onchange="saveSettings()"/>
+            <span class="toggle-slider"></span>
+          </label>
+          <div>
+            <div style="font-size:0.82rem;font-weight:600;color:#0d1b2a;line-height:1.3">Number the cover page</div>
+            <div style="font-size:0.72rem;color:#888;line-height:1.4">When off, page 1 starts on the first document page</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" style="margin:20px 0"/>
+
       <!-- TOC Preview -->
       <div class="section-label">Table of Contents Preview</div>
       <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px">Live preview of your index as it will appear in the bundle</div>
@@ -811,6 +849,11 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('oppCounsel').value = s.opp_counsel || '';
   document.getElementById('yourCounsel').value = s.counsel || '';
+  const pageNumOn = !!s.page_numbers;
+  document.getElementById('pageNumbersToggle').checked = pageNumOn;
+  document.getElementById('pageNumbersOptions').style.display = pageNumOn ? 'block' : 'none';
+  selectPageNumPos(s.page_number_position || 'bottom_right');
+  document.getElementById('pageNumberSkipFirst').checked = !!s.page_number_skip_first;
   document.getElementById('customRules').value = s.custom_rules || '';
   document.getElementById('colHeader').value = s.col_header || '';
   document.getElementById('colItemHeader').value = s.col_item_header || '';
@@ -835,6 +878,35 @@ async function loadSession(){
   renderTocPreview();
 }
 
+function selectPageNumPos(pos){
+  document.getElementById('pageNumberPosition').value = pos;
+  ['top_right','top_center','bottom_right','bottom_center'].forEach(p => {
+    const el = document.getElementById('pnOpt_' + p);
+    if(!el) return;
+    if(p === pos){
+      el.style.borderColor = '#c9a84c';
+      el.style.background  = '#fdf8ee';
+      el.style.color       = '#0d1b2a';
+      el.style.fontWeight  = '600';
+    } else {
+      el.style.borderColor = '#ddd';
+      el.style.background  = '#fff';
+      el.style.color       = '#444';
+      el.style.fontWeight  = '';
+    }
+  });
+  saveSettings();
+}
+
+function onPageNumbersToggle(){
+  const on = document.getElementById('pageNumbersToggle').checked;
+  document.getElementById('pageNumbersOptions').style.display = on ? 'block' : 'none';
+  if(on && !document.getElementById('pageNumberPosition').value){
+    selectPageNumPos('bottom_right');
+  }
+  saveSettings();
+}
+
 async function saveSettings(){
   await fetch('/api/session', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -852,6 +924,9 @@ async function saveSettings(){
       opp_counsel: document.getElementById('oppCounsel').value,
       counsel: document.getElementById('yourCounsel').value,
       col_header: document.getElementById('colHeader').value,
+      page_numbers: document.getElementById('pageNumbersToggle').checked,
+      page_number_position: document.getElementById('pageNumberPosition').value,
+      page_number_skip_first: document.getElementById('pageNumberSkipFirst').checked,
     })
   });
 }
