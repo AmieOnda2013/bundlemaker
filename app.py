@@ -229,6 +229,7 @@ def _default_session():
         "col_page_header": "",   # TOC column: page(s) header (default "Page(s)")
         "counsel": "",           # your counsel block (right side of cover)
         "opp_counsel": "",       # opposing counsel block (left side / TO:)
+        "page_break_after_recital": False,
         "section_title": "",     # optional divider title before individual documents
         "section_desc": "",      # optional description below section title
     }
@@ -438,7 +439,8 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        use_dividers=True, col_header="", tab_prefix="Tab",
                        col_item_header="", col_doc_header="", col_page_header="",
                        place="", page_offset=0, entries=None,
-                       counsel="", opp_counsel=""):
+                       counsel="", opp_counsel="",
+                       page_break_after_recital=False):
     """
     items  — flat individual documents (each gets its own tab letter)
     tabs   — grouped tabs (one tab letter per group, sub-rows per doc)
@@ -572,32 +574,15 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     if title:
         story.append(Spacer(1, 0.2*inch))
         story.append(Paragraph(title, center_normal))
-    if rule_body:
-        story.append(Spacer(1, 0.4*inch))
-        story.append(Paragraph(rule_body, small_center))
-    story.append(PageBreak())
 
-    # ── Written Recitals ────────────────────────────────────────────────────
-    if recitals and recitals.strip():
-        recital_st = ParagraphStyle("recital", parent=normal,
-            alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
-        story.append(Spacer(1, 0.6*inch))
-        for para in recitals.strip().split("\n"):
-            if para.strip():
-                story.append(Paragraph(para.strip(), recital_st))
-                story.append(Spacer(1, 0.1*inch))
-        story.append(PageBreak())
-
-    # ── Counsel block ─────────────────────────────────────────────────────────
-    # Plaintiff/Applicant counsel: right half of page (starting at centre + 1 in)
-    # Defendant/Respondent counsel: left half of page, one line-space below
+    # ── Counsel block — directly below title/subtitle ────────────────────────
+    # Plaintiff/Applicant: right half; Defendant/Respondent: left half below
     if counsel.strip() or opp_counsel.strip():
         TEXT_W  = 6.25 * inch
-        HALF_W  = TEXT_W / 2          # 3.125 in — mid-point of text area
-        BLOCK_W = HALF_W - 0.1 * inch # slight inset so text doesn't crowd margin
+        HALF_W  = TEXT_W / 2
+        BLOCK_W = HALF_W - 0.1 * inch
 
         def _counsel_paras(text):
-            """Convert newline-separated text into a list of Paragraphs."""
             paras = []
             first_content = True
             for line in text.strip().split("\n"):
@@ -615,43 +600,47 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 paras.append(Paragraph(stripped, st))
             return paras
 
-        story.append(Spacer(1, 0.5 * inch))
+        story.append(Spacer(1, 0.35 * inch))   # 2 line spaces below title
 
-        # Plaintiff/Applicant counsel — RIGHT block
         if counsel.strip():
-            plt_tbl = Table(
+            story.append(Table(
                 [[" ", _counsel_paras(counsel)]],
                 colWidths=[HALF_W + 0.1*inch, BLOCK_W],
-                style=[
-                    ("VALIGN",        (0,0), (-1,-1), "TOP"),
-                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
-                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
-                    ("TOPPADDING",    (0,0), (-1,-1), 0),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-                ],
-            )
-            story.append(plt_tbl)
+                style=[("VALIGN",(0,0),(-1,-1),"TOP"),
+                       ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+                       ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
+            ))
 
-        # One blank line between the two blocks
         if counsel.strip() and opp_counsel.strip():
             story.append(Spacer(1, 0.25 * inch))
 
-        # Defendant/Respondent counsel — LEFT block
         if opp_counsel.strip():
-            def_tbl = Table(
+            story.append(Table(
                 [[_counsel_paras(opp_counsel), " "]],
                 colWidths=[BLOCK_W, HALF_W + 0.1*inch],
-                style=[
-                    ("VALIGN",        (0,0), (-1,-1), "TOP"),
-                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
-                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
-                    ("TOPPADDING",    (0,0), (-1,-1), 0),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-                ],
-            )
-            story.append(def_tbl)
+                style=[("VALIGN",(0,0),(-1,-1),"TOP"),
+                       ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+                       ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
+            ))
 
-        story.append(PageBreak())
+    if rule_body:
+        story.append(Spacer(1, 0.4*inch))
+        story.append(Paragraph(rule_body, small_center))
+    story.append(PageBreak())
+
+    # ── Written Recitals ────────────────────────────────────────────────────
+    if recitals and recitals.strip():
+        recital_st = ParagraphStyle("recital", parent=normal,
+            alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
+        story.append(Spacer(1, 0.6*inch))
+        for para in recitals.strip().split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), recital_st))
+                story.append(Spacer(1, 0.1*inch))
+        if page_break_after_recital:
+            story.append(PageBreak())
+        else:
+            story.append(Spacer(1, 0.35 * inch))   # ~2 line spaces before TOC
 
     # ── Table of Contents ───────────────────────────────────────────────────
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
@@ -677,7 +666,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
 
     h_item = col_item_header or "Item"
     h_doc  = col_doc_header  or "Document"
-    h_page = col_page_header or "Page(s)"
+    h_page = col_page_header or "Page Number"
 
     def make_header_row():
         if has_col:
@@ -825,15 +814,15 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     max_label_len = max(max_label_len, 18)  # always fit at least 18 characters
     prefix_w = max(0.9, 0.55 + max_label_len * 0.065) * inch
     TEXT_W = 6.25 * inch  # 8.5 - 1.25 left - 1.0 right
+    PAGE_COL = 1.1 * inch  # wide enough for 12 characters ("Page Number")
     if has_col:
-        # Cap prefix_w so remaining cols (date 1.4 + page 0.8) always fit
-        prefix_w = min(prefix_w, TEXT_W - 1.4*inch - 0.8*inch - 0.5*inch)
-        col2 = max(0.5*inch, TEXT_W - prefix_w - 1.4*inch - 0.8*inch)
-        col_widths = [prefix_w, col2, 1.4*inch, 0.8*inch]
+        prefix_w = min(prefix_w, TEXT_W - 1.4*inch - PAGE_COL - 0.5*inch)
+        col2 = max(0.5*inch, TEXT_W - prefix_w - 1.4*inch - PAGE_COL)
+        col_widths = [prefix_w, col2, 1.4*inch, PAGE_COL]
     else:
-        prefix_w = min(prefix_w, TEXT_W - 0.8*inch - 0.5*inch)
-        col2 = max(0.5*inch, TEXT_W - prefix_w - 0.8*inch)
-        col_widths = [prefix_w, col2, 0.8*inch]
+        prefix_w = min(prefix_w, TEXT_W - PAGE_COL - 0.5*inch)
+        col2 = max(0.5*inch, TEXT_W - prefix_w - PAGE_COL)
+        col_widths = [prefix_w, col2, PAGE_COL]
     toc_table = Table(toc_data, colWidths=col_widths, rowHeights=row_heights)
     toc_table.setStyle(TableStyle(ts))
     story.append(toc_table)
@@ -964,6 +953,7 @@ def merge_pdfs(session_data, output_path):
         place=session_data.get("place", ""),
         counsel=session_data.get("counsel", ""),
         opp_counsel=session_data.get("opp_counsel", ""),
+        page_break_after_recital=session_data.get("page_break_after_recital", False),
     )
     toc_args = (doc_type, items, tabs,
                 session_data.get("title", ""),
@@ -1511,7 +1501,7 @@ def update_session():
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
                 "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
-                "counsel","opp_counsel"):
+                "counsel","opp_counsel","page_break_after_recital"):
         if key in data:
             sess[key] = data[key]
     save_session(sid, sess)
