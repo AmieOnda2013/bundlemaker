@@ -6,6 +6,7 @@ flask-sqlalchemy==3.1.1
 pg8000==1.31.2
 stripe==11.4.0
 pypdf==6.14.2
+cryptography>=42.0
 reportlab==5.0.0
 pillow==11.3.0
 gunicorn==23.0.0

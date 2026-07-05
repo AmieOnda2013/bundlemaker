@@ -437,6 +437,27 @@ def resolve_jurisdiction(country, jurisdiction_value):
     return "", ""
 
 
+def _decrypt_pdf_if_needed(filepath):
+    """Court-filed and bank PDFs are often AES-"secured" with an empty user
+    password. Rewrite them decrypted so merging never hits encryption."""
+    try:
+        rdr = PdfReader(filepath)
+        if not rdr.is_encrypted:
+            return
+        rdr.decrypt("")
+        w = PdfWriter()
+        for pg in rdr.pages:
+            w.add_page(pg)
+        tmp = filepath + ".dec"
+        with open(tmp, "wb") as fh:
+            w.write(fh)
+        os.replace(tmp, filepath)
+    except Exception as e:
+        # Password-protected with a real password — leave as-is; the
+        # upload will fail visibly at page count rather than at merge.
+        app.logger.warning(f"Could not decrypt {filepath}: {e}")
+
+
 def _make_file_item(f, ext):
     """Save an uploaded file, convert images, return item dict."""
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # re-ensure dir on ephemeral FS
@@ -456,6 +477,7 @@ def _make_file_item(f, ext):
         filepath = pdf_dest
     else:
         filepath = raw_dest
+        _decrypt_pdf_if_needed(filepath)
     base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
     page_count = get_pdf_page_count(filepath)
     file_type  = "image" if ext in IMAGE_EXTENSIONS else ("word" if ext in WORD_EXTENSIONS else "pdf")
