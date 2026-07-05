@@ -2417,6 +2417,25 @@ def job_status(job_id):
     return jsonify(info)
 
 
+def _purge_old_outputs(max_age_seconds=7200):
+    """Delete bundles and job records older than 2 hours. Called lazily so
+    downloads stay repeatable (Safari requests downloads twice)."""
+    import time
+    now = time.time()
+    try:
+        for name in os.listdir(OUTPUT_FOLDER):
+            if not (name.startswith("bundle_") or name.startswith("job_")):
+                continue
+            path = os.path.join(OUTPUT_FOLDER, name)
+            try:
+                if now - os.path.getmtime(path) > max_age_seconds:
+                    os.remove(path)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
 @app.route("/api/job/<job_id>/download")
 @login_required
 def job_download(job_id):
@@ -2428,13 +2447,10 @@ def job_download(job_id):
     path = os.path.join(OUTPUT_FOLDER, safe_name)
     if not os.path.exists(path):
         return "Not found", 404
-    _job_delete(job_id)
-    response = send_file(path, as_attachment=True, download_name=safe_name)
-    @response.call_on_close
-    def cleanup():
-        try: os.remove(path)
-        except OSError: pass
-    return response
+    # Do NOT delete on download — Safari requests downloads twice and the
+    # second request must still succeed. Old files are purged lazily instead.
+    _purge_old_outputs()
+    return send_file(path, as_attachment=True, download_name=safe_name)
 
 
 @app.route("/api/download/<filename>")
