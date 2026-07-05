@@ -1023,6 +1023,9 @@ def add_toc_links(writer, toc_page_index, items, tabs,
             total = sum(i.get("page_count", 1) for i in tab.get("items", []))
             current_pdf += (1 + total) if use_dividers else total
 
+    from pypdf.generic import (DictionaryObject, NameObject, ArrayObject,
+                               NumberObject)
+    toc_page = writer.pages[toc_page_index]
     for (y_off, h, target) in link_rows:
         # Skip rows that have scrolled below the bottom margin of the TOC page
         if y_off >= available_height:
@@ -1031,10 +1034,24 @@ def add_toc_links(writer, toc_page_index, items, tabs,
         row_bottom = row_top - h
         rect = RectangleObject([left, row_bottom, right, row_top])
         try:
-            writer.add_annotation(
-                page_number=toc_page_index,
-                annotation=Link(rect=rect, target_page_index=target),
-            )
+            if target < 0 or target >= len(writer.pages):
+                continue
+            # Build the annotation manually: pypdf's Link(target_page_index=…)
+            # writes /Dest [<number> /Fit], which Preview/Acrobat treat as a
+            # dead link. A proper /Dest needs the page *object reference*.
+            annot = DictionaryObject({
+                NameObject("/Type"):    NameObject("/Annot"),
+                NameObject("/Subtype"): NameObject("/Link"),
+                NameObject("/Rect"):    rect,
+                NameObject("/Border"):  ArrayObject([NumberObject(0), NumberObject(0), NumberObject(0)]),
+                NameObject("/Dest"):    ArrayObject([writer.pages[target].indirect_reference,
+                                                     NameObject("/Fit")]),
+            })
+            annot_ref = writer._add_object(annot)
+            if "/Annots" in toc_page:
+                toc_page["/Annots"].append(annot_ref)
+            else:
+                toc_page[NameObject("/Annots")] = ArrayObject([annot_ref])
         except Exception:
             pass
 
@@ -1225,6 +1242,15 @@ def merge_pdfs(session_data, output_path):
 
     with open(output_path, "wb") as f:
         writer.write(f)
+
+
+@app.after_request
+def _no_cache_html(resp):
+    # Safari aggressively caches HTML (and the inline JS in it), which kept
+    # serving stale upload/download code after deployments.
+    if resp.mimetype == "text/html":
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
 
 
 # ── Auth routes ──────────────────────────────────────────────────────────────
