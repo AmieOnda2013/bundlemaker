@@ -724,6 +724,19 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     story.append(PageBreak())
 
     # ── Table of Contents ───────────────────────────────────────────────────
+    # Invisible marker records the 1-based page number the TOC starts on —
+    # needed by add_toc_links because a long TOC spans multiple pages, so
+    # "last page of the cover doc" is not where the TOC begins.
+    from reportlab.platypus import Flowable
+    class _TocPageMarker(Flowable):
+        def __init__(self, sink):
+            Flowable.__init__(self)
+            self.sink = sink
+            self.width = self.height = 0
+        def draw(self):
+            self.sink.append(self.canv.getPageNumber())
+    toc_start_sink = []
+    story.append(_TocPageMarker(toc_start_sink))
     story.append(Paragraph("TABLE OF CONTENTS", toc_header_st))
 
     tab_fn = alpha_label if tmpl["tab_style"] == "alpha" else numeric_label
@@ -913,7 +926,8 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     story.append(PageBreak())
 
     doc.build(story)
-    return actual_row_heights
+    toc_start_page = toc_start_sink[0] if toc_start_sink else None  # 1-based
+    return actual_row_heights, toc_start_page
 
 
 def generate_divider_page(tab_full_label, name, output_path):
@@ -960,8 +974,16 @@ def add_toc_links(writer, toc_page_index, items, tabs,
     SUB_H = 25   # fallback for sub-rows
     data_heights = [float(h) for h in actual_row_heights[1:]] if actual_row_heights and len(actual_row_heights) > 1 else []
 
-    # Bottom of usable area on this page
-    available_height = first_row_top - 72   # bottom margin ~1 inch
+    # Page geometry for multi-page TOCs: the doc uses 1.25" top/bottom margins.
+    _BOTTOM_MARGIN = 90
+    # Continuation TOC pages have no heading — rows start at the top margin.
+    cont_row_top = page_height - _TOP_MARGIN
+    # Row capacity per page (rows that don't fit move whole to the next page,
+    # matching ReportLab's table splitting)
+    cap_first = first_row_top - _BOTTOM_MARGIN
+    cap_cont  = cont_row_top - _BOTTOM_MARGIN
+    # TOC occupies pages toc_page_index .. first_page_index-1
+    max_toc_pages = max(1, first_page_index - toc_page_index)
 
     link_rows = []      # [(y_offset_from_first_row_top, row_height, target_pdf_page)]
     y = 0
@@ -1025,35 +1047,48 @@ def add_toc_links(writer, toc_page_index, items, tabs,
 
     from pypdf.generic import (DictionaryObject, NameObject, ArrayObject,
                                NumberObject)
-    toc_page = writer.pages[toc_page_index]
-    for (y_off, h, target) in link_rows:
-        # Skip rows that have scrolled below the bottom margin of the TOC page
-        if y_off >= available_height:
-            break
-        row_top    = first_row_top - y_off
-        row_bottom = row_top - h
-        rect = RectangleObject([left, row_bottom, right, row_top])
+
+    def _annotate(page_idx, row_top, h, target):
+        rect = RectangleObject([left, row_top - h, right, row_top])
+        # Build the annotation manually: pypdf's Link(target_page_index=…)
+        # writes /Dest [<number> /Fit], which Preview/Acrobat treat as a
+        # dead link. A proper /Dest needs the page *object reference*.
+        annot = DictionaryObject({
+            NameObject("/Type"):    NameObject("/Annot"),
+            NameObject("/Subtype"): NameObject("/Link"),
+            NameObject("/Rect"):    rect,
+            NameObject("/Border"):  ArrayObject([NumberObject(0), NumberObject(0), NumberObject(0)]),
+            NameObject("/Dest"):    ArrayObject([writer.pages[target].indirect_reference,
+                                                 NameObject("/Fit")]),
+        })
+        annot_ref = writer._add_object(annot)
+        pg = writer.pages[page_idx]
+        if "/Annots" in pg:
+            pg["/Annots"].append(annot_ref)
+        else:
+            pg[NameObject("/Annots")] = ArrayObject([annot_ref])
+
+    # Walk rows across TOC pages the same way ReportLab splits the table:
+    # fill a page until the next row wouldn't fit, then continue at the top
+    # of the next TOC page.
+    toc_pg   = 0                    # 0-based TOC page within the TOC block
+    used     = 0.0                  # height consumed on current TOC page
+    for (_, h, target) in link_rows:
+        cap = cap_first if toc_pg == 0 else cap_cont
+        if used + h > cap + 0.5:    # row moves whole to the next page
+            toc_pg += 1
+            used = 0.0
+            if toc_pg >= max_toc_pages:
+                break
+            cap = cap_cont
+        page_top = first_row_top if toc_pg == 0 else cont_row_top
+        row_top  = page_top - used
         try:
-            if target < 0 or target >= len(writer.pages):
-                continue
-            # Build the annotation manually: pypdf's Link(target_page_index=…)
-            # writes /Dest [<number> /Fit], which Preview/Acrobat treat as a
-            # dead link. A proper /Dest needs the page *object reference*.
-            annot = DictionaryObject({
-                NameObject("/Type"):    NameObject("/Annot"),
-                NameObject("/Subtype"): NameObject("/Link"),
-                NameObject("/Rect"):    rect,
-                NameObject("/Border"):  ArrayObject([NumberObject(0), NumberObject(0), NumberObject(0)]),
-                NameObject("/Dest"):    ArrayObject([writer.pages[target].indirect_reference,
-                                                     NameObject("/Fit")]),
-            })
-            annot_ref = writer._add_object(annot)
-            if "/Annots" in toc_page:
-                toc_page["/Annots"].append(annot_ref)
-            else:
-                toc_page[NameObject("/Annots")] = ArrayObject([annot_ref])
+            if 0 <= target < len(writer.pages):
+                _annotate(toc_page_index + toc_pg, row_top, h, target)
         except Exception:
             pass
+        used += h
 
 
 def stamp_page_numbers(writer, position, skip_first=False):
@@ -1148,14 +1183,16 @@ def merge_pdfs(session_data, output_path):
 
     # Pass 2: correct page numbers — capture actual row heights for link stamping
     toc_path = os.path.join(OUTPUT_FOLDER, f"_toc_{uuid.uuid4().hex}.pdf")
-    actual_row_heights = generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count, entries=entries)
+    actual_row_heights, toc_start_page = generate_cover_toc(*toc_args, toc_path, **toc_kwargs, page_offset=cover_count, entries=entries)
     rdr = PdfReader(toc_path)
     cover_count = len(rdr.pages)
     for pg in rdr.pages:
         writer.add_page(pg)
     os.remove(toc_path)
 
-    toc_page_index = cover_count - 1
+    # TOC may span multiple pages: it STARTS at toc_start_page (1-based),
+    # not necessarily on the last page of the cover document.
+    toc_page_index = (toc_start_page - 1) if toc_start_page else cover_count - 1
     first_page_idx = cover_count
 
     entry_page_map = {}  # entry id → 0-indexed page in final writer
