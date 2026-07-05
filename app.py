@@ -437,14 +437,24 @@ def resolve_jurisdiction(country, jurisdiction_value):
     return "", ""
 
 
+class UploadRejected(Exception):
+    """Raised when an uploaded file can't be used, with a user-facing reason."""
+    pass
+
+
 def _decrypt_pdf_if_needed(filepath):
     """Court-filed and bank PDFs are often AES-"secured" with an empty user
-    password. Rewrite them decrypted so merging never hits encryption."""
+    password. Rewrite them decrypted so merging never hits encryption.
+    Raises UploadRejected if the PDF is unreadable or needs a real password."""
     try:
         rdr = PdfReader(filepath)
-        if not rdr.is_encrypted:
-            return
-        rdr.decrypt("")
+    except Exception:
+        raise UploadRejected("The file is damaged or is not a valid PDF. Try re-saving or re-exporting it.")
+    if not rdr.is_encrypted:
+        return
+    try:
+        if not rdr.decrypt(""):
+            raise UploadRejected("The PDF is password-protected. Remove the password (open it, enter the password, then print/save as a new PDF) and upload again.")
         w = PdfWriter()
         for pg in rdr.pages:
             w.add_page(pg)
@@ -452,10 +462,11 @@ def _decrypt_pdf_if_needed(filepath):
         with open(tmp, "wb") as fh:
             w.write(fh)
         os.replace(tmp, filepath)
+    except UploadRejected:
+        raise
     except Exception as e:
-        # Password-protected with a real password — leave as-is; the
-        # upload will fail visibly at page count rather than at merge.
         app.logger.warning(f"Could not decrypt {filepath}: {e}")
+        raise UploadRejected("The PDF uses encryption that could not be removed. Print/save it as a new PDF and upload again.")
 
 
 def _make_file_item(f, ext):
@@ -477,7 +488,12 @@ def _make_file_item(f, ext):
         filepath = pdf_dest
     else:
         filepath = raw_dest
-        _decrypt_pdf_if_needed(filepath)
+        try:
+            _decrypt_pdf_if_needed(filepath)
+        except UploadRejected:
+            try: os.remove(raw_dest)
+            except OSError: pass
+            raise
     base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
     page_count = get_pdf_page_count(filepath)
     file_type  = "image" if ext in IMAGE_EXTENSIONS else ("word" if ext in WORD_EXTENSIONS else "pdf")
@@ -2225,27 +2241,36 @@ _session_write_lock = threading.Lock()
 @login_required
 def upload_entries():
     sid = _get_sid()
-    added = []
-    try:
-        # Save files to disk first (slow part, safe to run concurrently)
-        for f in request.files.getlist("files"):
-            ext = os.path.splitext(f.filename.lower())[1]
-            if ext not in ALLOWED_EXTENSIONS:
-                continue
+    added, rejected = [], []
+    # Save files to disk first (slow part, safe to run concurrently)
+    for f in request.files.getlist("files"):
+        ext = os.path.splitext(f.filename.lower())[1]
+        if ext not in ALLOWED_EXTENSIONS:
+            rejected.append({"name": f.filename, "reason": "This file type is not supported. Accepted: PDF, Word, and image files."})
+            continue
+        try:
             item = _make_file_item(f, ext)
             item["type"] = "doc"
             item["doc_date"] = ""
             added.append(item)
-        # Then append to the session under a lock (fast part)
-        with _session_write_lock:
-            sess = get_session(sid)
-            sess["entries"].extend(added)
-            save_session(sid, sess)
-    except Exception as e:
-        import traceback as _tb
-        app.logger.error(_tb.format_exc())
-        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
-    return jsonify(added)
+        except UploadRejected as e:
+            rejected.append({"name": f.filename, "reason": str(e)})
+        except Exception as e:
+            import traceback as _tb
+            app.logger.error(f"Upload failed for {f.filename}: {_tb.format_exc()}")
+            rejected.append({"name": f.filename, "reason": "The file could not be processed. It may be damaged — try re-saving it and uploading again."})
+    # Then append to the session under a lock (fast part)
+    if added:
+        try:
+            with _session_write_lock:
+                sess = get_session(sid)
+                sess["entries"].extend(added)
+                save_session(sid, sess)
+        except Exception as e:
+            import traceback as _tb
+            app.logger.error(_tb.format_exc())
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({"added": added, "rejected": rejected})
 
 
 @app.route("/api/entries/divider", methods=["POST"])

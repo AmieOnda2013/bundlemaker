@@ -1159,20 +1159,24 @@ async function handleEntriesUpload(files){
 
   const CONCURRENCY = 3;
   let next = 0, ok = 0;
-  const failed = [];
+  const failed = [];   // {name, reason}
 
   async function worker(){
     while(next < list.length){
       const i = next++;
       const f = list[i];
       try {
-        const added = await uploadOneFile(f, (loaded)=> { loadedPer[i] = loaded; refresh(); });
+        const resp = await uploadOneFile(f, (loaded)=> { loadedPer[i] = loaded; refresh(); });
         loadedPer[i] = f.size;
+        // New response shape {added, rejected}; tolerate old plain-array shape
+        const added    = Array.isArray(resp) ? resp : (resp.added || []);
+        const rejected = Array.isArray(resp) ? []   : (resp.rejected || []);
         results[i] = added;
         ok += added.length;
+        for(const rj of rejected) failed.push(rj);
       } catch(e){
         loadedPer[i] = f.size;  // count as consumed so the bar still completes
-        failed.push(f.name);
+        failed.push({name: f.name, reason: e.message || 'Upload failed. Check your connection and try again.'});
       }
       doneCount++;
       refresh();
@@ -1191,7 +1195,34 @@ async function handleEntriesUpload(files){
 
   showUploadProgress(false);
   if(ok)             toast(`${ok} file${ok!==1?'s':''} added.`,'success');
-  if(failed.length)  toast(`Failed to upload: ${failed.join(', ')}`,'error');
+  if(failed.length)  showUploadFailModal(failed, ok);
+}
+
+function showUploadFailModal(failed, okCount){
+  const existing = document.getElementById('uploadFailModal');
+  if(existing) existing.remove();
+  const rows = failed.map(f => `
+    <div style="padding:12px 0;border-bottom:1px solid #f0ece3;text-align:left">
+      <div style="font-weight:700;color:#0d1b2a;font-size:0.88rem;word-break:break-word">📄 ${f.name}</div>
+      <div style="color:#8b2020;font-size:0.82rem;margin-top:4px;line-height:1.5">${f.reason}</div>
+    </div>`).join('');
+  const modal = document.createElement('div');
+  modal.id = 'uploadFailModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:36px 32px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
+      <div style="text-align:center;font-size:2.2rem;margin-bottom:12px">⚠️</div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.35rem;color:#0d1b2a;margin-bottom:8px;text-align:center">
+        ${failed.length} file${failed.length!==1?'s':''} could not be added
+      </h2>
+      ${okCount ? `<p style="color:#666;font-size:0.85rem;text-align:center;margin-bottom:16px">${okCount} other file${okCount!==1?'s were':' was'} added successfully.</p>` : ''}
+      <div style="margin-bottom:24px">${rows}</div>
+      <button onclick="document.getElementById('uploadFailModal').remove()"
+        style="display:block;width:100%;padding:13px;background:#0d1b2a;color:#c9a84c;border:none;border-radius:7px;font-weight:700;font-size:0.95rem;cursor:pointer;letter-spacing:0.04em">
+        OK, Got It
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // Legacy shim — delegates to new handler
