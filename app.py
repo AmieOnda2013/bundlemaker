@@ -2436,9 +2436,13 @@ def _purge_old_outputs(max_age_seconds=7200):
         pass
 
 
+# No @login_required: Safari's download manager drops session cookies
+# (WebKit bug), which redirected downloads to the login page. The job id
+# is an unguessable 32-char token that expires with the file (2 h).
 @app.route("/api/job/<job_id>/download")
-@login_required
 def job_download(job_id):
+    if not job_id.isalnum() or len(job_id) != 32:
+        return "Not found", 404
     info = _job_get(job_id)
     if not info or info.get("status") != "done":
         return "Not ready", 404
