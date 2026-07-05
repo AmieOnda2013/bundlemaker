@@ -1082,21 +1082,85 @@ indDZ.addEventListener('drop', e=>{
 });
 
 /* ── Entries (flat docs + dividers) ── */
+function uploadOneFile(file, onProgress){
+  return new Promise((resolve, reject)=>{
+    const fd = new FormData();
+    fd.append('files', file);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/entries/upload');
+    xhr.timeout = 600000; // 10 min
+    xhr.upload.onprogress = (e)=>{
+      if(e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
+    };
+    xhr.onload = ()=>{
+      if(xhr.status >= 200 && xhr.status < 300){
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e){ reject(new Error('Bad server response')); }
+      } else {
+        reject(new Error(xhr.responseText || ('HTTP '+xhr.status)));
+      }
+    };
+    xhr.onerror   = ()=> reject(new Error('Connection lost during upload'));
+    xhr.ontimeout = ()=> reject(new Error('Upload timed out'));
+    xhr.send(fd);
+  });
+}
+
+function showUploadProgress(show){
+  let el = document.getElementById('uploadProgressOverlay');
+  if(show && !el){
+    el = document.createElement('div');
+    el.id = 'uploadProgressOverlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(13,27,42,0.75);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px';
+    el.innerHTML = `
+      <div id="uploadProgressLabel" style="color:#f5f2eb;font-size:1rem;font-weight:600;letter-spacing:0.02em;text-align:center;max-width:480px;word-break:break-word">Uploading…</div>
+      <div style="width:min(420px,80vw);height:10px;background:rgba(255,255,255,0.15);border-radius:5px;overflow:hidden">
+        <div id="uploadProgressBar" style="width:0%;height:100%;background:#c9a84c;border-radius:5px;transition:width 0.2s"></div>
+      </div>
+      <div id="uploadProgressPct" style="color:#c9a84c;font-size:0.85rem;font-weight:600">0%</div>
+      <div style="color:rgba(245,242,235,0.6);font-size:0.75rem">Large files may take a few minutes — please keep this tab open</div>`;
+    document.body.appendChild(el);
+  } else if(!show && el){
+    el.remove();
+  }
+}
+
+function setUploadProgress(label, loaded, total){
+  const lbl = document.getElementById('uploadProgressLabel');
+  const bar = document.getElementById('uploadProgressBar');
+  const pct = document.getElementById('uploadProgressPct');
+  if(lbl) lbl.textContent = label;
+  if(total > 0){
+    const p = Math.round(loaded/total*100);
+    if(bar) bar.style.width = p + '%';
+    if(pct) pct.textContent = p + '%' + (total > 1048576 ? `  (${(loaded/1048576).toFixed(1)} / ${(total/1048576).toFixed(1)} MB)` : '');
+  }
+}
+
 async function handleEntriesUpload(files){
-  const fd = new FormData();
-  let count = 0;
-  for(const f of files){ if(isAllowed(f.name)){ fd.append('files',f); count++; } }
-  if(!count){ toast('Only PDF and image files are accepted.','error'); return; }
-  toast('Uploading…','info');
-  try {
-    const r = await fetch('/api/entries/upload',{method:'POST',body:fd});
-    if(!r.ok){ const t = await r.text(); toast('Upload failed: '+t,'error'); return; }
-    const added = await r.json();
-    entries.push(...added);
-    renderEntries();
-    updateCount();
-    toast(`${added.length} file${added.length!==1?'s':''} added.`,'success');
-  } catch(e){ toast('Upload error: '+e.message,'error'); }
+  const list = [];
+  for(const f of files){ if(isAllowed(f.name)) list.push(f); }
+  if(!list.length){ toast('Only PDF and image files are accepted.','error'); return; }
+
+  showUploadProgress(true);
+  let ok = 0, failed = [];
+  for(let i = 0; i < list.length; i++){
+    const f = list[i];
+    const label = list.length > 1 ? `Uploading ${i+1} of ${list.length}: ${f.name}` : `Uploading ${f.name}`;
+    setUploadProgress(label, 0, f.size);
+    try {
+      const added = await uploadOneFile(f, (loaded, total)=> setUploadProgress(label, loaded, total));
+      entries.push(...added);
+      renderEntries();
+      updateCount();
+      ok += added.length;
+    } catch(e){
+      failed.push(f.name);
+    }
+  }
+  showUploadProgress(false);
+  if(ok)             toast(`${ok} file${ok!==1?'s':''} added.`,'success');
+  if(failed.length)  toast(`Failed to upload: ${failed.join(', ')}`,'error');
 }
 
 // Legacy shim — delegates to new handler
