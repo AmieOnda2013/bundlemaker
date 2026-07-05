@@ -1429,10 +1429,26 @@ async function generate(){
 
     if(info.status === 'done'){
       clearInterval(poll);
+      setProcessingMessage('Downloading your bundle…');
+      try {
+        const dl = await fetch(`/api/job/${jobId}/download`);
+        if(!dl.ok) throw new Error('HTTP ' + dl.status);
+        const blob = await dl.blob();
+        if(blob.size < 1024) throw new Error('Server returned an invalid file');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (info.filename || 'bundle.pdf');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(()=> URL.revokeObjectURL(url), 60000);
+        toast('Bundle downloaded.','success');
+      } catch(e){
+        toast('Bundle was generated but the download failed: ' + e.message + ' — click Generate again to retry.','error');
+      }
       showProcessingOverlay(false);
       if(btn) btn.disabled = false;
-      toast('Bundle ready — downloading…','success');
-      window.location.href = `/api/job/${jobId}/download`;
     } else if(info.status === 'error'){
       clearInterval(poll);
       showProcessingOverlay(false);
