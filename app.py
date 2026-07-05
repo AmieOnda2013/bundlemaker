@@ -97,24 +97,35 @@ SESSIONS_FOLDER = os.path.join(_BASE_DIR, "sessions")
 for _d in (UPLOAD_FOLDER, OUTPUT_FOLDER, SESSIONS_FOLDER):
     os.makedirs(_d, exist_ok=True)
 
-# ── Background job tracker ────────────────────────────────────────────────────
-import threading as _threading
-_jobs      = {}   # job_id -> {"status": "pending"|"done"|"error", "filename": ..., "error": ...}
-_jobs_lock = _threading.Lock()
+# ── Background job tracker (file-based so all Gunicorn workers can share) ────
+import json as _json
+
+def _job_path(job_id):
+    return os.path.join(OUTPUT_FOLDER, f"job_{job_id}.json")
 
 def _job_set(job_id, **kwargs):
-    with _jobs_lock:
-        if job_id not in _jobs:
-            _jobs[job_id] = {}
-        _jobs[job_id].update(kwargs)
+    p = _job_path(job_id)
+    try:
+        existing = _json.loads(open(p).read()) if os.path.exists(p) else {}
+    except Exception:
+        existing = {}
+    existing.update(kwargs)
+    with open(p, "w") as f:
+        _json.dump(existing, f)
 
 def _job_get(job_id):
-    with _jobs_lock:
-        return dict(_jobs.get(job_id, {}))
+    p = _job_path(job_id)
+    try:
+        return _json.loads(open(p).read())
+    except Exception:
+        return {}
 
 def _job_delete(job_id):
-    with _jobs_lock:
-        _jobs.pop(job_id, None)
+    p = _job_path(job_id)
+    try:
+        os.remove(p)
+    except OSError:
+        pass
 # ─────────────────────────────────────────────────────────────────────────────
 
 _db_ready = False
