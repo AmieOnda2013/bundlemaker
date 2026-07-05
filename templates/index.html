@@ -1429,26 +1429,9 @@ async function generate(){
 
     if(info.status === 'done'){
       clearInterval(poll);
-      setProcessingMessage('Downloading your bundle…');
-      try {
-        const dl = await fetch(`/api/job/${jobId}/download`);
-        if(!dl.ok) throw new Error('HTTP ' + dl.status);
-        const blob = await dl.blob();
-        if(blob.size < 1024) throw new Error('Server returned an invalid file');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = (info.filename || 'bundle.pdf');
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(()=> URL.revokeObjectURL(url), 60000);
-        toast('Bundle downloaded.','success');
-      } catch(e){
-        toast('Bundle was generated but the download failed: ' + e.message + ' — click Generate again to retry.','error');
-      }
       showProcessingOverlay(false);
       if(btn) btn.disabled = false;
+      showDownloadReadyModal(jobId, info.filename || 'bundle.pdf');
     } else if(info.status === 'error'){
       clearInterval(poll);
       showProcessingOverlay(false);
@@ -1483,6 +1466,29 @@ function showProcessingOverlay(show){
 function setProcessingMessage(msg){
   const el = document.getElementById('processingMsg');
   if(el) el.textContent = msg;
+}
+
+function showDownloadReadyModal(jobId, filename){
+  const existing = document.getElementById('downloadReadyModal');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'downloadReadyModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(13,27,42,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:40px 36px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
+      <div style="font-size:2.6rem;margin-bottom:14px">✅</div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:#0d1b2a;margin-bottom:10px">Your bundle is ready</h2>
+      <p style="color:#666;font-size:0.88rem;line-height:1.6;margin-bottom:26px">Click below to download your court bundle. The file stays available for 2 hours.</p>
+      <a href="/api/job/${jobId}/download" download="${filename}"
+         style="display:block;padding:14px;background:#c9a84c;color:#0d1b2a;border-radius:7px;font-weight:700;font-size:1rem;text-decoration:none;letter-spacing:0.04em;margin-bottom:12px">
+        ⬇ &nbsp;Download Bundle
+      </a>
+      <button onclick="document.getElementById('downloadReadyModal').remove()"
+        style="display:block;width:100%;padding:11px;background:none;border:none;color:#999;font-size:0.85rem;cursor:pointer">
+        Close
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 function showUpgradeModal(d){
