@@ -3,6 +3,7 @@ import io
 import json
 import uuid
 import shutil
+import threading
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
 from markupsafe import escape
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -2194,13 +2195,17 @@ def delete_tab_item(tab_id, item_id):
 
 # ── Entries routes (flat docs + dividers) ────────────────────────────────────
 
+# Parallel uploads hit this route concurrently; without a lock the
+# read-modify-write of the session file loses entries.
+_session_write_lock = threading.Lock()
+
 @app.route("/api/entries/upload", methods=["POST"])
 @login_required
 def upload_entries():
     sid = _get_sid()
-    sess = get_session(sid)
     added = []
     try:
+        # Save files to disk first (slow part, safe to run concurrently)
         for f in request.files.getlist("files"):
             ext = os.path.splitext(f.filename.lower())[1]
             if ext not in ALLOWED_EXTENSIONS:
@@ -2208,9 +2213,12 @@ def upload_entries():
             item = _make_file_item(f, ext)
             item["type"] = "doc"
             item["doc_date"] = ""
-            sess["entries"].append(item)
             added.append(item)
-        save_session(sid, sess)
+        # Then append to the session under a lock (fast part)
+        with _session_write_lock:
+            sess = get_session(sid)
+            sess["entries"].extend(added)
+            save_session(sid, sess)
     except Exception as e:
         import traceback as _tb
         app.logger.error(_tb.format_exc())

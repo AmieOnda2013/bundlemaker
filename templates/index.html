@@ -1143,21 +1143,53 @@ async function handleEntriesUpload(files){
   if(!list.length){ toast('Only PDF and image files are accepted.','error'); return; }
 
   showUploadProgress(true);
-  let ok = 0, failed = [];
-  for(let i = 0; i < list.length; i++){
-    const f = list[i];
-    const label = list.length > 1 ? `Uploading ${i+1} of ${list.length}: ${f.name}` : `Uploading ${f.name}`;
-    setUploadProgress(label, 0, f.size);
-    try {
-      const added = await uploadOneFile(f, (loaded, total)=> setUploadProgress(label, loaded, total));
-      entries.push(...added);
-      renderEntries();
-      updateCount();
-      ok += added.length;
-    } catch(e){
-      failed.push(f.name);
+
+  // Combined progress across all files, uploaded 3 at a time
+  const totalBytes = list.reduce((s,f)=> s + f.size, 0);
+  const loadedPer  = new Array(list.length).fill(0);
+  let doneCount = 0;
+  const results = new Array(list.length);  // per-file entries, kept in selection order
+
+  function refresh(){
+    const loaded = loadedPer.reduce((s,v)=> s + v, 0);
+    const label  = list.length > 1
+      ? `Uploading ${Math.min(doneCount+1, list.length)} of ${list.length} files…`
+      : `Uploading ${list[0].name}`;
+    setUploadProgress(label, loaded, totalBytes);
+  }
+
+  const CONCURRENCY = 3;
+  let next = 0, ok = 0;
+  const failed = [];
+
+  async function worker(){
+    while(next < list.length){
+      const i = next++;
+      const f = list[i];
+      try {
+        const added = await uploadOneFile(f, (loaded)=> { loadedPer[i] = loaded; refresh(); });
+        loadedPer[i] = f.size;
+        results[i] = added;
+        ok += added.length;
+      } catch(e){
+        loadedPer[i] = f.size;  // count as consumed so the bar still completes
+        failed.push(f.name);
+      }
+      doneCount++;
+      refresh();
     }
   }
+
+  refresh();
+  await Promise.all(Array.from({length: Math.min(CONCURRENCY, list.length)}, worker));
+
+  // Append in original selection order regardless of finish order
+  for(const added of results){
+    if(added) entries.push(...added);
+  }
+  renderEntries();
+  updateCount();
+
   showUploadProgress(false);
   if(ok)             toast(`${ok} file${ok!==1?'s':''} added.`,'success');
   if(failed.length)  toast(`Failed to upload: ${failed.join(', ')}`,'error');
