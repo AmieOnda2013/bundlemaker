@@ -533,6 +533,12 @@ footer span{color:var(--gold)}
 </head>
 <body>
 
+<!-- ── Maintenance banner ── -->
+<div id="maintenance-banner" style="background:#1a3a5c;color:#f5f2eb;text-align:center;padding:10px 20px;font-size:0.85rem;font-weight:500;letter-spacing:0.02em;position:relative">
+  🔧 &nbsp;We're upgrading BundleMaker to support larger documents (up to 3,000 pages). Service continues normally — thank you for your patience.
+  <button onclick="document.getElementById('maintenance-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:#c9a84c;font-size:1.1rem;cursor:pointer;line-height:1">✕</button>
+</div>
+
 <!-- ── Header ── -->
 <header>
   <div class="header-inner">
@@ -1251,19 +1257,82 @@ function updateCount(){
 async function generate(){
   const total = entries.filter(e=>e.type==='doc').length;
   if(!total){ toast('Add at least one document first.','error'); return; }
-  toast('Generating court bundle…','info');
-  const r = await fetch('/api/generate',{method:'POST'});
-  const d = await r.json();
-  if(d.error){
-    if(d.upgrade){
-      showUpgradeModal(d);
-    } else {
-      toast(d.error,'error');
-    }
+
+  // Show processing overlay
+  showProcessingOverlay(true);
+  const btn = document.getElementById('generateBtn');
+  if(btn) btn.disabled = true;
+
+  let d;
+  try {
+    const r = await fetch('/api/generate',{method:'POST'});
+    d = await r.json();
+  } catch(e) {
+    showProcessingOverlay(false);
+    if(btn) btn.disabled = false;
+    toast('Network error — please try again.','error');
     return;
   }
-  toast('Bundle ready — downloading…','success');
-  window.location.href = `/api/download/${d.filename}`;
+
+  if(d.error){
+    showProcessingOverlay(false);
+    if(btn) btn.disabled = false;
+    if(d.upgrade){ showUpgradeModal(d); } else { toast(d.error,'error'); }
+    return;
+  }
+
+  // Poll for job completion
+  const jobId = d.job_id;
+  let dots = 0;
+  const poll = setInterval(async ()=>{
+    dots = (dots+1)%4;
+    setProcessingMessage('Preparing your bundle' + '.'.repeat(dots+1));
+    let info;
+    try {
+      const pr = await fetch(`/api/job/${jobId}`);
+      info = await pr.json();
+    } catch(e){ return; }
+
+    if(info.status === 'done'){
+      clearInterval(poll);
+      showProcessingOverlay(false);
+      if(btn) btn.disabled = false;
+      toast('Bundle ready — downloading…','success');
+      window.location.href = `/api/job/${jobId}/download`;
+    } else if(info.status === 'error'){
+      clearInterval(poll);
+      showProcessingOverlay(false);
+      if(btn) btn.disabled = false;
+      toast('Failed to generate bundle. Please try again.','error');
+    }
+  }, 2000);
+}
+
+function showProcessingOverlay(show){
+  let el = document.getElementById('processingOverlay');
+  if(show && !el){
+    el = document.createElement('div');
+    el.id = 'processingOverlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(13,27,42,0.75);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px';
+    el.innerHTML = `
+      <div style="width:52px;height:52px;border:4px solid rgba(201,168,76,0.3);border-top-color:#c9a84c;border-radius:50%;animation:spin 0.9s linear infinite"></div>
+      <div id="processingMsg" style="color:#f5f2eb;font-size:1.05rem;font-weight:500;letter-spacing:0.03em">Preparing your bundle…</div>
+      <div style="color:#c9a84c;font-size:0.8rem">Large bundles may take up to a minute</div>`;
+    document.body.appendChild(el);
+    if(!document.getElementById('spinKeyframes')){
+      const s = document.createElement('style');
+      s.id = 'spinKeyframes';
+      s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+  } else if(!show && el){
+    el.remove();
+  }
+}
+
+function setProcessingMessage(msg){
+  const el = document.getElementById('processingMsg');
+  if(el) el.textContent = msg;
 }
 
 function showUpgradeModal(d){

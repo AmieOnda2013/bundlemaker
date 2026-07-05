@@ -23,7 +23,7 @@ from models import db, User, PLAN_LIMITS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bundlemaker-dev-secret-change-in-production")
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB max upload
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 365  # 1 year
 
 # Comma-separated owner/admin emails — these accounts bypass all bundle limits and email verification
@@ -96,6 +96,26 @@ SESSIONS_FOLDER = os.path.join(_BASE_DIR, "sessions")
 
 for _d in (UPLOAD_FOLDER, OUTPUT_FOLDER, SESSIONS_FOLDER):
     os.makedirs(_d, exist_ok=True)
+
+# ── Background job tracker ────────────────────────────────────────────────────
+import threading as _threading
+_jobs      = {}   # job_id -> {"status": "pending"|"done"|"error", "filename": ..., "error": ...}
+_jobs_lock = _threading.Lock()
+
+def _job_set(job_id, **kwargs):
+    with _jobs_lock:
+        if job_id not in _jobs:
+            _jobs[job_id] = {}
+        _jobs[job_id].update(kwargs)
+
+def _job_get(job_id):
+    with _jobs_lock:
+        return dict(_jobs.get(job_id, {}))
+
+def _job_delete(job_id):
+    with _jobs_lock:
+        _jobs.pop(job_id, None)
+# ─────────────────────────────────────────────────────────────────────────────
 
 _db_ready = False
 
@@ -2277,38 +2297,78 @@ def generate():
     total = len(entries_docs) if entries_docs else (len(sess.get("items", [])) + sum(len(t.get("items", [])) for t in sess.get("tabs", [])))
     if total == 0:
         return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
+
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
-    try:
-        merge_pdfs(sess, out_path)
-        if not is_owner():
-            current_user.bundles_used += 1
-            db.session.commit()
-        # Clean up uploaded source files now that the bundle is built
-        all_items = list(sess.get("items", []))
-        for t in sess.get("tabs", []):
-            all_items.extend(t.get("items", []))
-        all_items.extend(entries_docs)
-        for item in all_items:
-            fp = item.get("filepath")
-            if fp and os.path.exists(fp):
-                try:
-                    os.remove(fp)
-                except OSError:
-                    pass
-    except Exception as e:
-        import traceback as _tb
-        app.logger.error(_tb.format_exc())
-        return jsonify({
-            "error": "Failed to generate bundle. Please try again.",
-            "_exc": f"{type(e).__name__}: {e}",
-        }), 500
-    session["last_bundle"] = out_name
-    return jsonify({
-        "filename": out_name,
-        "bundles_used": current_user.bundles_used,
-        "plan": current_user.plan,
-    })
+    job_id   = uuid.uuid4().hex
+    user_id  = current_user.id
+    owner    = is_owner()
+
+    _job_set(job_id, status="pending", filename=None, error=None)
+
+    def _run(app_, sess_, out_path_, out_name_, job_id_, user_id_, owner_):
+        with app_.app_context():
+            try:
+                merge_pdfs(sess_, out_path_)
+                # Increment bundle counter
+                if not owner_:
+                    user = db.session.get(User, user_id_)
+                    if user:
+                        user.bundles_used += 1
+                        db.session.commit()
+                # Clean up source files
+                all_items = list(sess_.get("items", []))
+                for t in sess_.get("tabs", []):
+                    all_items.extend(t.get("items", []))
+                all_items.extend([e for e in sess_.get("entries", []) if e.get("type") == "doc"])
+                for item in all_items:
+                    fp = item.get("filepath")
+                    if fp and os.path.exists(fp):
+                        try: os.remove(fp)
+                        except OSError: pass
+                _job_set(job_id_, status="done", filename=out_name_)
+            except Exception as e:
+                import traceback as _tb
+                app_.logger.error(f"Background generate error (job {job_id_}): {_tb.format_exc()}")
+                _job_set(job_id_, status="error", error=f"{type(e).__name__}: {e}")
+
+    import threading
+    threading.Thread(
+        target=_run,
+        args=(app, sess, out_path, out_name, job_id, user_id, owner),
+        daemon=True,
+    ).start()
+
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/job/<job_id>")
+@login_required
+def job_status(job_id):
+    info = _job_get(job_id)
+    if not info:
+        return jsonify({"status": "not_found"}), 404
+    return jsonify(info)
+
+
+@app.route("/api/job/<job_id>/download")
+@login_required
+def job_download(job_id):
+    info = _job_get(job_id)
+    if not info or info.get("status") != "done":
+        return "Not ready", 404
+    filename = info.get("filename", "")
+    safe_name = os.path.basename(filename)
+    path = os.path.join(OUTPUT_FOLDER, safe_name)
+    if not os.path.exists(path):
+        return "Not found", 404
+    _job_delete(job_id)
+    response = send_file(path, as_attachment=True, download_name=safe_name)
+    @response.call_on_close
+    def cleanup():
+        try: os.remove(path)
+        except OSError: pass
+    return response
 
 
 @app.route("/api/download/<filename>")
