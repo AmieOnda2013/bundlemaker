@@ -716,6 +716,7 @@ footer span{color:var(--gold)}
         <div class="drop-zone-icon">⬆</div>
         <div class="drop-zone-label">Drop files here or click to browse</div>
         <div class="drop-zone-hint">PDF · DOCX · DOC · JPG · PNG · TIFF · WEBP · BMP</div>
+        <div class="drop-zone-hint" style="margin-top:4px;color:#c9a84c">Up to 500 MB per file · no limit on number of documents</div>
       </div>
 
       <!-- Add divider button -->
@@ -1136,10 +1137,17 @@ function setUploadProgress(label, loaded, total){
   }
 }
 
+const MAX_FILE_BYTES = 500 * 1024 * 1024;  // keep in sync with MAX_CONTENT_LENGTH in app.py
+
 async function handleEntriesUpload(files){
-  const list = [];
-  for(const f of files){ if(isAllowed(f.name)) list.push(f); }
-  if(!list.length){ toast('Only PDF and image files are accepted.','error'); return; }
+  const list = [], oversized = [];
+  for(const f of files){
+    if(!isAllowed(f.name)) continue;
+    if(f.size > MAX_FILE_BYTES){ oversized.push({name: f.name, reason: `This file is ${(f.size/1048576).toFixed(0)} MB — the maximum is 500 MB per file. Split it into smaller PDFs and upload again.`}); continue; }
+    list.push(f);
+  }
+  if(!list.length && !oversized.length){ toast('Only PDF and image files are accepted.','error'); return; }
+  if(!list.length){ showUploadFailModal(oversized, 0); return; }
 
   showUploadProgress(true);
 
@@ -1159,7 +1167,7 @@ async function handleEntriesUpload(files){
 
   const CONCURRENCY = 3;
   let next = 0, ok = 0;
-  const failed = [];   // {name, reason}
+  const failed = [...oversized];   // {name, reason}
 
   async function worker(){
     while(next < list.length){

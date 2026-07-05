@@ -1917,7 +1917,7 @@ def internal_error(e):
 
 @app.errorhandler(413)
 def file_too_large(e):
-    return jsonify({"error": "File too large. Maximum upload size is 50 MB per request."}), 413
+    return jsonify({"error": "File too large. Maximum upload size is 500 MB per file."}), 413
 
 
 @app.route("/health")
