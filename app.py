@@ -2427,6 +2427,21 @@ def generate():
     if total == 0:
         return jsonify({"error": "No documents added yet. Please upload at least one file."}), 400
 
+    # The server's disk is wiped on redeploys/restarts — uploaded files can
+    # vanish while their entries survive in the session. Never generate a
+    # hollow bundle; tell the user to re-upload instead.
+    missing = [e.get("custom_name") or e.get("filename") or "document"
+               for e in entries_docs
+               if not (e.get("filepath") and os.path.exists(e["filepath"]))]
+    if missing:
+        return jsonify({
+            "error": ("The server was updated and your uploaded files need to be re-uploaded: "
+                      + ", ".join(missing[:5])
+                      + (f" and {len(missing)-5} more" if len(missing) > 5 else "")
+                      + ". Your bundle layout was kept — please re-upload these documents."),
+            "missing_files": missing,
+        }), 409
+
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     job_id   = uuid.uuid4().hex
