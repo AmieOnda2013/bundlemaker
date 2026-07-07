@@ -227,7 +227,12 @@
         <div class="plan-name">Solo</div>
         <div class="plan-price" id="price-solo">$19 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-solo" style="display:none">Billed $192/year</div>
-        <div class="plan-desc">20 bundles per month. All document types and courts.</div>
+        <div style="margin:14px 0 4px">
+          <span style="font-size:2rem;font-weight:700;color:#0d1b2a">20</span>
+          <span style="font-size:0.85rem;color:#666"> bundles / month</span>
+        </div>
+        <div style="font-size:0.78rem;color:#c9a84c;font-weight:600;margin-bottom:14px">Under $1 per bundle</div>
+        <div class="plan-desc">For the sole practitioner with a steady caseload.</div>
         {% if current_user.plan == 'solo' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
         {% elif current_user.plan in ('professional', 'firm') %}
@@ -238,12 +243,18 @@
       </div>
 
       <!-- Professional -->
-      <div class="plan-option {% if current_user.plan == 'professional' %}current{% endif %}">
-        {% if current_user.plan == 'professional' %}<div class="current-tag">Current Plan</div>{% endif %}
+      <div class="plan-option {% if current_user.plan == 'professional' %}current{% endif %}" style="border-color:#c9a84c;position:relative">
+        {% if current_user.plan == 'professional' %}<div class="current-tag">Current Plan</div>
+        {% else %}<div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#c9a84c;color:#0d1b2a;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;padding:4px 14px;border-radius:20px;white-space:nowrap">BEST VALUE</div>{% endif %}
         <div class="plan-name">Professional</div>
         <div class="plan-price" id="price-pro">$49 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-pro" style="display:none">Billed $492/year</div>
-        <div class="plan-desc">60 bundles per month. Priority email support.</div>
+        <div style="margin:14px 0 4px">
+          <span style="font-size:2rem;font-weight:700;color:#0d1b2a">60</span>
+          <span style="font-size:0.85rem;color:#666"> bundles / month</span>
+        </div>
+        <div style="font-size:0.78rem;color:#c9a84c;font-weight:600;margin-bottom:14px">3× the bundles — about 82¢ each</div>
+        <div class="plan-desc">For busy litigators and high-volume practices.</div>
         {% if current_user.plan == 'professional' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
         {% elif current_user.plan == 'firm' %}
@@ -259,7 +270,12 @@
         <div class="plan-name">Firm</div>
         <div class="plan-price" id="price-firm">$99 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-firm" style="display:none">Billed $984/year</div>
-        <div class="plan-desc">Unlimited bundles. Priority support.</div>
+        <div style="margin:14px 0 4px">
+          <span style="font-size:2rem;font-weight:700;color:#0d1b2a">∞</span>
+          <span style="font-size:0.85rem;color:#666"> unlimited bundles</span>
+        </div>
+        <div style="font-size:0.78rem;color:#c9a84c;font-weight:600;margin-bottom:14px">Whole-firm usage, one flat price</div>
+        <div class="plan-desc">Share one account across your entire practice.</div>
         {% if current_user.plan == 'firm' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
         {% else %}
@@ -267,6 +283,9 @@
         {% endif %}
       </div>
 
+    </div>
+    <div style="text-align:center;font-size:0.8rem;color:#888;margin-top:18px">
+      Every plan includes the full BundleMaker feature set — hyperlinked table of contents, all courts and document types, page numbering, and large-bundle support. The only difference is volume.
     </div>
   </div>
 
