@@ -66,7 +66,7 @@ PLANS = {
         "annual":  {"price": "$16/mo",  "price_id": os.environ.get("STRIPE_SOLO_ANNUAL_PRICE_ID",  ""), "total": "$192/yr"},
     },
     "professional": {
-        "name": "Professional", "bundles": 60,
+        "name": "Professional", "bundles": 70,
         "monthly": {"price": "$49/mo",  "price_id": os.environ.get("STRIPE_PRO_MONTHLY_PRICE_ID",  "")},
         "annual":  {"price": "$41/mo",  "price_id": os.environ.get("STRIPE_PRO_ANNUAL_PRICE_ID",   ""), "total": "$492/yr"},
     },

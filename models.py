@@ -9,7 +9,7 @@ db = SQLAlchemy()
 PLAN_LIMITS = {
     "free":         3,   # lifetime total
     "solo":         20,  # per month
-    "professional": 60,  # per month
+    "professional": 70,  # per month
     "firm":         None # unlimited
 }
 

@@ -245,15 +245,15 @@
       <!-- Professional -->
       <div class="plan-option {% if current_user.plan == 'professional' %}current{% endif %}" style="border-color:#c9a84c;position:relative">
         {% if current_user.plan == 'professional' %}<div class="current-tag">Current Plan</div>
-        {% else %}<div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#c9a84c;color:#0d1b2a;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;padding:4px 14px;border-radius:20px;white-space:nowrap">BEST VALUE</div>{% endif %}
+        {% else %}<div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#c9a84c;color:#0d1b2a;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;padding:4px 14px;border-radius:20px;white-space:nowrap">⭐ Most Popular</div>{% endif %}
         <div class="plan-name">Professional</div>
         <div class="plan-price" id="price-pro">$49 <span>/ month</span></div>
         <div class="plan-annual-note" id="note-pro" style="display:none">Billed $492/year</div>
         <div style="margin:14px 0 4px">
-          <span style="font-size:2rem;font-weight:700;color:#0d1b2a">60</span>
+          <span style="font-size:2rem;font-weight:700;color:#0d1b2a">70</span>
           <span style="font-size:0.85rem;color:#666"> bundles / month</span>
         </div>
-        <div style="font-size:0.78rem;color:#c9a84c;font-weight:600;margin-bottom:14px">3× the bundles — about 82¢ each</div>
+        <div style="font-size:0.78rem;color:#c9a84c;font-weight:600;margin-bottom:14px">3.5× the bundles — just 70¢ each</div>
         <div class="plan-desc">For busy litigators and high-volume practices.</div>
         {% if current_user.plan == 'professional' %}
           <a href="/billing-portal" class="btn btn-portal">Manage billing</a>
