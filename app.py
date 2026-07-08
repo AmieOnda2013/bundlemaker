@@ -2470,7 +2470,10 @@ def generate():
     _purge_old_outputs()  # privacy sweep: abandoned uploads (24h), old bundles (2h)
 
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
-    display_name = _court_filing_filename(sess)
+    # Per-user sequential bundle number (their next bundle); falls back to a
+    # time-derived number for accounts whose counter doesn't increment
+    seq = (current_user.bundles_used or 0) + 1 if not is_owner() else None
+    display_name = _court_filing_filename(sess, seq=seq)
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     job_id   = uuid.uuid4().hex
     user_id  = current_user.id
@@ -2521,12 +2524,17 @@ def job_status(job_id):
     return jsonify(info)
 
 
-def _court_filing_filename(sess):
+def _court_filing_filename(sess, seq=None):
     """Court e-filing naming convention:
-    Bundle – Document Type – Party Role – Party Name – DD-MMM-YYYY.pdf
+    Bundle NNN – Document Type – Party Role – Party Name – DD-MMM-YYYY.pdf
+    NNN is a unique sequence number so files never overwrite each other.
     Elements the user left blank are simply omitted."""
     import datetime, re
-    parts = ["Bundle"]
+    if seq is None:
+        # Fallback: seconds-of-day gives a distinct number per generation
+        now_t = datetime.datetime.now()
+        seq = now_t.hour * 3600 + now_t.minute * 60 + now_t.second
+    parts = [f"Bundle {seq:03d}"]
     doc_t = (sess.get("doc_type") or "").strip()
     if doc_t:
         parts.append(doc_t)
