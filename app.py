@@ -2536,6 +2536,9 @@ def _court_filing_filename(sess, seq=None):
         seq = now_t.hour * 3600 + now_t.minute * 60 + now_t.second
     parts = [f"Bundle {seq:03d}"]
     doc_t = (sess.get("doc_type") or "").strip()
+    if doc_t in TEMPLATES:
+        # untouched default is the internal key — use its display header
+        doc_t = TEMPLATES[doc_t].get("header", doc_t)
     if doc_t:
         parts.append(doc_t)
     parties = sess.get("parties")
