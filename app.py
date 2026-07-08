@@ -2491,35 +2491,10 @@ def generate():
                     if user:
                         user.bundles_used += 1
                         db.session.commit()
-                # Privacy guarantee: delete source files seconds after the
-                # bundle is built
-                all_items = list(sess_.get("items", []))
-                for t in sess_.get("tabs", []):
-                    all_items.extend(t.get("items", []))
-                all_items.extend([e for e in sess_.get("entries", []) if e.get("type") == "doc"])
-                for item in all_items:
-                    fp = item.get("filepath")
-                    if fp and os.path.exists(fp):
-                        try: os.remove(fp)
-                        except OSError: pass
-                # Clear the document list from the session — the files are
-                # gone, so regenerating from stale entries would produce an
-                # empty bundle
-                try:
-                    with _session_write_lock:
-                        cur = {}
-                        if os.path.exists(sess_file_):
-                            with open(sess_file_) as fh:
-                                cur = json.load(fh)
-                        cur["entries"] = []
-                        cur["items"]   = []
-                        cur["tabs"]    = []
-                        tmp = f"{sess_file_}.{uuid.uuid4().hex}.tmp"
-                        with open(tmp, "w") as fh:
-                            json.dump(cur, fh)
-                        os.replace(tmp, sess_file_)
-                except Exception:
-                    app_.logger.warning(f"Could not clear session file {sess_file_} after generate")
+                # Uploaded documents are kept after generation so the user can
+                # regenerate the same bundle. They are deleted when the user
+                # removes them or starts a new bundle, and always by the 24h
+                # sweep in _purge_old_outputs.
                 _job_set(job_id_, status="done", filename=out_name_)
             except Exception as e:
                 import traceback as _tb
@@ -2626,7 +2601,19 @@ def download(filename):
 @login_required
 def reset():
     sid = _get_sid()
-    save_session(sid, _default_session())
+    # Starting a new bundle permanently deletes this session's uploaded files
+    with _session_write_lock:
+        sess = get_session(sid)
+        all_items = list(sess.get("items", []))
+        for t in sess.get("tabs", []):
+            all_items.extend(t.get("items", []))
+        all_items.extend([e for e in sess.get("entries", []) if e.get("type") == "doc"])
+        for item in all_items:
+            fp = item.get("filepath")
+            if fp and os.path.exists(fp):
+                try: os.remove(fp)
+                except OSError: pass
+        save_session(sid, _default_session())
     return jsonify({"ok": True})
 
 

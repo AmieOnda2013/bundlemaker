@@ -1520,12 +1520,8 @@ async function generate(){
       clearInterval(poll);
       showProcessingOverlay(false);
       if(btn) btn.disabled = false;
-      // Source files are deleted server-side the moment the bundle is built
-      // (privacy guarantee) — clear the local list so the user can't
-      // regenerate from documents that no longer exist.
-      entries = [];
-      renderEntries();
-      updateCount();
+      // Documents stay in the list so the user can regenerate this bundle;
+      // they're deleted on Start New Bundle / removal, or by the 24h sweep.
       showDownloadReadyModal(jobId, info.filename || 'bundle.pdf');
     } else if(info.status === 'error'){
       clearInterval(poll);
@@ -1574,7 +1570,7 @@ function showDownloadReadyModal(jobId, filename){
       <div style="font-size:2.6rem;margin-bottom:14px">✅</div>
       <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:#0d1b2a;margin-bottom:10px">Your bundle is ready</h2>
       <p style="color:#666;font-size:0.88rem;line-height:1.6;margin-bottom:10px">Click below to download your court bundle.</p>
-      <p style="color:#999;font-size:0.78rem;line-height:1.6;margin-bottom:26px">🔒 Your uploaded documents have been permanently deleted from our servers.</p>
+      <p style="color:#999;font-size:0.78rem;line-height:1.6;margin-bottom:26px">🔒 Your documents stay in your list so you can regenerate this bundle. They are permanently deleted when you start a new bundle — and automatically within 24 hours.</p>
       <a href="/api/job/${jobId}/download" download="${filename}"
          style="display:block;padding:14px;background:#c9a84c;color:#0d1b2a;border-radius:7px;font-weight:700;font-size:1rem;text-decoration:none;letter-spacing:0.04em;margin-bottom:12px">
         ⬇ &nbsp;Download Bundle
