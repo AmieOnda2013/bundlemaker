@@ -2386,6 +2386,28 @@ def delete_entry(entry_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/entries/bulk-delete", methods=["POST"])
+@login_required
+def bulk_delete_entries():
+    sid = _get_sid()
+    ids = set((request.json or {}).get("ids", []))
+    if not ids:
+        return jsonify({"ok": True, "deleted": 0})
+    with _session_write_lock:
+        sess = get_session(sid)
+        for e in sess["entries"]:
+            if e["id"] in ids and e.get("type") == "doc":
+                fp = e.get("filepath")
+                if fp and os.path.exists(fp):
+                    try: os.remove(fp)
+                    except OSError: pass
+        before = len(sess["entries"])
+        sess["entries"] = [e for e in sess["entries"] if e["id"] not in ids]
+        deleted = before - len(sess["entries"])
+        save_session(sid, sess)
+    return jsonify({"ok": True, "deleted": deleted})
+
+
 @app.route("/api/entries/reorder", methods=["POST"])
 @login_required
 def reorder_entries():

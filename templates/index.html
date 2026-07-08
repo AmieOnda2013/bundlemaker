@@ -719,6 +719,14 @@ footer span{color:var(--gold)}
       <!-- Add divider button -->
       <button class="grp-add-btn" style="width:100%;margin-top:8px" onclick="addDivider()">+ Add Tab / Chapter / Annex Title</button>
 
+      <div id="bulkBar" style="display:none;align-items:center;gap:12px;margin-top:8px;padding:8px 12px;background:#fffdf5;border:1.5px solid #e8d99a;border-radius:8px;font-size:0.82rem">
+        <span id="bulkCount" style="font-weight:700;color:#0d1b2a"></span>
+        <span style="color:#999;font-size:0.76rem">Tip: drag any selected document to move them all together</span>
+        <span style="flex:1"></span>
+        <button onclick="selectAllEntries()" style="background:none;border:none;color:#997f3d;font-weight:600;font-size:0.8rem;cursor:pointer">Select all</button>
+        <button onclick="clearSelection()" style="background:none;border:none;color:#999;font-weight:600;font-size:0.8rem;cursor:pointer">Clear</button>
+        <button onclick="deleteSelectedEntries()" style="background:#8b2020;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:700;font-size:0.8rem;cursor:pointer">Delete selected</button>
+      </div>
       <div class="doc-list" id="entriesList" style="margin-top:8px"></div>
       <div id="entriesEmpty" style="display:none;text-align:center;padding:8px 0;font-size:0.78rem;color:var(--muted)">No documents added yet.</div>
 
@@ -1233,6 +1241,64 @@ function showUploadFailModal(failed, okCount){
 // Legacy shim — delegates to new handler
 async function handleIndUpload(files){ await handleEntriesUpload(files); }
 
+let selectedIds = new Set();
+
+function updateBulkBar(){
+  // Drop ids that no longer exist
+  selectedIds = new Set([...selectedIds].filter(id => entries.some(e => e.id === id)));
+  const bar = document.getElementById('bulkBar');
+  const cnt = document.getElementById('bulkCount');
+  if(!bar) return;
+  if(selectedIds.size > 0){
+    bar.style.display = 'flex';
+    if(cnt) cnt.textContent = `${selectedIds.size} selected`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function toggleSelect(id, checked){
+  if(checked) selectedIds.add(id); else selectedIds.delete(id);
+  const row = document.querySelector(`[data-id="${id}"]`);
+  if(row) row.style.background = checked ? '#fdf6e3' : '';
+  updateBulkBar();
+}
+
+function selectAllEntries(){
+  entries.forEach(e => selectedIds.add(e.id));
+  renderEntries();
+}
+
+function clearSelection(){
+  selectedIds.clear();
+  renderEntries();
+}
+
+async function deleteSelectedEntries(){
+  const n = selectedIds.size;
+  if(!n) return;
+  if(!confirm(`Remove ${n} item${n!==1?'s':''} from the bundle?`)) return;
+  const ids = [...selectedIds];
+  entries = entries.filter(e => !selectedIds.has(e.id));
+  selectedIds.clear();
+  renderEntries();
+  toast(`${n} item${n!==1?'s':''} removed.`,'success');
+  await fetch('/api/entries/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+}
+
+async function reorderGroup(ids, tgtId){
+  // Move all ids (in current list order) to sit before/at the target position
+  const moving = entries.filter(e => ids.includes(e.id));
+  if(!moving.length || ids.includes(tgtId)) return;
+  const rest = entries.filter(e => !ids.includes(e.id));
+  const ti = rest.findIndex(e => e.id === tgtId);
+  if(ti < 0) return;
+  rest.splice(ti, 0, ...moving);
+  entries = rest;
+  renderEntries();
+  await fetch('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
+}
+
 function renderEntries(){
   const list  = document.getElementById('entriesList');
   const empty = document.getElementById('entriesEmpty');
@@ -1243,11 +1309,13 @@ function renderEntries(){
     const row = document.createElement('div');
     row.dataset.id = entry.id;
     row.draggable  = true;
+    if(selectedIds.has(entry.id)) row.style.background = '#fdf6e3';
 
     if(entry.type === 'divider'){
       if(entry.restart_num) num = 1;
       row.className = 'divider-entry';
       row.innerHTML = `
+        <input type="checkbox" ${selectedIds.has(entry.id)?'checked':''} onclick="toggleSelect('${entry.id}',this.checked)" title="Select" style="accent-color:#c9a84c;cursor:pointer;flex-shrink:0"/>
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <div style="flex:1;display:flex;flex-direction:column;gap:4px">
           <input class="divider-title-input" type="text" value="${escHtml(entry.title||'')}" placeholder="Tab / Chapter / Annex Title (e.g. TAB A, Chapter 1)"
@@ -1269,6 +1337,7 @@ function renderEntries(){
       num++;
       row.className = 'doc-item';
       row.innerHTML = `
+        <input type="checkbox" ${selectedIds.has(entry.id)?'checked':''} onclick="toggleSelect('${entry.id}',this.checked)" title="Select" style="accent-color:#c9a84c;cursor:pointer;flex-shrink:0"/>
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <span class="num-badge">${myNum}</span>
         <span class="type-badge ${isImg?'image':'pdf'}">${ext}</span>
@@ -1284,32 +1353,50 @@ function renderEntries(){
         <button class="btn btn-remove" onclick="deleteEntry('${entry.id}')" title="Remove">✕</button>`;
     }
 
-    // Drag-and-drop
+    // Drag-and-drop — dragging a selected row moves the whole selection
     row.addEventListener('dragstart', e=>{
-      dragPayload = {entryId: entry.id};
-      row.classList.add('dragging');
+      if(selectedIds.has(entry.id) && selectedIds.size > 1){
+        const groupIds = entries.filter(en => selectedIds.has(en.id)).map(en => en.id);
+        dragPayload = {group: groupIds};
+        groupIds.forEach(id => {
+          const r = document.querySelector(`[data-id="${id}"]`);
+          if(r) r.classList.add('dragging');
+        });
+      } else {
+        dragPayload = {entryId: entry.id};
+        row.classList.add('dragging');
+      }
       e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('text/plain', entry.id);
     });
     row.addEventListener('dragend', ()=>{
-      row.classList.remove('dragging');
+      document.querySelectorAll('.doc-item,.divider-entry').forEach(d=>{ d.classList.remove('dragging'); d.classList.remove('drag-over'); });
       dragPayload = null;
-      document.querySelectorAll('.doc-item,.divider-entry').forEach(d=>d.classList.remove('drag-over'));
     });
     row.addEventListener('dragover', e=>{
       e.preventDefault();
-      if(dragPayload && dragPayload.entryId !== entry.id) row.classList.add('drag-over');
+      if(!dragPayload) return;
+      const isSelf = dragPayload.entryId === entry.id ||
+                     (dragPayload.group && dragPayload.group.includes(entry.id));
+      if(!isSelf) row.classList.add('drag-over');
     });
     row.addEventListener('dragleave', ()=> row.classList.remove('drag-over'));
     row.addEventListener('drop', e=>{
       e.preventDefault(); row.classList.remove('drag-over');
-      if(!dragPayload || dragPayload.entryId === entry.id) return;
-      reorderEntries(dragPayload.entryId, entry.id);
+      if(!dragPayload) return;
+      if(dragPayload.group){
+        if(dragPayload.group.includes(entry.id)) return;
+        reorderGroup(dragPayload.group, entry.id);
+      } else {
+        if(dragPayload.entryId === entry.id) return;
+        reorderEntries(dragPayload.entryId, entry.id);
+      }
     });
 
     list.appendChild(row);
   });
   updateCount();
+  updateBulkBar();
 }
 
 async function addDivider(){
