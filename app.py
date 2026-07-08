@@ -2305,6 +2305,7 @@ _session_write_lock = threading.Lock()
 @app.route("/api/entries/upload", methods=["POST"])
 @login_required
 def upload_entries():
+    _purge_old_outputs()  # privacy sweep: abandoned uploads (24h), old bundles (2h)
     sid = _get_sid()
     added, rejected = [], []
     # Save files to disk first (slow part, safe to run concurrently)
@@ -2444,6 +2445,8 @@ def generate():
             "missing_files": missing,
         }), 409
 
+    _purge_old_outputs()  # privacy sweep: abandoned uploads (24h), old bundles (2h)
+
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     job_id   = uuid.uuid4().hex
@@ -2452,7 +2455,11 @@ def generate():
 
     _job_set(job_id, status="pending", filename=None, error=None)
 
-    def _run(app_, sess_, out_path_, out_name_, job_id_, user_id_, owner_):
+    # Resolve while the request context (current_user) still exists — the
+    # background thread is unauthenticated and would compute the wrong path.
+    sess_file = session_path(sid)
+
+    def _run(app_, sess_, sess_file_, out_path_, out_name_, job_id_, user_id_, owner_):
         with app_.app_context():
             try:
                 merge_pdfs(sess_, out_path_)
@@ -2462,7 +2469,8 @@ def generate():
                     if user:
                         user.bundles_used += 1
                         db.session.commit()
-                # Clean up source files
+                # Privacy guarantee: delete source files seconds after the
+                # bundle is built
                 all_items = list(sess_.get("items", []))
                 for t in sess_.get("tabs", []):
                     all_items.extend(t.get("items", []))
@@ -2472,6 +2480,24 @@ def generate():
                     if fp and os.path.exists(fp):
                         try: os.remove(fp)
                         except OSError: pass
+                # Clear the document list from the session — the files are
+                # gone, so regenerating from stale entries would produce an
+                # empty bundle
+                try:
+                    with _session_write_lock:
+                        cur = {}
+                        if os.path.exists(sess_file_):
+                            with open(sess_file_) as fh:
+                                cur = json.load(fh)
+                        cur["entries"] = []
+                        cur["items"]   = []
+                        cur["tabs"]    = []
+                        tmp = f"{sess_file_}.{uuid.uuid4().hex}.tmp"
+                        with open(tmp, "w") as fh:
+                            json.dump(cur, fh)
+                        os.replace(tmp, sess_file_)
+                except Exception:
+                    app_.logger.warning(f"Could not clear session file {sess_file_} after generate")
                 _job_set(job_id_, status="done", filename=out_name_)
             except Exception as e:
                 import traceback as _tb
@@ -2481,7 +2507,7 @@ def generate():
     import threading
     threading.Thread(
         target=_run,
-        args=(app, sess, out_path, out_name, job_id, user_id, owner),
+        args=(app, sess, sess_file, out_path, out_name, job_id, user_id, owner),
         daemon=True,
     ).start()
 
@@ -2497,9 +2523,12 @@ def job_status(job_id):
     return jsonify(info)
 
 
-def _purge_old_outputs(max_age_seconds=7200):
-    """Delete bundles and job records older than 2 hours. Called lazily so
-    downloads stay repeatable (Safari requests downloads twice)."""
+def _purge_old_outputs(max_age_seconds=7200, upload_max_age_seconds=86400):
+    """Privacy guarantee sweep, run opportunistically on upload/generate/download:
+    - bundles and job records deleted after 2 hours (kept briefly so downloads
+      stay repeatable — Safari requests downloads twice)
+    - abandoned uploads (uploaded but never generated) deleted after 24 hours,
+      server-side, regardless of how the user's browser closed"""
     import time
     now = time.time()
     try:
@@ -2509,6 +2538,16 @@ def _purge_old_outputs(max_age_seconds=7200):
             path = os.path.join(OUTPUT_FOLDER, name)
             try:
                 if now - os.path.getmtime(path) > max_age_seconds:
+                    os.remove(path)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    try:
+        for name in os.listdir(UPLOAD_FOLDER):
+            path = os.path.join(UPLOAD_FOLDER, name)
+            try:
+                if os.path.isfile(path) and now - os.path.getmtime(path) > upload_max_age_seconds:
                     os.remove(path)
             except OSError:
                 pass
