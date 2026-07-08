@@ -1985,6 +1985,12 @@ def file_too_large(e):
     return jsonify({"error": "File too large. Maximum upload size is 500 MB per file."}), 413
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_file(os.path.join(app.static_folder, "favicon.ico"),
+                     mimetype="image/x-icon")
+
+
 @app.route("/health")
 def health():
     status = {"app": "ok", "db": "unknown", "db_url_type": "unknown"}
