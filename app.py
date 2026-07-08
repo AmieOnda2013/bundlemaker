@@ -2470,12 +2470,13 @@ def generate():
     _purge_old_outputs()  # privacy sweep: abandoned uploads (24h), old bundles (2h)
 
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
+    display_name = _court_filing_filename(sess)
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     job_id   = uuid.uuid4().hex
     user_id  = current_user.id
     owner    = is_owner()
 
-    _job_set(job_id, status="pending", filename=None, error=None)
+    _job_set(job_id, status="pending", filename=None, error=None, display_name=display_name)
 
     # Resolve while the request context (current_user) still exists — the
     # background thread is unauthenticated and would compute the wrong path.
@@ -2518,6 +2519,33 @@ def job_status(job_id):
     if not info:
         return jsonify({"status": "not_found"}), 404
     return jsonify(info)
+
+
+def _court_filing_filename(sess):
+    """Court e-filing naming convention:
+    Bundle – Document Type – Party Role – Party Name – DD-MMM-YYYY.pdf
+    Elements the user left blank are simply omitted."""
+    import datetime, re
+    parts = ["Bundle"]
+    doc_t = (sess.get("doc_type") or "").strip()
+    if doc_t:
+        parts.append(doc_t)
+    parties = sess.get("parties")
+    if isinstance(parties, list) and parties:
+        p0 = parties[0] or {}
+        role = (p0.get("role") or "").strip()
+        name = (p0.get("name") or "").strip()
+        if role:
+            parts.append(role)
+        if name:
+            parts.append(name)
+    months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+    now = datetime.datetime.now()
+    parts.append(f"{now.day:02d}-{months[now.month-1]}-{now.year}")
+    s = " – ".join(parts)
+    s = re.sub(r'[\\/:*?"<>|]', "", s)          # strip filesystem-illegal chars
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:180] + ".pdf"
 
 
 def _purge_old_outputs(max_age_seconds=7200, upload_max_age_seconds=86400):
@@ -2570,7 +2598,8 @@ def job_download(job_id):
     # Do NOT delete on download — Safari requests downloads twice and the
     # second request must still succeed. Old files are purged lazily instead.
     _purge_old_outputs()
-    return send_file(path, as_attachment=True, download_name=safe_name)
+    download_name = info.get("display_name") or safe_name
+    return send_file(path, as_attachment=True, download_name=download_name)
 
 
 @app.route("/api/download/<filename>")

@@ -1518,7 +1518,7 @@ async function generate(){
       if(btn) btn.disabled = false;
       // Documents stay in the list so the user can regenerate this bundle;
       // they're deleted on Start New Bundle / removal, or by the 24h sweep.
-      showDownloadReadyModal(jobId, info.filename || 'bundle.pdf');
+      showDownloadReadyModal(jobId, info.display_name || info.filename || 'bundle.pdf');
     } else if(info.status === 'error'){
       clearInterval(poll);
       showProcessingOverlay(false);
