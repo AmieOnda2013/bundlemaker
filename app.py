@@ -659,7 +659,16 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         story.append(Spacer(1, 0.25*inch))
         story.append(Paragraph(rule_body, small_center))
 
-    # ── Counsel block — below rules ───────────────────────────────────────────
+    # ── Written Recitals — left-aligned, BEFORE the counsel blocks ────────────
+    if recitals and recitals.strip():
+        recital_st = ParagraphStyle("recital", parent=normal,
+            alignment=TA_LEFT, fontSize=11, leading=18, spaceAfter=6)
+        story.append(Spacer(1, 0.25*inch))
+        for para in recitals.strip().split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), recital_st))
+
+    # ── Counsel block — below recitals/rules ─────────────────────────────────
     if counsel.strip() or opp_counsel.strip():
         TEXT_W  = 6.25 * inch
         HALF_W  = TEXT_W / 2
@@ -683,7 +692,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                 paras.append(Paragraph(stripped, st))
             return paras
 
-        story.append(Spacer(1, 0.35*inch))
+        story.append(Spacer(1, 0.25*inch))
 
         if counsel.strip():
             R_SPACER = TEXT_W * 0.62
@@ -707,18 +716,6 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
                        ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
             ))
-
-    # ── Written Recitals — 2 line spaces below counsel (or rules/title) ───────
-    if recitals and recitals.strip():
-        recital_st = ParagraphStyle("recital", parent=normal,
-            alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
-        story.append(Spacer(1, 0.5*inch))   # 2 line spaces below counsel
-        for para in recitals.strip().split("\n"):
-            if para.strip():
-                story.append(Paragraph(para.strip(), recital_st))
-                story.append(Spacer(1, 0.1*inch))
-        if not page_break_after_recital:
-            story.append(Spacer(1, 0.35*inch))  # 2 line spaces before the page break
 
     # TOC always starts at the top of its own page so hyperlink Y positions are correct.
     # Toggle ON:  PageBreak right after recitals → TOC at top of new page.
