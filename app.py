@@ -259,6 +259,7 @@ def _default_session():
         "use_dividers": True,
         "doc_type": "application_record",
         "title": "", "court_file": "", "place": "", "region": "", "parties": "", "recitals": "",
+        "cover_date": "",      # date shown above the counsel blocks on the cover
         "country": "", "jurisdiction": "",
         "custom_court": "", "custom_rules": "",
         "col_header": "",      # optional extra column header (e.g. "Date", "Reference")
@@ -518,7 +519,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        use_dividers=True, col_header="", tab_prefix="Tab",
                        col_item_header="", col_doc_header="", col_page_header="",
                        place="", page_offset=0, entries=None,
-                       counsel="", opp_counsel="",
+                       counsel="", opp_counsel="", cover_date="",
                        page_break_after_recital=False):
     """
     items  — flat individual documents (each gets its own tab letter)
@@ -659,16 +660,14 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         story.append(Spacer(1, 0.25*inch))
         story.append(Paragraph(rule_body, small_center))
 
-    # ── Written Recitals — left-aligned, BEFORE the counsel blocks ────────────
-    if recitals and recitals.strip():
-        recital_st = ParagraphStyle("recital", parent=normal,
-            alignment=TA_LEFT, fontSize=11, leading=18, spaceAfter=6)
-        story.append(Spacer(1, 0.25*inch))
-        for para in recitals.strip().split("\n"):
-            if para.strip():
-                story.append(Paragraph(para.strip(), recital_st))
+    # ── Date — left-aligned, on top of the counsel information ───────────────
+    if cover_date and cover_date.strip():
+        date_st = ParagraphStyle("cover_date", parent=normal,
+            alignment=TA_LEFT, fontName="Times-Bold", fontSize=11, leading=16)
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph(cover_date.strip(), date_st))
 
-    # ── Counsel block — below recitals/rules ─────────────────────────────────
+    # ── Counsel block — below date/rules ─────────────────────────────────────
     if counsel.strip() or opp_counsel.strip():
         TEXT_W  = 6.25 * inch
         HALF_W  = TEXT_W / 2
@@ -716,6 +715,18 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
                        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
                        ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)],
             ))
+
+    # ── Written Recitals — below the counsel information ─────────────────────
+    if recitals and recitals.strip():
+        recital_st = ParagraphStyle("recital", parent=normal,
+            alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
+        story.append(Spacer(1, 0.5*inch))   # 2 line spaces below counsel
+        for para in recitals.strip().split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), recital_st))
+                story.append(Spacer(1, 0.1*inch))
+        if not page_break_after_recital:
+            story.append(Spacer(1, 0.35*inch))  # 2 line spaces before the page break
 
     # TOC always starts at the top of its own page so hyperlink Y positions are correct.
     # Toggle ON:  PageBreak right after recitals → TOC at top of new page.
@@ -1168,6 +1179,7 @@ def merge_pdfs(session_data, output_path):
         place=session_data.get("place", ""),
         counsel=session_data.get("counsel", ""),
         opp_counsel=session_data.get("opp_counsel", ""),
+        cover_date=session_data.get("cover_date", ""),
         page_break_after_recital=session_data.get("page_break_after_recital", False),
     )
     toc_args = (doc_type, items, tabs,
@@ -2035,7 +2047,7 @@ def update_session():
     for key in ("doc_type","title","court_file","place","region","parties","recitals",
                 "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
                 "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
-                "counsel","opp_counsel","page_break_after_recital",
+                "counsel","opp_counsel","cover_date","page_break_after_recital",
                 "page_numbers","page_number_position","page_number_skip_first"):
         if key in data:
             sess[key] = data[key]

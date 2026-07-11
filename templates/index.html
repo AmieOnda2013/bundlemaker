@@ -663,6 +663,13 @@ footer span{color:var(--gold)}
 
         <hr class="divider"/>
 
+        <!-- Cover date -->
+        <div class="field">
+          <label>Date</label>
+          <input type="text" id="coverDate" oninput="saveSettings()"
+            placeholder="e.g. July 10, 2026 (the date of the document)"/>
+        </div>
+
         <!-- Counsel block -->
         <div class="field">
           <label>Counsel Information</label>
@@ -865,6 +872,7 @@ async function loadSession(){
   document.getElementById('recitals').value = s.recitals || '';
   document.getElementById('oppCounsel').value = s.opp_counsel || '';
   document.getElementById('yourCounsel').value = s.counsel || '';
+  document.getElementById('coverDate').value = s.cover_date || '';
   const pageNumOn = !!s.page_numbers;
   document.getElementById('pageNumbersToggle').checked = pageNumOn;
   document.getElementById('pageNumbersOptions').style.display = pageNumOn ? 'block' : 'none';
@@ -939,6 +947,7 @@ async function saveSettings(){
       recitals: document.getElementById('recitals').value,
       opp_counsel: document.getElementById('oppCounsel').value,
       counsel: document.getElementById('yourCounsel').value,
+      cover_date: document.getElementById('coverDate').value,
       col_header: document.getElementById('colHeader').value,
       page_numbers: document.getElementById('pageNumbersToggle').checked,
       page_number_position: document.getElementById('pageNumberPosition').value,
