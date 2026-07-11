@@ -569,7 +569,7 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
         alignment=TA_CENTER, fontSize=11, spaceAfter=0, leading=20)
 
     # ── Cover Page ──────────────────────────────────────────────────────────
-    story.append(Spacer(1, 0.75*inch))
+    story.append(Spacer(1, 0.45*inch))
 
     # Country/place label above court name — plain (not italic)
     if place:
@@ -720,13 +720,13 @@ def generate_cover_toc(doc_type, items, tabs, title, court_file, parties,
     if recitals and recitals.strip():
         recital_st = ParagraphStyle("recital", parent=normal,
             alignment=TA_LEFT, fontSize=11, leading=20, spaceAfter=10)
-        story.append(Spacer(1, 0.5*inch))   # 2 line spaces below counsel
+        story.append(Spacer(1, 0.3*inch))   # below counsel
         for para in recitals.strip().split("\n"):
             if para.strip():
                 story.append(Paragraph(para.strip(), recital_st))
                 story.append(Spacer(1, 0.1*inch))
         if not page_break_after_recital:
-            story.append(Spacer(1, 0.35*inch))  # 2 line spaces before the page break
+            story.append(Spacer(1, 0.2*inch))  # before the page break
 
     # TOC always starts at the top of its own page so hyperlink Y positions are correct.
     # Toggle ON:  PageBreak right after recitals → TOC at top of new page.
