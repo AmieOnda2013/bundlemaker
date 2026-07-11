@@ -2473,9 +2473,15 @@ def generate():
     _purge_old_outputs()  # privacy sweep: abandoned uploads (24h), old bundles (2h)
 
     out_name = f"bundle_{uuid.uuid4().hex[:8]}.pdf"
-    # Per-user sequential bundle number (their next bundle); falls back to a
-    # time-derived number for accounts whose counter doesn't increment
-    seq = (current_user.bundles_used or 0) + 1 if not is_owner() else None
+    # Claim the sequence number NOW (not when the job finishes): two rapid
+    # generates otherwise read the same counter and produce identical
+    # filenames, which Safari silently drops or overwrites on download.
+    if not is_owner():
+        current_user.bundles_used = (current_user.bundles_used or 0) + 1
+        db.session.commit()
+        seq = current_user.bundles_used
+    else:
+        seq = None  # time-derived fallback inside _court_filing_filename
     display_name = _court_filing_filename(sess, seq=seq)
     out_path = os.path.join(OUTPUT_FOLDER, out_name)
     job_id   = uuid.uuid4().hex
@@ -2492,12 +2498,7 @@ def generate():
         with app_.app_context():
             try:
                 merge_pdfs(sess_, out_path_)
-                # Increment bundle counter
-                if not owner_:
-                    user = db.session.get(User, user_id_)
-                    if user:
-                        user.bundles_used += 1
-                        db.session.commit()
+                # (bundle counter was already claimed in the request)
                 # Uploaded documents are kept after generation so the user can
                 # regenerate the same bundle. They are deleted when the user
                 # removes them or starts a new bundle, and always by the 24h
@@ -2506,6 +2507,15 @@ def generate():
             except Exception as e:
                 import traceback as _tb
                 app_.logger.error(f"Background generate error (job {job_id_}): {_tb.format_exc()}")
+                # Refund the bundle credit claimed at request time
+                if not owner_:
+                    try:
+                        user = db.session.get(User, user_id_)
+                        if user and (user.bundles_used or 0) > 0:
+                            user.bundles_used -= 1
+                            db.session.commit()
+                    except Exception:
+                        db.session.rollback()
                 _job_set(job_id_, status="error", error=f"{type(e).__name__}: {e}")
 
     import threading
