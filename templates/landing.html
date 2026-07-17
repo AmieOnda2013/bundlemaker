@@ -157,6 +157,24 @@
 </head>
 <body>
 
+<!-- ── Promo marquee ── -->
+<style>
+  .promo-marquee { background:#0d1b2a; overflow:hidden; white-space:nowrap; padding:10px 0; border-bottom:2px solid #c9a84c; }
+  .promo-marquee__track { display:inline-block; animation: promo-scroll 18s linear infinite; }
+  .promo-marquee__item { display:inline-block; padding:0 2.5rem; font-size:1rem; font-weight:700; color:#f5f2eb; letter-spacing:0.02em; }
+  .promo-marquee__item .code { background:#c9a84c; color:#0d1b2a; padding:3px 12px; border-radius:6px; font-weight:800; letter-spacing:0.03em; }
+  @keyframes promo-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .promo-marquee__track { animation: none; } }
+</style>
+<div class="promo-marquee">
+  <div class="promo-marquee__track">
+    {% for _ in range(2) %}
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    {% endfor %}
+  </div>
+</div>
 
 <!-- ── Top bar ── -->
 <div style="background:var(--gold);color:var(--navy);text-align:center;padding:14px 24px;font-size:1rem;font-weight:700;letter-spacing:0.03em">

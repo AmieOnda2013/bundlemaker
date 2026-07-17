@@ -74,6 +74,26 @@
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 </head>
 <body>
+
+<!-- ── Promo marquee ── -->
+<style>
+  .promo-marquee { background:#0d1b2a; overflow:hidden; white-space:nowrap; padding:10px 0; border-bottom:2px solid #c9a84c; }
+  .promo-marquee__track { display:inline-block; animation: promo-scroll 18s linear infinite; }
+  .promo-marquee__item { display:inline-block; padding:0 2.5rem; font-size:1rem; font-weight:700; color:#f5f2eb; letter-spacing:0.02em; }
+  .promo-marquee__item .code { background:#c9a84c; color:#0d1b2a; padding:3px 12px; border-radius:6px; font-weight:800; letter-spacing:0.03em; }
+  @keyframes promo-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .promo-marquee__track { animation: none; } }
+</style>
+<div class="promo-marquee">
+  <div class="promo-marquee__track">
+    {% for _ in range(2) %}
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    {% endfor %}
+  </div>
+</div>
+
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px">
       <svg width="36" height="36" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -213,6 +233,11 @@
   <!-- Plans -->
   <div class="card">
     <div class="card-title">Plans</div>
+
+    <div style="background:#0d1b2a;border:3px solid #c9a84c;border-radius:14px;padding:22px 24px;margin-bottom:22px;text-align:center;box-shadow:0 4px 20px rgba(201,168,76,0.25)">
+      <div style="color:#c9a84c;font-weight:800;font-size:1.25rem;letter-spacing:0.02em;margin-bottom:8px">🎉 Launch Offer — 50% OFF, Forever</div>
+      <div style="color:#f5f2eb;font-size:0.98rem">Use code <span style="background:#c9a84c;color:#0d1b2a;font-weight:800;padding:4px 16px;border-radius:8px;font-size:1.02rem;letter-spacing:0.04em">BUNDLE50</span> at checkout — applies to any plan, monthly or annual.</div>
+    </div>
 
     <div class="billing-toggle">
       <span class="active" id="lbl-mo">Monthly</span>
