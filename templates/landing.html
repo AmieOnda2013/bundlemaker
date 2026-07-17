@@ -160,7 +160,7 @@
 <!-- ── Promo marquee ── -->
 <style>
   .promo-marquee { background:#0d1b2a; overflow:hidden; white-space:nowrap; padding:10px 0; border-bottom:2px solid #c9a84c; }
-  .promo-marquee__track { display:inline-block; animation: promo-scroll 18s linear infinite; }
+  .promo-marquee__track { display:inline-block; animation: promo-scroll 42s linear infinite; }
   .promo-marquee__item { display:inline-block; padding:0 2.5rem; font-size:1rem; font-weight:700; color:#f5f2eb; letter-spacing:0.02em; }
   .promo-marquee__item .code { background:#c9a84c; color:#0d1b2a; padding:3px 12px; border-radius:6px; font-weight:800; letter-spacing:0.03em; }
   @keyframes promo-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -169,9 +169,9 @@
 <div class="promo-marquee">
   <div class="promo-marquee__track">
     {% for _ in range(2) %}
-    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
-    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
-    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF, FOREVER &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
+    <span class="promo-marquee__item">🎉 LAUNCH OFFER — 50% OFF &nbsp;·&nbsp; Use code <span class="code">BUNDLE50</span> at checkout</span>
     {% endfor %}
   </div>
 </div>
@@ -293,7 +293,7 @@
     <p class="section-sub">No contracts. No setup fees. Cancel anytime.</p>
 
     <div style="background:var(--navy);border:2px solid var(--gold);border-radius:12px;padding:16px 24px;margin:24px auto 0;max-width:680px;text-align:center">
-      <span style="color:var(--gold);font-weight:700;font-size:0.95rem">🎉 Launch offer — 50% off, forever.</span>
+      <span style="color:var(--gold);font-weight:700;font-size:0.95rem">🎉 Launch offer — 50% off.</span>
       <span style="color:#f5f2eb;font-size:0.88rem"> Use code </span><span style="background:var(--gold);color:var(--navy);font-weight:700;padding:2px 10px;border-radius:6px;font-size:0.88rem">BUNDLE50</span><span style="color:#f5f2eb;font-size:0.88rem"> at checkout.</span>
     </div>
 
