@@ -2045,15 +2045,16 @@ def update_session():
         session["sid"] = uuid.uuid4().hex
     sid  = _get_sid()
     data = request.json
-    sess = get_session(sid)
-    for key in ("doc_type","title","court_file","place","region","parties","recitals",
-                "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
-                "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
-                "counsel","opp_counsel","cover_date","page_break_after_recital",
-                "page_numbers","page_number_position","page_number_skip_first"):
-        if key in data:
-            sess[key] = data[key]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for key in ("doc_type","title","court_file","place","region","parties","recitals",
+                    "country","jurisdiction","custom_court","custom_rules","use_dividers","col_header","tab_prefix",
+                    "col_item_header","col_doc_header","col_page_header","section_title","section_desc","entries",
+                    "counsel","opp_counsel","cover_date","page_break_after_recital",
+                    "page_numbers","page_number_position","page_number_skip_first"):
+            if key in data:
+                sess[key] = data[key]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2100,11 +2101,12 @@ def get_items():
 @login_required
 def reorder_items():
     sid  = _get_sid()
-    sess = get_session(sid)
     order = request.json.get("order", [])
-    id_map = {i["id"]: i for i in sess["items"]}
-    sess["items"] = [id_map[x] for x in order if x in id_map]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        id_map = {i["id"]: i for i in sess["items"]}
+        sess["items"] = [id_map[x] for x in order if x in id_map]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2112,45 +2114,46 @@ def reorder_items():
 @login_required
 def transfer_item():
     sid  = _get_sid()
-    sess = get_session(sid)
     data      = request.json or {}
     item_id   = data.get("item_id")
     to_section = data.get("to_section")   # "individual" or "tab"
     to_tab_id  = data.get("to_tab_id")
     before_id  = data.get("before_id")
 
-    # Find and remove from current location
-    item = None
-    for i, it in enumerate(sess["items"]):
-        if it["id"] == item_id:
-            item = sess["items"].pop(i)
-            break
-    if item is None:
-        for tab in sess["tabs"]:
-            for i, it in enumerate(tab["items"]):
-                if it["id"] == item_id:
-                    item = tab["items"].pop(i)
+    with _session_write_lock:
+        sess = get_session(sid)
+        # Find and remove from current location
+        item = None
+        for i, it in enumerate(sess["items"]):
+            if it["id"] == item_id:
+                item = sess["items"].pop(i)
+                break
+        if item is None:
+            for tab in sess["tabs"]:
+                for i, it in enumerate(tab["items"]):
+                    if it["id"] == item_id:
+                        item = tab["items"].pop(i)
+                        break
+                if item is not None:
                     break
-            if item is not None:
-                break
 
-    if item is None:
-        return jsonify({"error": "not found"}), 404
+        if item is None:
+            return jsonify({"error": "not found"}), 404
 
-    # Insert at destination
-    if to_section == "individual":
-        dest = sess["items"]
-        idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
-        dest.insert(idx, item)
-    else:
-        for tab in sess["tabs"]:
-            if tab["id"] == to_tab_id:
-                dest = tab["items"]
-                idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
-                dest.insert(idx, item)
-                break
+        # Insert at destination
+        if to_section == "individual":
+            dest = sess["items"]
+            idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
+            dest.insert(idx, item)
+        else:
+            for tab in sess["tabs"]:
+                if tab["id"] == to_tab_id:
+                    dest = tab["items"]
+                    idx  = next((i for i, it in enumerate(dest) if it["id"] == before_id), len(dest))
+                    dest.insert(idx, item)
+                    break
 
-    save_session(sid, sess)
+        save_session(sid, sess)
     return jsonify({"ok": True, "item": item})
 
 
@@ -2158,16 +2161,17 @@ def transfer_item():
 @login_required
 def update_item(item_id):
     sid  = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
-    for item in sess["items"]:
-        if item["id"] == item_id:
-            if "custom_name" in data:
-                item["custom_name"] = data["custom_name"]
-            if "doc_date" in data:
-                item["doc_date"] = data["doc_date"]
-            break
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for item in sess["items"]:
+            if item["id"] == item_id:
+                if "custom_name" in data:
+                    item["custom_name"] = data["custom_name"]
+                if "doc_date" in data:
+                    item["doc_date"] = data["doc_date"]
+                break
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2175,9 +2179,10 @@ def update_item(item_id):
 @login_required
 def delete_item(item_id):
     sid  = _get_sid()
-    sess = get_session(sid)
-    sess["items"] = [i for i in sess["items"] if i["id"] != item_id]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        sess["items"] = [i for i in sess["items"] if i["id"] != item_id]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2194,11 +2199,12 @@ def get_tabs():
 @login_required
 def create_tab():
     sid  = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
     tab  = {"id": uuid.uuid4().hex, "name": data.get("name", ""), "label": "", "tab_type": "tab", "items": []}
-    sess["tabs"].append(tab)
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        sess["tabs"].append(tab)
+        save_session(sid, sess)
     return jsonify(tab)
 
 
@@ -2206,11 +2212,12 @@ def create_tab():
 @login_required
 def reorder_tabs():
     sid  = _get_sid()
-    sess = get_session(sid)
     order = request.json.get("order", [])
-    id_map = {t["id"]: t for t in sess["tabs"]}
-    sess["tabs"] = [id_map[x] for x in order if x in id_map]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        id_map = {t["id"]: t for t in sess["tabs"]}
+        sess["tabs"] = [id_map[x] for x in order if x in id_map]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2218,18 +2225,19 @@ def reorder_tabs():
 @login_required
 def update_tab(tab_id):
     sid  = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
-    for tab in sess["tabs"]:
-        if tab["id"] == tab_id:
-            if "name" in data:
-                tab["name"] = data["name"]
-            if "label" in data:
-                tab["label"] = data["label"]
-            if "tab_type" in data:
-                tab["tab_type"] = data["tab_type"]
-            break
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for tab in sess["tabs"]:
+            if tab["id"] == tab_id:
+                if "name" in data:
+                    tab["name"] = data["name"]
+                if "label" in data:
+                    tab["label"] = data["label"]
+                if "tab_type" in data:
+                    tab["tab_type"] = data["tab_type"]
+                break
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2237,9 +2245,10 @@ def update_tab(tab_id):
 @login_required
 def delete_tab(tab_id):
     sid  = _get_sid()
-    sess = get_session(sid)
-    sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        sess["tabs"] = [t for t in sess["tabs"] if t["id"] != tab_id]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2249,19 +2258,20 @@ def upload_to_tab(tab_id):
     if "sid" not in session:
         session["sid"] = uuid.uuid4().hex
     sid  = _get_sid()
-    sess = get_session(sid)
-    tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
-    if tab is None:
-        return jsonify({"error": "Tab not found"}), 404
     added = []
-    for f in request.files.getlist("files"):
-        ext = os.path.splitext(f.filename.lower())[1]
-        if ext not in ALLOWED_EXTENSIONS:
-            continue
-        item = _make_file_item(f, ext)
-        tab["items"].append(item)
-        added.append(item)
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+        if tab is None:
+            return jsonify({"error": "Tab not found"}), 404
+        for f in request.files.getlist("files"):
+            ext = os.path.splitext(f.filename.lower())[1]
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            item = _make_file_item(f, ext)
+            tab["items"].append(item)
+            added.append(item)
+        save_session(sid, sess)
     return jsonify(added)
 
 
@@ -2269,14 +2279,15 @@ def upload_to_tab(tab_id):
 @login_required
 def reorder_tab_items(tab_id):
     sid  = _get_sid()
-    sess = get_session(sid)
-    tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
-    if tab is None:
-        return jsonify({"error": "Tab not found"}), 404
     order  = request.json.get("order", [])
-    id_map = {i["id"]: i for i in tab["items"]}
-    tab["items"] = [id_map[x] for x in order if x in id_map]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        tab  = next((t for t in sess["tabs"] if t["id"] == tab_id), None)
+        if tab is None:
+            return jsonify({"error": "Tab not found"}), 404
+        id_map = {i["id"]: i for i in tab["items"]}
+        tab["items"] = [id_map[x] for x in order if x in id_map]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2284,19 +2295,20 @@ def reorder_tab_items(tab_id):
 @login_required
 def update_tab_item(tab_id, item_id):
     sid  = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
-    for tab in sess["tabs"]:
-        if tab["id"] == tab_id:
-            for item in tab["items"]:
-                if item["id"] == item_id:
-                    if "custom_name" in data:
-                        item["custom_name"] = data["custom_name"]
-                    if "doc_date" in data:
-                        item["doc_date"] = data["doc_date"]
-                    break
-            break
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for tab in sess["tabs"]:
+            if tab["id"] == tab_id:
+                for item in tab["items"]:
+                    if item["id"] == item_id:
+                        if "custom_name" in data:
+                            item["custom_name"] = data["custom_name"]
+                        if "doc_date" in data:
+                            item["doc_date"] = data["doc_date"]
+                        break
+                break
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2304,12 +2316,13 @@ def update_tab_item(tab_id, item_id):
 @login_required
 def delete_tab_item(tab_id, item_id):
     sid  = _get_sid()
-    sess = get_session(sid)
-    for tab in sess["tabs"]:
-        if tab["id"] == tab_id:
-            tab["items"] = [i for i in tab["items"] if i["id"] != item_id]
-            break
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for tab in sess["tabs"]:
+            if tab["id"] == tab_id:
+                tab["items"] = [i for i in tab["items"] if i["id"] != item_id]
+                break
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2360,13 +2373,14 @@ def upload_entries():
 @login_required
 def add_divider_entry():
     sid = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
     entry = {"type": "divider", "id": uuid.uuid4().hex,
              "title": data.get("title", ""), "desc": data.get("desc", ""),
              "restart_num": bool(data.get("restart_num", False))}
-    sess["entries"].append(entry)
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        sess["entries"].append(entry)
+        save_session(sid, sess)
     return jsonify(entry)
 
 
@@ -2374,15 +2388,16 @@ def add_divider_entry():
 @login_required
 def update_entry(entry_id):
     sid = _get_sid()
-    sess = get_session(sid)
     data = request.json or {}
-    for e in sess["entries"]:
-        if e["id"] == entry_id:
-            for key in ("title", "desc", "restart_num", "custom_name", "doc_date"):
-                if key in data:
-                    e[key] = data[key]
-            break
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for e in sess["entries"]:
+            if e["id"] == entry_id:
+                for key in ("title", "desc", "restart_num", "custom_name", "doc_date"):
+                    if key in data:
+                        e[key] = data[key]
+                break
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2390,16 +2405,17 @@ def update_entry(entry_id):
 @login_required
 def delete_entry(entry_id):
     sid = _get_sid()
-    sess = get_session(sid)
-    for e in sess["entries"]:
-        if e["id"] == entry_id and e.get("type") == "doc":
-            fp = e.get("filepath")
-            if fp and os.path.exists(fp):
-                try: os.remove(fp)
-                except: pass
-            break
-    sess["entries"] = [e for e in sess["entries"] if e["id"] != entry_id]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        for e in sess["entries"]:
+            if e["id"] == entry_id and e.get("type") == "doc":
+                fp = e.get("filepath")
+                if fp and os.path.exists(fp):
+                    try: os.remove(fp)
+                    except: pass
+                break
+        sess["entries"] = [e for e in sess["entries"] if e["id"] != entry_id]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2429,11 +2445,12 @@ def bulk_delete_entries():
 @login_required
 def reorder_entries():
     sid = _get_sid()
-    sess = get_session(sid)
     order = request.json.get("order", [])
-    id_map = {e["id"]: e for e in sess["entries"]}
-    sess["entries"] = [id_map[x] for x in order if x in id_map]
-    save_session(sid, sess)
+    with _session_write_lock:
+        sess = get_session(sid)
+        id_map = {e["id"]: e for e in sess["entries"]}
+        sess["entries"] = [id_map[x] for x in order if x in id_map]
+        save_session(sid, sess)
     return jsonify({"ok": True})
 
 
@@ -2558,9 +2575,10 @@ def _court_filing_filename(sess, seq=None):
     Elements the user left blank are simply omitted."""
     import datetime, re
     if seq is None:
-        # Fallback: seconds-of-day gives a distinct number per generation
+        # Fallback: millisecond-of-day gives a distinct number per generation
+        # even when two bundles are generated within the same second.
         now_t = datetime.datetime.now()
-        seq = now_t.hour * 3600 + now_t.minute * 60 + now_t.second
+        seq = (now_t.hour * 3600 + now_t.minute * 60 + now_t.second) * 1000 + now_t.microsecond // 1000
     parts = [f"Bundle {seq:03d}"]
     doc_t = (sess.get("doc_type") or "").strip()
     if doc_t in TEMPLATES:
