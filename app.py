@@ -2519,7 +2519,8 @@ def generate():
     user_id  = current_user.id
     owner    = is_owner()
 
-    _job_set(job_id, status="pending", filename=None, error=None, display_name=display_name)
+    _job_set(job_id, status="pending", filename=None, error=None, display_name=display_name,
+              user_id=user_id, owner=owner)
 
     # Resolve while the request context (current_user) still exists — the
     # background thread is unauthenticated and would compute the wrong path.
@@ -2604,6 +2605,46 @@ def _court_filing_filename(sess, seq=None):
     return s[:180] + ".pdf"
 
 
+def _reconcile_stuck_jobs(stuck_after_seconds=900):
+    """A background generate() thread that dies without reaching its except
+    block (process killed, redeploy mid-generation) leaves its job stuck at
+    status="pending" forever, and the bundle credit charged at request time
+    (see generate()) is never refunded. Treat any "pending" job older than
+    stuck_after_seconds (generation never legitimately takes this long) as
+    dead: refund the credit and mark it as an error so job_status stops
+    polling and the eventual 2h purge just deletes an already-settled file."""
+    import time
+    now = time.time()
+    try:
+        names = os.listdir(OUTPUT_FOLDER)
+    except OSError:
+        return
+    for name in names:
+        if not name.startswith("job_"):
+            continue
+        path = os.path.join(OUTPUT_FOLDER, name)
+        try:
+            if now - os.path.getmtime(path) <= stuck_after_seconds:
+                continue
+            info = _json.loads(open(path).read())
+        except (OSError, ValueError):
+            continue
+        if info.get("status") != "pending":
+            continue
+        user_id = info.get("user_id")
+        if user_id is not None and not info.get("owner"):
+            try:
+                user = db.session.get(User, user_id)
+                if user and (user.bundles_used or 0) > 0:
+                    user.bundles_used -= 1
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+                app.logger.error(f"Failed to refund stuck job {name}", exc_info=True)
+        _job_set(name[len("job_"):-len(".json")], status="error",
+                 error="Bundle generation was interrupted. Please try again.")
+
+
 def _purge_old_outputs(max_age_seconds=7200, upload_max_age_seconds=86400):
     """Privacy guarantee sweep, run opportunistically on upload/generate/download:
     - bundles and job records deleted after 2 hours (kept briefly so downloads
@@ -2611,6 +2652,7 @@ def _purge_old_outputs(max_age_seconds=7200, upload_max_age_seconds=86400):
     - abandoned uploads (uploaded but never generated) deleted after 24 hours,
       server-side, regardless of how the user's browser closed"""
     import time
+    _reconcile_stuck_jobs()
     now = time.time()
     try:
         for name in os.listdir(OUTPUT_FOLDER):
@@ -2646,6 +2688,14 @@ def job_download(job_id):
     info = _job_get(job_id)
     if not info or info.get("status") != "done":
         return "Not ready", 404
+    # Defense in depth: when a session cookie IS present (the common case —
+    # only Safari's download manager drops it), require it to match the
+    # job's owner. A guessed/leaked job_id can't be used from a *different*
+    # logged-in account; it still works cookie-less, same as before, for
+    # the Safari bug this route exists to work around.
+    job_user_id = info.get("user_id")
+    if current_user.is_authenticated and job_user_id is not None and current_user.id != job_user_id:
+        return "Not found", 404
     filename = info.get("filename", "")
     safe_name = os.path.basename(filename)
     path = os.path.join(OUTPUT_FOLDER, safe_name)
