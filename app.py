@@ -127,9 +127,17 @@ def _job_delete(job_id):
         os.remove(p)
     except OSError:
         pass
+
+# merge_pdfs builds the entire bundle in memory before writing it out, so peak
+# memory scales with bundle size (uploads are allowed up to 500 MB). Cap how
+# many bundles a worker builds at once; the rest queue briefly.
+_MAX_CONCURRENT_GENERATES = int(os.environ.get("MAX_CONCURRENT_GENERATES", "2"))
+_GENERATE_WAIT_TIMEOUT    = int(os.environ.get("GENERATE_WAIT_TIMEOUT", "600"))  # 10 min
+_generate_semaphore = threading.Semaphore(_MAX_CONCURRENT_GENERATES)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _db_ready = False
+_db_ready_lock = threading.Lock()
 
 def _migrate_db():
     """Add any missing columns to existing tables without losing data."""
@@ -155,8 +163,14 @@ def _migrate_db():
 
 @app.before_request
 def _ensure_db():
+    # Double-checked locking: without it, concurrent requests at cold start
+    # all race into create_all()/_migrate_db() before any of them sets the flag.
     global _db_ready
-    if not _db_ready:
+    if _db_ready:
+        return
+    with _db_ready_lock:
+        if _db_ready:
+            return
         try:
             db.create_all()
             _migrate_db()
@@ -448,13 +462,18 @@ class UploadRejected(Exception):
 def _decrypt_pdf_if_needed(filepath):
     """Court-filed and bank PDFs are often AES-"secured" with an empty user
     password. Rewrite them decrypted so merging never hits encryption.
-    Raises UploadRejected if the PDF is unreadable or needs a real password."""
+    Raises UploadRejected if the PDF is unreadable or needs a real password.
+    Returns the page count (this reader already parsed the file, so the caller
+    can skip a second parse) or None if it could not be determined."""
     try:
         rdr = PdfReader(filepath)
     except Exception:
         raise UploadRejected("The file is damaged or is not a valid PDF. Try re-saving or re-exporting it.")
     if not rdr.is_encrypted:
-        return
+        try:
+            return len(rdr.pages)
+        except Exception:
+            return None
     try:
         if not rdr.decrypt(""):
             raise UploadRejected("The PDF is password-protected. Remove the password (open it, enter the password, then print/save as a new PDF) and upload again.")
@@ -465,6 +484,7 @@ def _decrypt_pdf_if_needed(filepath):
         with open(tmp, "wb") as fh:
             w.write(fh)
         os.replace(tmp, filepath)
+        return len(w.pages)
     except UploadRejected:
         raise
     except Exception as e:
@@ -479,6 +499,7 @@ def _make_file_item(f, ext):
     item_id  = uuid.uuid4().hex
     raw_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}{ext}")
     f.save(raw_dest)
+    known_page_count = None  # set only for PDFs, which are parsed during decrypt-check
     if ext in IMAGE_EXTENSIONS:
         pdf_dest = os.path.join(UPLOAD_FOLDER, f"{item_id}.pdf")
         image_to_pdf(raw_dest, pdf_dest)
@@ -492,13 +513,15 @@ def _make_file_item(f, ext):
     else:
         filepath = raw_dest
         try:
-            _decrypt_pdf_if_needed(filepath)
+            # Reuse the page count from the parse this already does, so an
+            # uploaded PDF is read once instead of twice.
+            known_page_count = _decrypt_pdf_if_needed(filepath)
         except UploadRejected:
             try: os.remove(raw_dest)
             except OSError: pass
             raise
     base_name  = os.path.splitext(f.filename)[0].replace("_", " ").replace("-", " ")
-    page_count = get_pdf_page_count(filepath)
+    page_count = known_page_count if known_page_count is not None else get_pdf_page_count(filepath)
     file_type  = "image" if ext in IMAGE_EXTENSIONS else ("word" if ext in WORD_EXTENSIONS else "pdf")
     return {
         "id":           item_id,
@@ -2528,7 +2551,18 @@ def generate():
 
     def _run(app_, sess_, sess_file_, out_path_, out_name_, job_id_, user_id_, owner_):
         with app_.app_context():
+            acquired = False
             try:
+                # merge_pdfs holds the whole bundle in memory; uploads can be
+                # 500 MB, so unbounded concurrent generates can OOM the worker.
+                acquired = _generate_semaphore.acquire(timeout=_GENERATE_WAIT_TIMEOUT)
+                if not acquired:
+                    raise RuntimeError(
+                        "The server is busy generating other bundles. Please try again in a few minutes."
+                    )
+                # Refresh the job's mtime now that real work is starting, so the
+                # stuck-job sweep times out generation itself, not queue waiting.
+                _job_set(job_id_, status="pending")
                 merge_pdfs(sess_, out_path_)
                 # (bundle counter was already claimed in the request)
                 # Uploaded documents are kept after generation so the user can
@@ -2549,6 +2583,9 @@ def generate():
                     except Exception:
                         db.session.rollback()
                 _job_set(job_id_, status="error", error=f"{type(e).__name__}: {e}")
+            finally:
+                if acquired:
+                    _generate_semaphore.release()
 
     import threading
     threading.Thread(
