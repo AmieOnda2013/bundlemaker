@@ -1326,6 +1326,44 @@ def _no_cache_html(resp):
 
 # ── Auth routes ──────────────────────────────────────────────────────────────
 
+# ── Signup abuse protection ──────────────────────────────────────────────────
+# The signup form makes the server send mail to any address supplied, so an
+# unprotected form can be driven as a mail relay to bomb third parties.
+_SIGNUP_MAX_PER_WINDOW = int(os.environ.get("SIGNUP_MAX_PER_WINDOW", "5"))
+_SIGNUP_WINDOW_SECONDS = int(os.environ.get("SIGNUP_WINDOW_SECONDS", "3600"))
+_signup_attempts = {}          # ip -> [timestamps]
+_signup_attempts_lock = threading.Lock()
+
+
+def _client_ip():
+    """Railway/proxies put the real client first in X-Forwarded-For."""
+    fwd = request.headers.get("X-Forwarded-For", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def _signup_rate_limited(ip):
+    """Sliding-window limit per IP. In-memory, so it is per worker process —
+    that still cuts an automated flood by an order of magnitude, and the
+    honeypot catches the naive bots that this alone would not."""
+    import time
+    now = time.time()
+    cutoff = now - _SIGNUP_WINDOW_SECONDS
+    with _signup_attempts_lock:
+        # Opportunistic cleanup so the dict cannot grow without bound.
+        if len(_signup_attempts) > 2048:
+            for k in [k for k, v in _signup_attempts.items() if not v or v[-1] < cutoff]:
+                _signup_attempts.pop(k, None)
+        hits = [t for t in _signup_attempts.get(ip, []) if t >= cutoff]
+        if len(hits) >= _SIGNUP_MAX_PER_WINDOW:
+            _signup_attempts[ip] = hits
+            return True
+        hits.append(now)
+        _signup_attempts[ip] = hits
+        return False
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
@@ -1335,6 +1373,13 @@ def register():
         email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         confirm  = request.form.get("confirm", "")
+        # Honeypot: a field hidden from humans via CSS. Bots fill every input,
+        # so anything here means automation. Report success without creating
+        # the account or sending mail, so the bot does not learn it was caught.
+        if request.form.get("company_website", "").strip():
+            app.logger.warning(f"Signup honeypot triggered from {_client_ip()} for {email}")
+            flash("Account created! Please check your email to verify your address before generating bundles.", "info")
+            return redirect(url_for("home"))
         if not email or not password:
             error = "Email and password are required."
         elif len(password) < 8:
@@ -1343,6 +1388,10 @@ def register():
             error = "Passwords do not match."
         elif db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none():
             error = "An account with that email already exists."
+        elif _signup_rate_limited(_client_ip()):
+            app.logger.warning(f"Signup rate limit hit from {_client_ip()} for {email}")
+            error = ("Too many accounts have been created from this network recently. "
+                     "Please try again later, or email support@bundlemaker.app for help.")
         else:
             user = User(email=email)
             user.set_password(password)

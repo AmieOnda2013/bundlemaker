@@ -129,6 +129,15 @@
     {% endif %}
 
     <form method="POST" autocomplete="on">
+      <!-- Honeypot: positioned off-screen rather than display:none (some bots
+           skip hidden fields). Hidden from screen readers and keyboard users,
+           and excluded from autofill, so no real person can fill it in. -->
+      <div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+        <label for="company_website">Do not fill this in</label>
+        <input type="text" id="company_website" name="company_website"
+               tabindex="-1" autocomplete="off"/>
+      </div>
+
       <label for="email">Email Address</label>
       <input type="email" id="email" name="email" required autofocus
              placeholder="you@lawfirm.com"/>
