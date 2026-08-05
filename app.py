@@ -1898,7 +1898,32 @@ def admin_set_plan():
         target_email = request.form.get("email", "").strip().lower()
         action       = request.form.get("action", "set_plan")
         target = db.session.execute(db.select(User).filter_by(email=target_email)).scalar_one_or_none()
-        if not target:
+        if action in ("preview_test_accounts", "purge_test_accounts"):
+            # example.com is a reserved, non-routable domain (RFC 2606), so
+            # these can only ever be throwaway test signups. Still require the
+            # account to be untouched — free, no Stripe, no usage.
+            candidates = [
+                u for u in users
+                if u.email.lower().endswith("@example.com")
+                and not is_owner(u)
+                and u.plan == "free"
+                and not u.stripe_subscription_id
+                and not (u.bundles_used or 0)
+                and not (u.topup_bundles or 0)
+            ]
+            if not candidates:
+                message = "No test accounts found to delete."
+            elif action == "preview_test_accounts":
+                message = (f"{len(candidates)} test account(s) would be deleted: "
+                           + ", ".join(u.email for u in candidates))
+            else:
+                names = [u.email for u in candidates]
+                for u in candidates:
+                    db.session.delete(u)
+                db.session.commit()
+                users = db.session.execute(db.select(User).order_by(User.id)).scalars().all()
+                message = f"Deleted {len(names)} test account(s): " + ", ".join(names)
+        elif not target:
             message = f"No user found with email: {target_email}"
         elif action == "grant_topup":
             added = int(request.form.get("bundles", TOPUP_BUNDLES))
@@ -1912,6 +1937,26 @@ def admin_set_plan():
             target.last_topup_session = None
             db.session.commit()
             message = f"Revoked top-up bundles from {target_email} ({prev} bundles removed)"
+        elif action == "delete_user":
+            # Deletion is irreversible, so refuse anything that looks like a
+            # real customer: owner accounts, paid plans, live Stripe
+            # subscriptions, or any account that has actually used the product.
+            if is_owner(target):
+                message = f"Refused: {target_email} is an owner account."
+            elif target.plan != "free" or target.stripe_subscription_id:
+                message = (f"Refused: {target_email} is on the {target.plan} plan"
+                           + (" with an active Stripe subscription" if target.stripe_subscription_id else "")
+                           + ". Revert to Free and cancel in Stripe first.")
+            elif (target.bundles_used or 0) > 0 or (target.topup_bundles or 0) > 0:
+                message = (f"Refused: {target_email} has usage history "
+                           f"(used={target.bundles_used or 0}, topup={target.topup_bundles or 0}). "
+                           "Delete only unused accounts.")
+            else:
+                db.session.delete(target)
+                db.session.commit()
+                message = f"Deleted account {target_email}"
+                users = db.session.execute(db.select(User).order_by(User.id)).scalars().all()
+
         elif action == "revert_free":
             target.plan                   = "free"
             target.plan_period            = "monthly"
@@ -1985,6 +2030,24 @@ def admin_set_plan():
       <label>Revert to Free — User email</label>
       <input name="email" type="email" required placeholder="user@example.com"/>
       <button type="submit" style="background:#c0392b">Revert to Free Plan</button>
+    </form>
+    <h3 style="color:#c0392b">Delete Accounts</h3>
+    <p style="font-size:0.82rem;color:#888;margin-bottom:12px">Permanent. Refused for owner accounts, paid plans,
+    live Stripe subscriptions, and any account with usage history.</p>
+    <form method="POST" style="margin-bottom:16px">
+      <input type="hidden" name="action" value="preview_test_accounts"/>
+      <label>Test accounts (@example.com)</label>
+      <button type="submit">Preview test accounts to delete</button>
+    </form>
+    <form method="POST" onsubmit="return confirm('Permanently delete ALL unused @example.com test accounts?')">
+      <input type="hidden" name="action" value="purge_test_accounts"/>
+      <button type="submit" style="background:#c0392b">Delete All Test Accounts</button>
+    </form>
+    <form method="POST" style="margin-top:16px" onsubmit="return confirm('Permanently delete this account? This cannot be undone.')">
+      <input type="hidden" name="action" value="delete_user"/>
+      <label>Delete single account — User email</label>
+      <input name="email" type="email" required placeholder="user@example.com"/>
+      <button type="submit" style="background:#c0392b">Delete Account</button>
     </form>
     <table><tr><th>Email</th><th>Plan</th><th>Used</th><th>Top-up</th><th>Verified</th></tr>
     {''.join(f"<tr><td>{escape(u.email)}</td><td>{escape(u.plan)}</td><td>{u.bundles_used}</td><td>{u.topup_bundles or 0}</td><td>{'✓' if u.email_verified else '✗'}</td></tr>" for u in users)}
