@@ -1685,6 +1685,35 @@ def pricing():
                            topup_bundles=TOPUP_BUNDLES, topup_price=TOPUP_PRICE)
 
 
+def _stripe_customer_id(user):
+    """Return a Stripe customer id that is valid *right now*.
+
+    A saved id goes stale when the customer is deleted in Stripe, or when the
+    account switches between test and live mode — live mode cannot see a
+    test-mode customer. Reusing a stale id makes every checkout attempt fail
+    with "No such customer", permanently locking that user out of paying, so
+    verify it and transparently re-create the customer when it no longer
+    resolves."""
+    cid = user.stripe_customer_id
+    if cid:
+        try:
+            cust = stripe.Customer.retrieve(cid)
+            if not getattr(cust, "deleted", False):
+                return cid
+            app.logger.warning(f"Stripe customer {cid} for {user.email} is deleted — recreating")
+        except stripe.error.InvalidRequestError:
+            app.logger.warning(f"Stripe customer {cid} for {user.email} is not valid — recreating")
+    customer = stripe.Customer.create(email=user.email)
+    user.stripe_customer_id = customer.id
+    db.session.commit()
+    return customer.id
+
+
+_STRIPE_ERROR_MSG = ("We could not reach our payment provider just now. "
+                     "Please try again in a moment — if it keeps happening, "
+                     "email support@bundlemaker.app and we will sort it out.")
+
+
 @app.route("/upgrade/<plan>")
 @login_required
 def upgrade(plan):
@@ -1696,22 +1725,25 @@ def upgrade(plan):
         flash("Stripe is not configured yet. Please contact support.", "error")
         return redirect(url_for("account"))
 
-    if not current_user.stripe_customer_id:
-        customer = stripe.Customer.create(email=current_user.email)
-        current_user.stripe_customer_id = customer.id
-        db.session.commit()
-
     base_url = request.host_url.rstrip("/")
-    checkout = stripe.checkout.Session.create(
-        customer=current_user.stripe_customer_id,
-        payment_method_types=["card"],
-        line_items=[{"price": price_id, "quantity": 1}],
-        mode="subscription",
-        allow_promotion_codes=True,
-        success_url=f"{base_url}/upgrade/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{base_url}/pricing",
-        metadata={"user_id": str(current_user.id), "plan": plan, "period": period},
-    )
+    try:
+        customer_id = _stripe_customer_id(current_user)
+        checkout = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            allow_promotion_codes=True,
+            success_url=f"{base_url}/upgrade/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/pricing",
+            metadata={"user_id": str(current_user.id), "plan": plan, "period": period},
+        )
+    except stripe.error.StripeError as e:
+        # Never show a 500 here: a checkout that dead-ends looks like the
+        # product is broken and the sale is lost.
+        app.logger.error(f"Stripe checkout failed for {current_user.email} ({plan}/{period}): {e}")
+        flash(_STRIPE_ERROR_MSG, "error")
+        return redirect(url_for("pricing"))
     return redirect(checkout.url, code=303)
 
 
@@ -1721,21 +1753,23 @@ def topup():
     if not TOPUP_PRICE_ID or not stripe.api_key:
         flash("Top-up is not available yet. Please contact support.", "error")
         return redirect(url_for("pricing"))
-    if not current_user.stripe_customer_id:
-        customer = stripe.Customer.create(email=current_user.email)
-        current_user.stripe_customer_id = customer.id
-        db.session.commit()
     base_url = request.host_url.rstrip("/")
-    checkout = stripe.checkout.Session.create(
-        customer=current_user.stripe_customer_id,
-        payment_method_types=["card"],
-        line_items=[{"price": TOPUP_PRICE_ID, "quantity": 1}],
-        mode="payment",
-        allow_promotion_codes=True,
-        success_url=f"{base_url}/topup/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{base_url}/pricing",
-        metadata={"user_id": str(current_user.id), "topup": "1", "bundles": str(TOPUP_BUNDLES)},
-    )
+    try:
+        customer_id = _stripe_customer_id(current_user)
+        checkout = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": TOPUP_PRICE_ID, "quantity": 1}],
+            mode="payment",
+            allow_promotion_codes=True,
+            success_url=f"{base_url}/topup/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/pricing",
+            metadata={"user_id": str(current_user.id), "topup": "1", "bundles": str(TOPUP_BUNDLES)},
+        )
+    except stripe.error.StripeError as e:
+        app.logger.error(f"Stripe top-up checkout failed for {current_user.email}: {e}")
+        flash(_STRIPE_ERROR_MSG, "error")
+        return redirect(url_for("pricing"))
     return redirect(checkout.url, code=303)
 
 
@@ -1835,10 +1869,15 @@ def billing_portal():
     if not current_user.stripe_customer_id or not stripe.api_key:
         return redirect(url_for("account"))
     base_url = request.host_url.rstrip("/")
-    portal = stripe.billing_portal.Session.create(
-        customer=current_user.stripe_customer_id,
-        return_url=f"{base_url}/account",
-    )
+    try:
+        portal = stripe.billing_portal.Session.create(
+            customer=_stripe_customer_id(current_user),
+            return_url=f"{base_url}/account",
+        )
+    except stripe.error.StripeError as e:
+        app.logger.error(f"Stripe billing portal failed for {current_user.email}: {e}")
+        flash(_STRIPE_ERROR_MSG, "error")
+        return redirect(url_for("account"))
     return redirect(portal.url, code=303)
 
 

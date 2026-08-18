@@ -86,6 +86,18 @@
   </div>
 </div>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div style="max-width:760px;margin:20px auto 0;padding:0 20px">
+    {% for category, msg in messages %}
+    <div style="padding:14px 18px;border-radius:8px;margin-bottom:10px;font-size:0.95rem;
+                {% if category == 'error' %}background:#fdecea;border:1px solid #f5c6c6;color:#c0392b
+                {% else %}background:#e8f5e9;border:1px solid #b2dfdb;color:#2e7d32{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
 <div class="page">
   <a href="/" class="back">← Back to BundleMaker</a>
   <h1>Simple, Transparent Pricing</h1>

@@ -99,6 +99,16 @@
     <a href="/">← Back to BundleMaker</a>
   </div>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+      <div style="padding:14px 18px;border-radius:8px;margin-bottom:14px;font-size:0.95rem;
+                  {% if category == 'error' %}background:#fdecea;border:1px solid #f5c6c6;color:#c0392b
+                  {% else %}background:#e8f5e9;border:1px solid #b2dfdb;color:#2e7d32{% endif %}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
   <!-- Account details -->
   <div class="card">
     <div class="card-title">Account Details</div>
