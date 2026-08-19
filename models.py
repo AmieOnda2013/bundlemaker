@@ -25,7 +25,7 @@ class User(UserMixin, db.Model):
 
     # Email verification
     email_verified       = db.Column(db.Boolean, default=False, nullable=False)
-    email_verify_token   = db.Column(db.String(128), nullable=True)
+    email_verify_token   = db.Column(db.String(128), nullable=True, index=True)
 
     # Subscription
     plan                 = db.Column(db.String(50), default="free")  # free | solo | professional | firm
@@ -34,9 +34,9 @@ class User(UserMixin, db.Model):
     topup_bundles        = db.Column(db.Integer, default=0)   # extra bundles from one-time top-up purchases
     last_topup_session   = db.Column(db.String(255), nullable=True)  # Stripe session id — prevents double-credit
     bundles_reset_date   = db.Column(db.DateTime, nullable=True)  # when monthly counter resets
-    stripe_customer_id      = db.Column(db.String(255), nullable=True)
+    stripe_customer_id      = db.Column(db.String(255), nullable=True, index=True)
     stripe_subscription_id  = db.Column(db.String(255), nullable=True)
-    password_reset_token    = db.Column(db.String(128), nullable=True)
+    password_reset_token    = db.Column(db.String(128), nullable=True, index=True)
     password_reset_expires  = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):

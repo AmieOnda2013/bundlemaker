@@ -153,6 +153,10 @@ def _migrate_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS topup_bundles INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_topup_session VARCHAR(255)",
+        # Queried by equality on every webhook / verify / reset click.
+        "CREATE INDEX IF NOT EXISTS ix_users_stripe_customer_id ON users (stripe_customer_id)",
+        "CREATE INDEX IF NOT EXISTS ix_users_email_verify_token ON users (email_verify_token)",
+        "CREATE INDEX IF NOT EXISTS ix_users_password_reset_token ON users (password_reset_token)",
     ]
     for sql in migrations:
         try:
@@ -1331,8 +1335,12 @@ def _no_cache_html(resp):
 # unprotected form can be driven as a mail relay to bomb third parties.
 _SIGNUP_MAX_PER_WINDOW = int(os.environ.get("SIGNUP_MAX_PER_WINDOW", "5"))
 _SIGNUP_WINDOW_SECONDS = int(os.environ.get("SIGNUP_WINDOW_SECONDS", "3600"))
-_signup_attempts = {}          # ip -> [timestamps]
-_signup_attempts_lock = threading.Lock()
+_LOGIN_MAX_PER_WINDOW  = int(os.environ.get("LOGIN_MAX_PER_WINDOW", "10"))
+_LOGIN_WINDOW_SECONDS  = int(os.environ.get("LOGIN_WINDOW_SECONDS", "900"))    # 15 min
+_RESET_MAX_PER_WINDOW  = int(os.environ.get("RESET_MAX_PER_WINDOW", "3"))
+_RESET_WINDOW_SECONDS  = int(os.environ.get("RESET_WINDOW_SECONDS", "3600"))
+_rate_buckets = {}             # (bucket, key) -> [timestamps]
+_rate_buckets_lock = threading.Lock()
 
 
 def _client_ip():
@@ -1343,25 +1351,30 @@ def _client_ip():
     return request.remote_addr or "unknown"
 
 
-def _signup_rate_limited(ip):
-    """Sliding-window limit per IP. In-memory, so it is per worker process —
-    that still cuts an automated flood by an order of magnitude, and the
-    honeypot catches the naive bots that this alone would not."""
+def _rate_limited(bucket, key, max_per_window, window_seconds):
+    """Sliding-window limit. In-memory, so it is per worker process — that
+    still cuts an automated flood by an order of magnitude, and for signup
+    the honeypot catches the naive bots that this alone would not."""
     import time
     now = time.time()
-    cutoff = now - _SIGNUP_WINDOW_SECONDS
-    with _signup_attempts_lock:
+    cutoff = now - window_seconds
+    bk = (bucket, key)
+    with _rate_buckets_lock:
         # Opportunistic cleanup so the dict cannot grow without bound.
-        if len(_signup_attempts) > 2048:
-            for k in [k for k, v in _signup_attempts.items() if not v or v[-1] < cutoff]:
-                _signup_attempts.pop(k, None)
-        hits = [t for t in _signup_attempts.get(ip, []) if t >= cutoff]
-        if len(hits) >= _SIGNUP_MAX_PER_WINDOW:
-            _signup_attempts[ip] = hits
+        if len(_rate_buckets) > 4096:
+            for k in [k for k, v in _rate_buckets.items() if not v or v[-1] < cutoff]:
+                _rate_buckets.pop(k, None)
+        hits = [t for t in _rate_buckets.get(bk, []) if t >= cutoff]
+        if len(hits) >= max_per_window:
+            _rate_buckets[bk] = hits
             return True
         hits.append(now)
-        _signup_attempts[ip] = hits
+        _rate_buckets[bk] = hits
         return False
+
+
+def _signup_rate_limited(ip):
+    return _rate_limited("signup", ip, _SIGNUP_MAX_PER_WINDOW, _SIGNUP_WINDOW_SECONDS)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -1577,6 +1590,13 @@ def forgot_password():
     sent = False
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
+        # Limit per IP and per target address: without this, anyone can use
+        # the form to bomb a stranger's inbox through our Brevo account (each
+        # POST also rotates the token, invalidating the previous email).
+        if (_rate_limited("reset-ip", _client_ip(), _RESET_MAX_PER_WINDOW, _RESET_WINDOW_SECONDS)
+                or _rate_limited("reset-email", email, _RESET_MAX_PER_WINDOW, _RESET_WINDOW_SECONDS)):
+            app.logger.warning(f"Password reset rate limit hit from {_client_ip()} for {email}")
+            return render_template("forgot_password.html", sent=True)  # same response, no probe signal
         user  = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user:
             token = user.generate_reset_token()
@@ -1645,11 +1665,18 @@ def login():
     if request.method == "POST":
         email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        user     = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
+        if _rate_limited("login", _client_ip(), _LOGIN_MAX_PER_WINDOW, _LOGIN_WINDOW_SECONDS):
+            app.logger.warning(f"Login rate limit hit from {_client_ip()} for {email}")
+            error = "Too many login attempts. Please wait a few minutes and try again."
+            return render_template("login.html", error=error)
+        user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user and user.check_password(password):
             login_user(user, remember=True)
             next_url = request.args.get("next", "")
-            if next_url and not next_url.startswith("/"):
+            # Require a same-site path: reject "//evil.com" (protocol-relative)
+            # and anything with a scheme/host, else login becomes an open
+            # redirect usable for phishing.
+            if not next_url.startswith("/") or next_url.startswith("//") or ":" in next_url:
                 next_url = ""
             return redirect(next_url or url_for("home"))
         error = "Invalid email or password."

@@ -931,7 +931,18 @@ function onPageNumbersToggle(){
   saveSettings();
 }
 
-async function saveSettings(){
+// Debounced: text inputs call saveSettings() per keystroke, and an
+// un-debounced POST per character floods the server and can finish out of
+// order, leaving an older payload as the last write. Callers that need the
+// save on the server *now* (generate) use saveSettingsNow() instead.
+let _settingsTimer = null;
+function saveSettings(){
+  clearTimeout(_settingsTimer);
+  _settingsTimer = setTimeout(saveSettingsNow, 500);
+}
+
+async function saveSettingsNow(){
+  clearTimeout(_settingsTimer);
   await fetch('/api/session', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -1297,20 +1308,44 @@ async function deleteSelectedEntries(){
   selectedIds.clear();
   renderEntries();
   toast(`${n} item${n!==1?'s':''} removed.`,'success');
-  await fetch('/api/entries/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+  await entryMutation('/api/entries/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+}
+
+// The UI updates optimistically, so a mutation the server rejected would
+// leave the screen showing names/order the generated bundle won't use —
+// unacceptable for a legal document. On failure: tell the user and reload
+// the server's actual state so the screen is truthful again.
+// Refresh only the entries list from the server — unlike loadSession(),
+// this never touches form fields the user may be mid-way through editing.
+async function loadEntries(){
+  const r = await fetch('/api/session');
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const s = await r.json();
+  entries = s.entries || [];
+}
+
+async function entryMutation(url, opts){
+  try {
+    const res = await fetch(url, opts);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+  } catch(e){
+    toast('That change could not be saved. Reloading the current state…','error');
+    try { await loadEntries(); renderEntries(); renderTocPreview(); } catch(_){}
+  }
 }
 
 async function reorderGroup(ids, tgtId){
   // Move all ids (in current list order) to sit before/at the target position
-  const moving = entries.filter(e => ids.includes(e.id));
-  if(!moving.length || ids.includes(tgtId)) return;
-  const rest = entries.filter(e => !ids.includes(e.id));
+  const idSet = new Set(ids);
+  const moving = entries.filter(e => idSet.has(e.id));
+  if(!moving.length || idSet.has(tgtId)) return;
+  const rest = entries.filter(e => !idSet.has(e.id));
   const ti = rest.findIndex(e => e.id === tgtId);
   if(ti < 0) return;
   rest.splice(ti, 0, ...moving);
   entries = rest;
   renderEntries();
-  await fetch('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
+  await entryMutation('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
 }
 
 function renderEntries(){
@@ -1436,20 +1471,20 @@ async function updateDivider(id, field, value){
   if(e) e[field] = value;
   if(field === 'restart_num') renderEntries(); // re-number
   else renderTocPreview();
-  await fetch(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
+  await entryMutation(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
 }
 
 async function updateEntryDoc(id, field, value){
   const e = entries.find(e=>e.id===id);
   if(e) e[field] = value;
   renderTocPreview();
-  await fetch(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
+  await entryMutation(`/api/entries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[field]:value})});
 }
 
 async function deleteEntry(id){
   entries = entries.filter(e=>e.id!==id);
   renderEntries();
-  await fetch(`/api/entries/${id}`,{method:'DELETE'});
+  await entryMutation(`/api/entries/${id}`,{method:'DELETE'});
 }
 
 async function reorderEntries(srcId, tgtId){
@@ -1458,7 +1493,7 @@ async function reorderEntries(srcId, tgtId){
   if(si<0||ti<0) return;
   const [m] = entries.splice(si,1); entries.splice(ti,0,m);
   renderEntries();
-  await fetch('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
+  await entryMutation('/api/entries/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:entries.map(e=>e.id)})});
 }
 
 // Legacy stubs kept for any residual calls
@@ -1497,6 +1532,8 @@ async function generate(){
 
   let d;
   try {
+    // Flush any debounced settings edit so the bundle uses what's on screen.
+    await saveSettingsNow();
     const r = await fetch('/api/generate',{method:'POST'});
     d = await r.json();
   } catch(e) {
@@ -1513,17 +1550,41 @@ async function generate(){
     return;
   }
 
-  // Poll for job completion
+  // Poll for job completion. Bounded: transient errors are tolerated but
+  // repeated failures or an absolute timeout stop the spinner instead of
+  // leaving the user stuck on an overlay forever after a server restart.
   const jobId = d.job_id;
   let dots = 0;
+  let failures = 0;
+  const startedAt = Date.now();
+  const POLL_MAX_FAILURES = 5;
+  const POLL_MAX_MS = 15 * 60 * 1000;   // matches server-side generate cap
   const poll = setInterval(async ()=>{
     dots = (dots+1)%4;
     setProcessingMessage('Preparing your bundle' + '.'.repeat(dots+1));
+    if(Date.now() - startedAt > POLL_MAX_MS){
+      clearInterval(poll);
+      showProcessingOverlay(false);
+      if(btn) btn.disabled = false;
+      toast('This is taking longer than expected. Please refresh the page and try again.','error');
+      return;
+    }
     let info;
     try {
       const pr = await fetch(`/api/job/${jobId}`);
+      if(!pr.ok) throw new Error('HTTP '+pr.status);
       info = await pr.json();
-    } catch(e){ return; }
+      failures = 0;
+    } catch(e){
+      failures++;
+      if(failures >= POLL_MAX_FAILURES){
+        clearInterval(poll);
+        showProcessingOverlay(false);
+        if(btn) btn.disabled = false;
+        toast('Lost contact with the server. Please refresh the page and try again.','error');
+      }
+      return;
+    }
 
     if(info.status === 'done'){
       clearInterval(poll);
@@ -1721,9 +1782,20 @@ function toast(msg, type='info'){
   t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
-document.getElementById('docType').addEventListener('input', ()=>{ saveSettings(); renderEntries(); });
+// Debounced: rebuilding the whole entries list per keystroke is heavy with
+// large bundles, and the numbering style it refreshes only needs to update
+// when the user pauses typing.
+let _docTypeRenderTimer = null;
+document.getElementById('docType').addEventListener('input', ()=>{
+  saveSettings();
+  clearTimeout(_docTypeRenderTimer);
+  _docTypeRenderTimer = setTimeout(renderEntries, 400);
+});
 
-loadSession();
+loadSession().catch(e => {
+  console.error('loadSession failed:', e);
+  toast('Could not load your bundle. Please refresh the page.','error');
+});
 </script>
 </body>
 </html>
